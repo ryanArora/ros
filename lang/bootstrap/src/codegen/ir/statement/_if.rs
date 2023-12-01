@@ -1,9 +1,6 @@
 use crate::{
     ast::statement::IfStatement,
-    ir::{
-        IRBranchStatement, IRConditionalBranchStatement, IRLabelStatement, IRState, IRStatement,
-        IRWalkable,
-    },
+    codegen::ir::{IRState, IRStatement, IRWalkable, Label, Register},
     syntax_error::SyntaxError,
 };
 
@@ -27,11 +24,10 @@ impl IRWalkable for IfStatement {
         // If
         let if_condition = self._if.condition.walk_ir(ir)?;
 
-        ir.statements
-            .push(IRStatement::BranchNotZero(IRConditionalBranchStatement {
-                register: if_condition,
-                label: if_label,
-            }));
+        ir.statements.push(IRStatement::BranchNotZero {
+            rs1: Register(if_condition),
+            label: Label(if_label),
+        });
 
         // Else if
 
@@ -39,11 +35,10 @@ impl IRWalkable for IfStatement {
         for else_if in &self.else_if {
             let else_if_condition = else_if.condition.walk_ir(ir)?;
 
-            ir.statements
-                .push(IRStatement::BranchNotZero(IRConditionalBranchStatement {
-                    register: else_if_condition,
-                    label: current_else_if_label,
-                }));
+            ir.statements.push(IRStatement::BranchNotZero {
+                rs1: Register(else_if_condition),
+                label: Label(current_else_if_label),
+            });
 
             current_else_if_label += 1;
         }
@@ -51,12 +46,12 @@ impl IRWalkable for IfStatement {
         // Branch to else or done label
 
         match self._else {
-            Some(_) => ir
-                .statements
-                .push(IRStatement::Branch(IRBranchStatement { label: else_label })),
-            None => ir
-                .statements
-                .push(IRStatement::Branch(IRBranchStatement { label: done_label })),
+            Some(_) => ir.statements.push(IRStatement::Branch {
+                label: Label(else_label),
+            }),
+            None => ir.statements.push(IRStatement::Branch {
+                label: Label(done_label),
+            }),
         }
 
         //
@@ -64,30 +59,34 @@ impl IRWalkable for IfStatement {
         //
 
         // If block
-        ir.statements
-            .push(IRStatement::Label(IRLabelStatement { label: if_label }));
+        ir.statements.push(IRStatement::Label {
+            label: Label(if_label),
+        });
         self._if.block.walk_ir(ir)?;
-        ir.statements
-            .push(IRStatement::Branch(IRBranchStatement { label: done_label }));
+        ir.statements.push(IRStatement::Branch {
+            label: Label(done_label),
+        });
 
         // Else if blocks
         let mut current_else_if_label = first_else_if_label;
         for else_if in &self.else_if {
-            ir.statements.push(IRStatement::Label(IRLabelStatement {
-                label: current_else_if_label,
-            }));
+            ir.statements.push(IRStatement::Label {
+                label: Label(current_else_if_label),
+            });
 
             else_if.block.walk_ir(ir)?;
 
-            ir.statements
-                .push(IRStatement::Branch(IRBranchStatement { label: done_label }));
+            ir.statements.push(IRStatement::Branch {
+                label: Label(done_label),
+            });
 
             current_else_if_label += 1;
         }
 
         // Else block
-        ir.statements
-            .push(IRStatement::Label(IRLabelStatement { label: else_label }));
+        ir.statements.push(IRStatement::Label {
+            label: Label(else_label),
+        });
 
         match &self._else {
             None => {}
@@ -95,8 +94,9 @@ impl IRWalkable for IfStatement {
         }
 
         // Done label
-        ir.statements
-            .push(IRStatement::Label(IRLabelStatement { label: done_label }));
+        ir.statements.push(IRStatement::Label {
+            label: Label(done_label),
+        });
 
         Ok(())
     }

@@ -1,5 +1,5 @@
 use crate::{
-    ir::{get_identifier_register, IRState},
+    codegen::ir::{get_identifier_register, IRState},
     syntax_error::SyntaxError,
 };
 

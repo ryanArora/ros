@@ -1,6 +1,6 @@
 use crate::{
     ast::expression::Literal,
-    ir::{IRImmediateStatement, IRState, IRStatement, IRWalkable},
+    codegen::ir::{IRState, IRStatement, IRWalkable, Register},
     syntax_error::SyntaxError,
 };
 
@@ -18,11 +18,10 @@ impl IRWalkable for Literal {
 fn walk_integer_literal<'a>(ir: &'a mut IRState, integer_literal: u64) -> Result<u32, SyntaxError> {
     ir.current_register += 1;
 
-    ir.statements
-        .push(IRStatement::LoadImmediate(IRImmediateStatement {
-            rd: ir.current_register,
-            imm: integer_literal,
-        }));
+    ir.statements.push(IRStatement::LoadImmediate {
+        rd: Register(ir.current_register),
+        imm: integer_literal,
+    });
 
     Ok(ir.current_register)
 }

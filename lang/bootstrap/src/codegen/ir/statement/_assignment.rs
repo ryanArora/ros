@@ -1,9 +1,6 @@
 use crate::{
     ast::statement::AssignmentStatement,
-    ir::{
-        get_identifier_register, IRImmediateStatement, IRRegisterStatement, IRState, IRStatement,
-        IRWalkable,
-    },
+    codegen::ir::{get_identifier_register, IRState, IRStatement, IRWalkable, Register},
     syntax_error::SyntaxError,
 };
 
@@ -20,17 +17,16 @@ impl IRWalkable for AssignmentStatement {
 
         ir.current_register += 1;
 
-        ir.statements
-            .push(IRStatement::LoadImmediate(IRImmediateStatement {
-                rd: ir.current_register,
-                imm: 0,
-            }));
+        ir.statements.push(IRStatement::LoadImmediate {
+            rd: Register(ir.current_register),
+            imm: 0,
+        });
 
-        ir.statements.push(IRStatement::Add(IRRegisterStatement {
-            rd,
-            rs1,
-            rs2: ir.current_register,
-        }));
+        ir.statements.push(IRStatement::Add {
+            rd: Register(rd),
+            rs1: Register(rs1),
+            rs2: Register(ir.current_register),
+        });
 
         Ok(())
     }

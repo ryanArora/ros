@@ -1,0 +1,12 @@
+{
+	"files.eol": "\n",
+	"files.insertFinalNewline": true,
+	"editor.detectIndentation": false,
+	"editor.useTabStops": true,
+	"editor.insertSpaces": false,
+	"editor.tabSize": 4,
+	"editor.formatOnSave": true,
+	"[json][jsonc][md]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	}
+}

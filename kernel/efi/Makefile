@@ -12,7 +12,7 @@ efi.img: BOOTX64.EFI
 	mcopy -i efi.img BOOTX64.EFI ::/EFI/BOOT
 
 BOOTX64.EFI: hello.o data.o
-	$(CC) $(LDFLAGS) -o BOOTX64.EFI hello.o data.o
+	$(CC) $(LDFLAGS) -o BOOTX64.EFI data.o hello.o
 
 data.o: data.c
 	$(CC) $(CFLAGS) -c -o data.o data.c
@@ -24,4 +24,4 @@ dev: efi.img
 	qemu-system-x86_64 -bios /usr/share/ovmf/OVMF.fd -drive file=efi.img,format=raw
 
 clean:
-	rm -f data.o main.o
+	rm -f efi.img BOOTX64.EFI data.o main.o

@@ -8,5 +8,8 @@
 	"editor.formatOnSave": true,
 	"[json][jsonc][md]": {
 		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	},
+	"[c][h]": {
+		"editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
 	}
 }

@@ -1,2 +1,5 @@
-/*.o
-/BOOTX64.EFI
+*.o
+*.EFI
+*.img
+compile_commands.json
+.cache/

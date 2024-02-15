@@ -18,7 +18,7 @@ typedef enum BASE {
 	HEXADECIMAL = 16,
 } BASE;
 
-void kprintud(uint64_t num, BASE base) {
+void kprintud(uint32_t num, BASE base) {
 	if (num == 0) {
 		kputchar('\n');
 		return;
@@ -30,10 +30,14 @@ void kprintud(uint64_t num, BASE base) {
 
 	while (num > 0) {
 		char digit = num % base;
+
 		if (digit < 10)
 			nums[len] = '0' + digit;
-		else
+		else if (digit < 16)
 			nums[len] = 'A' + digit - 10;
+		else
+			panic();
+
 		num /= base;
 		++len;
 	}
@@ -43,8 +47,17 @@ void kprintud(uint64_t num, BASE base) {
 	}
 
 	nums_rev[len] = '\0';
-
 	kprint(nums_rev);
+}
+
+void kprintd(int32_t num, BASE base) {
+	if (num >= 0) {
+		kprintud(num, base);
+		return;
+	}
+
+	kputchar('-');
+	kprintud(-num, base);
 }
 
 typedef enum KPRINTF_STATE {
@@ -74,10 +87,10 @@ void kprintf(const char *fmt, ...) {
 				kprint(va_arg(args, const char *));
 				state = KPRINTF_STATE_NORMAL;
 			} else if (ch == 'd') {
-				kprintud(va_arg(args, uint64_t), DECIMAL);
+				kprintd(va_arg(args, int32_t), DECIMAL);
 				state = KPRINTF_STATE_NORMAL;
 			} else if (ch == 'X') {
-				kprintud(va_arg(args, uint64_t), HEXADECIMAL);
+				kprintd(va_arg(args, int32_t), HEXADECIMAL);
 				state = KPRINTF_STATE_NORMAL;
 			} else {
 				panic();

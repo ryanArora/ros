@@ -1,11 +1,20 @@
-.PHONY: efi libk
+CC := clang
+CFLAGS := -target x86_64-unknown-windows -ffreestanding -fshort-wchar -mno-red-zone -Iinclude
+LDFLAGS := -target x86_64-unknown-windows -nostdlib -Wl,-entry:efi_main -Wl,-subsystem:efi_application -fuse-ld=lld-link
 
-efi: libk
-	$(MAKE) -C efi
+SRCS := $(shell find . -type f -name '*.c')
+OBJS := $(patsubst %.c,%.o,$(SRCS))
+EFI_TARGET := BOOTX64.EFI
 
-libk:
-	$(MAKE) -C libk
+.PHONY: clean
+
+all: $(EFI_TARGET)
+
+$(EFI_TARGET): $(OBJS)
+	$(CC) $(LDFLAGS) -o $@ $^
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
-	$(MAKE) -C efi clean
-	$(MAKE) -C libk clean
+	rm -f $(EFI_TARGET) $(OBJS)

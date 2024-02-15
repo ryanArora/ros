@@ -1,18 +1,22 @@
+OS_NAME := ros
+EFI_TARGET := kernel/BOOTX64.EFI
+EFI_IMG_TARGET := x86_64-efi-$(OS_NAME).img
+
 .PHONY: kernel dev clean
 
-dev: efi.img
-	qemu-system-x86_64 -bios /usr/share/ovmf/OVMF.fd -drive file=efi.img,format=raw
+dev: $(EFI_IMG_TARGET)
+	qemu-system-x86_64 -bios /usr/share/ovmf/OVMF.fd -drive file=$<,format=raw
 
-efi.img: kernel
-	dd if=/dev/zero of=efi.img bs=1k count=1440
-	mformat -i efi.img -f 1440 ::
-	mmd -i efi.img ::/EFI
-	mmd -i efi.img ::/EFI/BOOT
-	mcopy -i efi.img kernel/efi/BOOTX64.EFI ::/EFI/BOOT
+$(EFI_IMG_TARGET): kernel
+	dd if=/dev/zero of=$@ bs=1k count=1440
+	mformat -i $@ -f 1440 ::
+	mmd -i $@ ::/EFI
+	mmd -i $@ ::/EFI/BOOT
+	mcopy -i $@ $(EFI_TARGET) ::/EFI/BOOT
 
 kernel:
 	$(MAKE) -C kernel
 
 clean:
-	rm -f efi.img
+	rm -f $(EFI_IMG_TARGET)
 	$(MAKE) -C kernel clean

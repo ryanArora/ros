@@ -4,6 +4,7 @@
 #include <efi/efiapi.h>
 #include <efi/efierr.h>
 #include <efi/x86_64/efibind.h>
+#include <init.h>
 #include <libk/io.h>
 #include <stdarg.h>
 
@@ -25,44 +26,6 @@ void panic() {
 	ST->RuntimeServices->ResetSystem(EfiResetShutdown, EFI_DEVICE_ERROR, 0, NULL);
 }
 
-uint16_t pci_config_read_word(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset) {
-	uint32_t address;
-	uint32_t lbus  = (uint32_t)bus;
-	uint32_t lslot = (uint32_t)slot;
-	uint32_t lfunc = (uint32_t)func;
-	uint16_t tmp   = 0;
-
-	// Create configuration address as per Figure 1
-	address = (uint32_t)((lbus << 16) | (lslot << 11) | (lfunc << 8) | (offset & 0xFC) | ((uint32_t)0x80000000));
-
-	// Write out the address
-	outl(0xCF8, address);
-	// Read in the data
-	// (offset & 2) * 8) = 0 will choose the first word of the 32-bit register
-	tmp = (uint16_t)((inl(0xCFC) >> ((offset & 2) * 8)) & 0xFFFF);
-	return tmp;
-}
-
-uint16_t pci_get_vendor_id(uint8_t bus, uint8_t slot) {
-	return pci_config_read_word(bus, slot, 0, 0);
-}
-
-uint16_t pci_get_device_id(uint8_t bus, uint8_t slot) {
-	return pci_config_read_word(bus, slot, 0, 2);
-}
-
-void pci_print_devices() {
-	for (size_t bus = 0; bus < 256; ++bus) {
-		for (size_t slot = 0; slot < 32; ++slot) {
-			uint16_t vendor = pci_get_vendor_id(bus, slot);
-			if (vendor == 0xFFFF)
-				continue;
-			uint16_t device = pci_get_device_id(bus, slot);
-			kprintf("vendor = %X, device = %X\n", vendor, device);
-		}
-	}
-}
-
 EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
 	EFI_STATUS Status;
 	EFI_INPUT_KEY Key;
@@ -70,7 +33,8 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
 	/* Store the system table for future use in other functions */
 	ST = SystemTable;
 
-	pci_print_devices();
+	/* Cross-platform entrypoint for the kernel */
+	kmain();
 
 	/* Now wait for a keystroke before continuing, otherwise your
 	   message will flash off the screen before you see it.

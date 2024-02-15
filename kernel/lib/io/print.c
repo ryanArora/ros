@@ -24,8 +24,7 @@ void kprintud(uint32_t num, BASE base) {
 		return;
 	}
 
-	char nums[20];
-	char nums_rev[21];
+	char nums[32];
 	size_t len = 0;
 
 	while (num > 0) {
@@ -43,11 +42,8 @@ void kprintud(uint32_t num, BASE base) {
 	}
 
 	for (size_t i = 0; i < len; ++i) {
-		nums_rev[i] = nums[len - 1 - i];
+		kputchar(nums[len - 1 - i]);
 	}
-
-	nums_rev[len] = '\0';
-	kprint(nums_rev);
 }
 
 void kprintd(int32_t num, BASE base) {

@@ -3,7 +3,7 @@ CFLAGS := -target x86_64-unknown-windows -ffreestanding -fshort-wchar -mno-red-z
 LDFLAGS := -target x86_64-unknown-windows -nostdlib -Wl,-entry:efi_main -Wl,-subsystem:efi_application -fuse-ld=lld-link
 AR := ar
 
-SRCS := $(wildcard *.c)
+SRCS := $(shell find . -type f -name '*.c')
 OBJS := $(patsubst %.c,%.o,$(SRCS))
 
 .PHONY: clean

@@ -1,43 +1,28 @@
+#include <platform.h>
+
 #include <efi/efi.h>
+#include <efi/efiapi.h>
+#include <efi/efierr.h>
+#include <efi/x86_64/efibind.h>
 #include <libk/io.h>
+#include <stdarg.h>
 
 EFI_SYSTEM_TABLE *ST;
 
-void kprint(WCHAR *str) {
+void kputchar(const char ch) {
+	if (ch == '\n') {
+		ST->ConOut->OutputString(ST->ConOut, L"\r\n");
+		return;
+	}
+
+	WCHAR str[2];
+	str[0] = ch;
+	str[1] = '\0';
 	ST->ConOut->OutputString(ST->ConOut, str);
 }
 
-void kprintuw(uint16_t num, uint8_t base) {
-	if (base != 10 && base != 16)
-		return;
-
-	WCHAR nums[12];
-	WCHAR nums_rev[13];
-	size_t len = 0;
-
-	if (num == 0) {
-		kprint(L"0\r\n");
-		return;
-	}
-
-	while (num > 0) {
-		WCHAR digit = num % base;
-		if (digit < 10)
-			nums[len] = '0' + digit;
-		else
-			nums[len] = 'A' + digit - 10;
-		num /= base;
-		++len;
-	}
-
-	for (size_t i = 0; i < len; ++i) {
-		nums_rev[i] = nums[len - 1 - i];
-	}
-
-	nums_rev[len] = L'\0';
-
-	kprint(nums_rev);
-	kprint(L"\r\n");
+void panic() {
+	ST->RuntimeServices->ResetSystem(EfiResetShutdown, EFI_DEVICE_ERROR, 0, NULL);
 }
 
 uint16_t pci_config_read_word(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset) {
@@ -73,11 +58,7 @@ void pci_print_devices() {
 			if (vendor == 0xFFFF)
 				continue;
 			uint16_t device = pci_get_device_id(bus, slot);
-
-			kprint(L"vendor=");
-			kprintuw(vendor, 16);
-			kprint(L"device=");
-			kprintuw(device, 16);
+			kprintf("vendor = %X, device = %X\n", vendor, device);
 		}
 	}
 }
@@ -90,9 +71,6 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
 	ST = SystemTable;
 
 	pci_print_devices();
-
-	if (EFI_ERROR(Status))
-		return Status;
 
 	/* Now wait for a keystroke before continuing, otherwise your
 	   message will flash off the screen before you see it.

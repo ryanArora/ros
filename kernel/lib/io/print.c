@@ -69,6 +69,10 @@ void kprintf(const char *fmt, ...) {
 		} else if (state == KPRINTF_STATE_FIND_FORMAT) {
 			if (ch == '%') {
 				kputchar('%');
+				state = KPRINTF_STATE_NORMAL;
+			} else if (ch == 's') {
+				kprint(va_arg(args, const char *));
+				state = KPRINTF_STATE_NORMAL;
 			} else if (ch == 'd') {
 				kprintud(va_arg(args, uint64_t), DECIMAL);
 				state = KPRINTF_STATE_NORMAL;

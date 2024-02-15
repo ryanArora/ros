@@ -1,4 +1,4 @@
-#include <libk/io.h>
+#include <lib/io.h>
 
 #include <efi/efi.h>
 #include <platform.h>

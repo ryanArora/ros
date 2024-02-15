@@ -1,7 +1,7 @@
 #include <init.h>
 
 #include <drivers/pci.h>
-#include <libk/io.h>
+#include <lib/io.h>
 
 void pci_print_devices() {
 	kprintf("PCI Devices:\n");

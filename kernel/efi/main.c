@@ -1,12 +1,7 @@
 #include <platform.h>
 
 #include <efi/efi.h>
-#include <efi/efiapi.h>
-#include <efi/efierr.h>
-#include <efi/x86_64/efibind.h>
 #include <init.h>
-#include <libk/io.h>
-#include <stdarg.h>
 
 EFI_SYSTEM_TABLE *ST;
 

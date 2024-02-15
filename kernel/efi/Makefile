@@ -1,6 +1,9 @@
-CC = clang
-CFLAGS = -target x86_64-unknown-windows -ffreestanding -fshort-wchar -mno-red-zone -Iinclude
-LDFLAGS = -target x86_64-unknown-windows -nostdlib -Wl,-entry:efi_main -Wl,-subsystem:efi_application -fuse-ld=lld-link
+CC := clang
+CFLAGS := -target x86_64-unknown-windows -ffreestanding -fshort-wchar -mno-red-zone -Iinclude
+LDFLAGS := -target x86_64-unknown-windows -nostdlib -Wl,-entry:efi_main -Wl,-subsystem:efi_application -fuse-ld=lld-link
+
+SRCS := $(wildcard *.c)
+OBJS := $(patsubst %.c,%.o,$(SRCS))
 
 .PHONY: dev clean
 
@@ -11,17 +14,14 @@ efi.img: BOOTX64.EFI
 	mmd -i efi.img ::/EFI/BOOT
 	mcopy -i efi.img BOOTX64.EFI ::/EFI/BOOT
 
-BOOTX64.EFI: hello.o data.o
-	$(CC) $(LDFLAGS) -o BOOTX64.EFI data.o hello.o
+BOOTX64.EFI: $(OBJS)
+	$(CC) $(LDFLAGS) -o BOOTX64.EFI $(OBJS)
 
-data.o: data.c
-	$(CC) $(CFLAGS) -c -o data.o data.c
-
-hello.o: hello.c
-	$(CC) $(CFLAGS) -c -o hello.o hello.c
+%.o: %.c
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 dev: efi.img
 	qemu-system-x86_64 -bios /usr/share/ovmf/OVMF.fd -drive file=efi.img,format=raw
 
 clean:
-	rm -f efi.img BOOTX64.EFI data.o main.o
+	rm efi.img BOOTX64.EFI $(OBJS)

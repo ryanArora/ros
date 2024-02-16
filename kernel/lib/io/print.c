@@ -20,7 +20,7 @@ typedef enum BASE {
 
 void kprintud(uint32_t num, BASE base) {
 	if (num == 0) {
-		kputchar('\n');
+		kputchar('0');
 		return;
 	}
 

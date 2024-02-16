@@ -20,10 +20,32 @@ uint16_t pci_config_read_word(uint8_t bus, uint8_t slot, uint8_t func, uint8_t o
 	return tmp;
 }
 
-uint16_t pci_get_vendor_id(uint8_t bus, uint8_t slot) {
-	return pci_config_read_word(bus, slot, 0, 0);
+uint16_t pci_config_get_vendor_id(uint8_t bus, uint8_t slot, uint8_t func) {
+	return pci_config_read_word(bus, slot, func, PCI_CONFIG_OFFSET_VENDOR_ID);
 }
 
-uint16_t pci_get_device_id(uint8_t bus, uint8_t slot) {
-	return pci_config_read_word(bus, slot, 0, 2);
+uint16_t pci_config_get_device_id(uint8_t bus, uint8_t slot, uint8_t func) {
+	return pci_config_read_word(bus, slot, func, PCI_CONFIG_OFFSET_DEVICE_ID);
+}
+
+uint8_t pci_config_get_header_type(uint8_t bus, uint8_t slot, uint8_t func) {
+	return pci_config_read_word(bus, slot, func, PCI_CONFIG_OFFSET_HEADER_TYPE);
+}
+
+const char *pci_get_device_name(uint16_t vendor_id, uint16_t device_id) {
+	if (vendor_id == 0x8086 && device_id == 0x1237) {
+		return "Intel Corporation: 440FX - 82441FX PMC [Natoma]";
+	} else if (vendor_id == 0x8086 && device_id == 0x7000) {
+		return "Intel Corporation: 82371SB PIIX3 ISA [Natoma/Triton II]";
+	} else if (vendor_id == 0x8086 && device_id == 0x7010) {
+		return "Intel Corporation: 82371SB PIIX3 IDE [Natoma/Triton II]";
+	} else if (vendor_id == 0x8086 && device_id == 0x7113) {
+		return "Intel Corporation: 82371AB/EB/MB PIIX4 ACPI";
+	} else if (vendor_id == 0x1013 && device_id == 0x00B8) {
+		return "Cirrus Logic: GD 5446";
+	} else if (vendor_id == 0x8086 && device_id == 0x100E) {
+		return "Intel Corporation: 82540EM Gigabit Ethernet Controller";
+	} else {
+		return NULL;
+	}
 }

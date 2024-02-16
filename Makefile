@@ -5,7 +5,7 @@ EFI_IMG_TARGET := x86_64-efi-$(OS_NAME).img
 .PHONY: kernel dev clean
 
 dev: $(EFI_IMG_TARGET)
-	qemu-system-x86_64 -bios /usr/share/ovmf/OVMF.fd -drive file=$<,format=raw -machine pc-i440fx-trusty
+	qemu-system-x86_64 -bios /usr/share/ovmf/OVMF.fd -drive file=$<,format=raw
 
 $(EFI_IMG_TARGET): kernel
 	dd if=/dev/zero of=$@ bs=1k count=1440

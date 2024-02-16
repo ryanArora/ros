@@ -4,15 +4,19 @@
 #include <lib/io.h>
 
 void pci_print_device(uint8_t bus, uint8_t slot, uint8_t func, uint16_t vendor_id) {
-	uint32_t device_id		= pci_config_get_device_id(bus, slot, func);
-	const char *device_name = pci_get_device_name(vendor_id, device_id);
+	uint16_t device_id = pci_config_get_device_id(bus, slot, func);
+	uint8_t class_code = pci_config_get_class_code(bus, slot, func);
+	uint8_t subclass   = pci_config_get_subclass(bus, slot, func);
+
+	const char *device_name = pci_config_get_device_name(vendor_id, device_id);
+	const char *device_type = pci_config_get_device_type(class_code, subclass);
 
 	if (device_name == NULL) {
-		kprintf("Vendor%X: Device%X\n", vendor_id, device_id);
+		kprintf("%s: Vendor%X Device%X\n", device_type, vendor_id, device_id);
 		return;
 	}
 
-	kprintf("%s\n", device_name);
+	kprintf("%s: %s\n", device_type, device_name);
 }
 
 void pci_print_devices() {

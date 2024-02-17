@@ -18,31 +18,204 @@ uint32_t pci_config_read_register(uint8_t bus, uint8_t slot, uint8_t func, uint8
 }
 
 uint16_t pci_config_get_vendor_id(uint8_t bus, uint8_t slot, uint8_t func) {
-	return pci_config_read_register(bus, slot, func, 0);
+	return pci_config_read_register(bus, slot, func, 0x0);
 }
 
 uint16_t pci_config_get_device_id(uint8_t bus, uint8_t slot, uint8_t func) {
-	return pci_config_read_register(bus, slot, func, 0) >> 16;
+	return pci_config_read_register(bus, slot, func, 0x0) >> 16;
 }
 
 uint16_t pci_config_get_command(uint8_t bus, uint8_t slot, uint8_t func) {
-	return pci_config_read_register(bus, slot, func, 1);
+	return pci_config_read_register(bus, slot, func, 0x1);
 }
 
 uint16_t pci_config_get_status(uint8_t bus, uint8_t slot, uint8_t func) {
-	return pci_config_read_register(bus, slot, func, 1) >> 16;
+	return pci_config_read_register(bus, slot, func, 0x1) >> 16;
+}
+
+uint8_t pci_config_get_revision_id(uint8_t bus, uint8_t slot, uint8_t func) {
+	return pci_config_read_register(bus, slot, func, 0x2);
+}
+
+uint8_t pci_config_get_prog_if(uint8_t bus, uint8_t slot, uint8_t func) {
+	return pci_config_read_register(bus, slot, func, 0x2) >> 8;
 }
 
 uint8_t pci_config_get_subclass(uint8_t bus, uint8_t slot, uint8_t func) {
-	return pci_config_read_register(bus, slot, func, 2) >> 16;
+	return pci_config_read_register(bus, slot, func, 0x2) >> 16;
 }
 
 uint8_t pci_config_get_class_code(uint8_t bus, uint8_t slot, uint8_t func) {
-	return pci_config_read_register(bus, slot, func, 2) >> 24;
+	return pci_config_read_register(bus, slot, func, 0x2) >> 24;
+}
+
+uint8_t pci_config_get_cache_line_size(uint8_t bus, uint8_t slot, uint8_t func) {
+	return pci_config_read_register(bus, slot, func, 0x3);
+}
+
+uint8_t pci_config_get_latency_timer(uint8_t bus, uint8_t slot, uint8_t func) {
+	return pci_config_read_register(bus, slot, func, 0x3) >> 8;
 }
 
 uint8_t pci_config_get_header_type(uint8_t bus, uint8_t slot, uint8_t func) {
-	return pci_config_read_register(bus, slot, func, 3) >> 16;
+	return pci_config_read_register(bus, slot, func, 0x3) >> 16;
+}
+
+uint8_t pci_config_get_bist(uint8_t bus, uint8_t slot, uint8_t func) {
+	return pci_config_read_register(bus, slot, func, 0x3) >> 24;
+}
+
+uint32_t pci_config_get_bar0(uint8_t bus, uint8_t slot, uint8_t func) {
+	uint8_t header_type = pci_config_get_header_type(bus, slot, func);
+	if (header_type != 0x0 && header_type != 0x1)
+		panic();
+
+	return pci_config_read_register(bus, slot, func, 0x4);
+}
+
+uint32_t pci_config_get_bar1(uint8_t bus, uint8_t slot, uint8_t func) {
+	uint8_t header_type = pci_config_get_header_type(bus, slot, func);
+	if (header_type != 0x0 && header_type != 0x1)
+		panic();
+
+	return pci_config_read_register(bus, slot, func, 0x5);
+}
+
+uint32_t pci_config_get_bar2(uint8_t bus, uint8_t slot, uint8_t func) {
+	uint8_t header_type = pci_config_get_header_type(bus, slot, func);
+	if (header_type != 0x0)
+		panic();
+
+	return pci_config_read_register(bus, slot, func, 0x6);
+}
+
+uint32_t pci_config_get_bar3(uint8_t bus, uint8_t slot, uint8_t func) {
+	uint8_t header_type = pci_config_get_header_type(bus, slot, func);
+	if (header_type != 0x0)
+		panic();
+
+	return pci_config_read_register(bus, slot, func, 0x7);
+}
+
+uint32_t pci_config_get_bar4(uint8_t bus, uint8_t slot, uint8_t func) {
+	uint8_t header_type = pci_config_get_header_type(bus, slot, func);
+	if (header_type != 0x0)
+		panic();
+
+	return pci_config_read_register(bus, slot, func, 0x8);
+}
+
+uint32_t pci_config_get_bar5(uint8_t bus, uint8_t slot, uint8_t func) {
+	uint8_t header_type = pci_config_get_header_type(bus, slot, func);
+	if (header_type != 0x0)
+		panic();
+
+	return pci_config_read_register(bus, slot, func, 0x9);
+}
+
+uint32_t pci_config_get_cardbus_cis_pointer(uint8_t bus, uint8_t slot, uint8_t func) {
+	uint8_t header_type = pci_config_get_header_type(bus, slot, func);
+	if (header_type != 0x0)
+		panic();
+
+	return pci_config_read_register(bus, slot, func, 0xA);
+}
+
+uint16_t pci_config_get_subsystem_vendor_id(uint8_t bus, uint8_t slot, uint8_t func) {
+	uint8_t header_type = pci_config_get_header_type(bus, slot, func);
+	if (header_type != 0x0)
+		panic();
+
+	return pci_config_read_register(bus, slot, func, 0xB);
+}
+
+uint16_t pci_config_get_subsystem_id(uint8_t bus, uint8_t slot, uint8_t func) {
+	uint8_t header_type = pci_config_get_header_type(bus, slot, func);
+	if (header_type != 0x0)
+		panic();
+
+	return pci_config_read_register(bus, slot, func, 0xB) >> 16;
+}
+
+uint32_t pci_config_get_expansion_rom_base_address(uint8_t bus, uint8_t slot, uint8_t func) {
+	uint8_t header_type = pci_config_get_header_type(bus, slot, func);
+	if (header_type != 0x0)
+		panic();
+
+	return pci_config_read_register(bus, slot, func, 0xC);
+}
+
+uint8_t pci_config_get_capabilities_pointer(uint8_t bus, uint8_t slot, uint8_t func) {
+	uint8_t header_type = pci_config_get_header_type(bus, slot, func);
+	if (header_type != 0x0)
+		panic();
+
+	return pci_config_read_register(bus, slot, func, 0xD);
+}
+
+uint8_t pci_config_get_interrupt_line(uint8_t bus, uint8_t slot, uint8_t func) {
+	uint8_t header_type = pci_config_get_header_type(bus, slot, func);
+	if (header_type != 0x0)
+		panic();
+
+	return pci_config_read_register(bus, slot, func, 0xF);
+}
+
+uint8_t pci_config_get_interrupt_pin(uint8_t bus, uint8_t slot, uint8_t func) {
+	uint8_t header_type = pci_config_get_header_type(bus, slot, func);
+	if (header_type != 0x0)
+		panic();
+
+	return pci_config_read_register(bus, slot, func, 0xF) >> 8;
+}
+
+uint8_t pci_config_get_min_grant(uint8_t bus, uint8_t slot, uint8_t func) {
+	uint8_t header_type = pci_config_get_header_type(bus, slot, func);
+	if (header_type != 0x0)
+		panic();
+
+	return pci_config_read_register(bus, slot, func, 0xF) >> 16;
+}
+
+uint8_t pci_config_get_max_latency(uint8_t bus, uint8_t slot, uint8_t func) {
+	uint8_t header_type = pci_config_get_header_type(bus, slot, func);
+	if (header_type != 0x0)
+		panic();
+
+	return pci_config_read_register(bus, slot, func, 0xF) >> 24;
+}
+
+pci_config_type_0_header pci_config_get_type_0_header(uint8_t bus, uint8_t slot, uint8_t func) {
+	struct pci_config_type_0_header header = {
+		.vendor_id					= pci_config_get_vendor_id(bus, slot, func),
+		.device_id					= pci_config_get_device_id(bus, slot, func),
+		.command					= pci_config_get_command(bus, slot, func),
+		.status						= pci_config_get_status(bus, slot, func),
+		.revision_id				= pci_config_get_revision_id(bus, slot, func),
+		.prog_if					= pci_config_get_prog_if(bus, slot, func),
+		.subclass					= pci_config_get_subclass(bus, slot, func),
+		.class_code					= pci_config_get_class_code(bus, slot, func),
+		.cache_line_size			= pci_config_get_cache_line_size(bus, slot, func),
+		.latency_timer				= pci_config_get_latency_timer(bus, slot, func),
+		.bist						= pci_config_get_bist(bus, slot, func),
+		.bar0						= pci_config_get_bar0(bus, slot, func),
+		.bar1						= pci_config_get_bar1(bus, slot, func),
+		.bar2						= pci_config_get_bar2(bus, slot, func),
+		.bar3						= pci_config_get_bar3(bus, slot, func),
+		.bar4						= pci_config_get_bar4(bus, slot, func),
+		.bar5						= pci_config_get_bar5(bus, slot, func),
+		.cardbus_cis_pointer		= pci_config_get_cardbus_cis_pointer(bus, slot, func),
+		.subsystem_vendor_id		= pci_config_get_subsystem_vendor_id(bus, slot, func),
+		.subsystem_id				= pci_config_get_subsystem_id(bus, slot, func),
+		.expansion_rom_base_address = pci_config_get_expansion_rom_base_address(bus, slot, func),
+		.capabilities_pointer		= pci_config_get_capabilities_pointer(bus, slot, func),
+		.interrupt_line				= pci_config_get_interrupt_line(bus, slot, func),
+		.interrupt_pin				= pci_config_get_interrupt_pin(bus, slot, func),
+		.min_grant					= pci_config_get_min_grant(bus, slot, func),
+		.max_latency				= pci_config_get_max_latency(bus, slot, func),
+	};
+
+	return header;
 }
 
 const char *pci_config_get_device_name(uint16_t vendor_id, uint16_t device_id) {

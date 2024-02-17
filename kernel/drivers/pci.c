@@ -46,19 +46,22 @@ uint8_t pci_config_get_header_type(uint8_t bus, uint8_t slot, uint8_t func) {
 }
 
 const char *pci_config_get_device_name(uint16_t vendor_id, uint16_t device_id) {
-	if (vendor_id == 0x8086 && device_id == 0x1237) {
+	if (vendor_id == 0x8086 && device_id == 0x1237)
 		return "Intel 440FX - 82441FX PMC [Natoma]";
-	} else if (vendor_id == 0x8086 && device_id == 0x7000) {
+	else if (vendor_id == 0x8086 && device_id == 0x7000)
 		return "Intel 82371SB PIIX3 ISA [Natoma/Triton II]";
-	} else if (vendor_id == 0x8086 && device_id == 0x7010) {
+	else if (vendor_id == 0x8086 && device_id == 0x7010)
 		return "Intel 82371SB PIIX3 IDE [Natoma/Triton II]";
-	} else if (vendor_id == 0x8086 && device_id == 0x7113) {
+	else if (vendor_id == 0x8086 && device_id == 0x7113)
 		return "Intel 82371AB/EB/MB PIIX4 ACPI";
-	} else if (vendor_id == 0x8086 && device_id == 0x100E) {
+	else if (vendor_id == 0x8086 && device_id == 0x100E)
 		return "Intel 82540EM Gigabit Ethernet Controller";
-	} else {
+	else if (vendor_id == 0x1B36 && device_id == 0x0010)
+		return "Red Hat, Inc. QEMU NVM Express Controller";
+	else if (vendor_id == 0x1B36 && device_id == 0x000D)
+		return "Red Hat, Inc. QEMU XHCI Host Controller";
+	else
 		return NULL;
-	}
 }
 
 const char *pci_config_get_device_type(uint8_t class_code, uint8_t subclass) {

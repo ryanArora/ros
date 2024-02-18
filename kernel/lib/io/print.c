@@ -33,7 +33,7 @@ static void kprintuld(uint64_t num, BASE base, uint8_t min_width) {
 	size_t len = 0;
 
 	while (num > 0) {
-		char digit = (char)(num % (unsigned int)base);
+		char digit = (char)(num % (uint64_t)base);
 
 		if (digit < 10)
 			nums[len] = '0' + digit;
@@ -42,7 +42,7 @@ static void kprintuld(uint64_t num, BASE base, uint8_t min_width) {
 		else
 			panic();
 
-		num /= (unsigned int)base;
+		num /= (uint64_t)base;
 		++len;
 	}
 

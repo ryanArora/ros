@@ -1,7 +1,7 @@
 CC := clang
-CWARNINGS := -Weverything -Wno-declaration-after-statement -Wno-gnu-binary-literal -Wno-unused-parameter -Wno-missing-variable-declarations -Werror
-CFLAGS := -target x86_64-unknown-windows -ffreestanding -fshort-wchar -mno-red-zone -Iinclude --system-header-prefix=efi -O3 $(CWARNINGS)
-LDFLAGS := -target x86_64-unknown-windows -nostdlib -Wl,-entry:efi_main -Wl,-subsystem:efi_application -fuse-ld=lld-link -O3
+CWARNINGS := -Weverything -Wno-declaration-after-statement -Wno-gnu-binary-literal -Wno-unused-parameter -Wno-missing-variable-declarations -Wno-cast-align -Wno-unused-function -Werror
+CFLAGS := -target x86_64-unknown-windows -ffreestanding -fshort-wchar -mno-red-zone -Iinclude --system-header-prefix=efi $(CWARNINGS)
+LDFLAGS := -target x86_64-unknown-windows -nostdlib -Wl,-entry:efi_main -Wl,-subsystem:efi_application -fuse-ld=lld-link
 
 SRCS := $(shell find . -type f -name '*.c')
 OBJS := $(patsubst %.c,%.o,$(SRCS))

@@ -3,6 +3,54 @@
 #include <kernel/lib/io.h>
 #include <kernel/platform.h>
 
+void *base_address_register;
+
+static uint64_t nvme_get_controller_capabilities(void) {
+	return *(uint32_t *)((uint8_t *)base_address_register + 0x00);
+}
+
+static uint32_t nvme_get_version(void) {
+	return *(uint32_t *)((uint8_t *)base_address_register + 0x08);
+}
+
+static uint32_t nvme_get_interrupt_mask_set(void) {
+	return *(uint32_t *)((uint8_t *)base_address_register + 0x0C);
+}
+
+static uint32_t nvme_get_interrupt_mask_clear(void) {
+	return *(uint32_t *)((uint8_t *)base_address_register + 0x10);
+}
+
+static uint32_t nvme_get_controller_configuration(void) {
+	return *(uint32_t *)((uint8_t *)base_address_register + 0x14);
+}
+
+static uint32_t nvme_get_controller_status(void) {
+	return *(uint32_t *)((uint8_t *)base_address_register + 0x1C);
+}
+
+static uint32_t nvme_get_admin_queue_attributes(void) {
+	return *(uint32_t *)((uint8_t *)base_address_register + 0x24);
+}
+
+static uint64_t nvme_get_admin_submission_queue(void) {
+	return *(uint64_t *)((uint8_t *)base_address_register + 0x28);
+}
+
+static uint64_t nvme_get_admin_completion_queue(void) {
+	return *(uint64_t *)((uint8_t *)base_address_register + 0x30);
+}
+
+static uint64_t nvme_get_submission_queue_x_tail_doorbell(uint64_t x) {
+	uint64_t doorbell_stride = (nvme_get_controller_capabilities() & ((uint64_t)0xF << 32)) >> 32;
+	return *(uint64_t *)((uint8_t *)base_address_register + 0x1000 + 2 * x * doorbell_stride);
+}
+
+static uint64_t nvme_get_completion_queue_x_tail_doorbell(uint64_t x) {
+	uint64_t doorbell_stride = (nvme_get_controller_capabilities() & ((uint64_t)0xF << 32)) >> 32;
+	return *(uint64_t *)((uint8_t *)base_address_register + 0x1000 + 2 * (x + 1) * doorbell_stride);
+}
+
 void nvme_init(void) {
 	if (!nvme_controller_found) {
 		kprintf("FATAL: No NVMe Controller found.\n");
@@ -21,8 +69,18 @@ void nvme_init(void) {
 		panic();
 	}
 
-	void *real_bar0 = (void *)(((uint64_t)nvme_controller_header.bar1 << 32) | (nvme_controller_header.bar0 & 0xFFFFFFF0));
-	kprintf("bar0_address=0x%8lX\n", real_bar0);
+	base_address_register = (void *)(((uint64_t)nvme_controller_header.bar1 << 32) | (nvme_controller_header.bar0 & 0xFFFFFFF0));
+	kprintf("NVMe base_address_register=0x%16lX\n\n", base_address_register);
+
+	kprintf("Controller capabilities.  0x%16lX\n", nvme_get_controller_capabilities());
+	kprintf("Version.                  0x%8X\n", nvme_get_version());
+	kprintf("Interrupt mask set.       0x%8X\n", nvme_get_interrupt_mask_set());
+	kprintf("Interrupt mask clear.     0x%8X\n", nvme_get_interrupt_mask_clear());
+	kprintf("Controller configuration. 0x%8X\n", nvme_get_controller_configuration());
+	kprintf("Controller status.        0x%8X\n", nvme_get_controller_status());
+	kprintf("Admin queue attributes.   0x%8X\n", nvme_get_admin_queue_attributes());
+	kprintf("Admin submission queue.   0x%16lX\n", nvme_get_admin_submission_queue());
+	kprintf("Admin completion queue.   0x%16lX\n", nvme_get_admin_completion_queue());
 }
 
 NVME_STATUS nvme_read_sectors(void *buff, size_t n, uint64_t lba) {

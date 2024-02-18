@@ -1,5 +1,6 @@
 CC := clang
-CFLAGS := -target x86_64-unknown-windows -ffreestanding -fshort-wchar -mno-red-zone -Iinclude -O3
+CWARNINGS := -Weverything -Wno-declaration-after-statement -Wno-gnu-binary-literal -Wno-unused-parameter -Werror
+CFLAGS := -target x86_64-unknown-windows -ffreestanding -fshort-wchar -mno-red-zone -Iinclude --system-header-prefix=efi -O3 $(CWARNINGS)
 LDFLAGS := -target x86_64-unknown-windows -nostdlib -Wl,-entry:efi_main -Wl,-subsystem:efi_application -fuse-ld=lld-link -O3
 
 SRCS := $(shell find . -type f -name '*.c')

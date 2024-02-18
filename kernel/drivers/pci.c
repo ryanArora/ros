@@ -1,7 +1,7 @@
-#include <drivers/pci.h>
+#include <kernel/drivers/pci.h>
 
-#include <lib/io.h>
-#include <platform.h>
+#include <kernel/lib/io.h>
+#include <kernel/platform.h>
 
 #define PCI_CONFIG_ADDRESS 0xCF8
 #define PCI_CONFIG_DATA	   0xCFC
@@ -18,51 +18,51 @@ uint32_t pci_config_read_register(uint8_t bus, uint8_t slot, uint8_t func, uint8
 }
 
 uint16_t pci_config_get_vendor_id(uint8_t bus, uint8_t slot, uint8_t func) {
-	return pci_config_read_register(bus, slot, func, 0x0);
+	return (uint16_t)pci_config_read_register(bus, slot, func, 0x0);
 }
 
 uint16_t pci_config_get_device_id(uint8_t bus, uint8_t slot, uint8_t func) {
-	return pci_config_read_register(bus, slot, func, 0x0) >> 16;
+	return (uint16_t)(pci_config_read_register(bus, slot, func, 0x0) >> 16);
 }
 
 uint16_t pci_config_get_command(uint8_t bus, uint8_t slot, uint8_t func) {
-	return pci_config_read_register(bus, slot, func, 0x1);
+	return (uint16_t)pci_config_read_register(bus, slot, func, 0x1);
 }
 
 uint16_t pci_config_get_status(uint8_t bus, uint8_t slot, uint8_t func) {
-	return pci_config_read_register(bus, slot, func, 0x1) >> 16;
+	return (uint16_t)(pci_config_read_register(bus, slot, func, 0x1) >> 16);
 }
 
 uint8_t pci_config_get_revision_id(uint8_t bus, uint8_t slot, uint8_t func) {
-	return pci_config_read_register(bus, slot, func, 0x2);
+	return (uint8_t)pci_config_read_register(bus, slot, func, 0x2);
 }
 
 uint8_t pci_config_get_prog_if(uint8_t bus, uint8_t slot, uint8_t func) {
-	return pci_config_read_register(bus, slot, func, 0x2) >> 8;
+	return (uint8_t)(pci_config_read_register(bus, slot, func, 0x2) >> 8);
 }
 
 uint8_t pci_config_get_subclass(uint8_t bus, uint8_t slot, uint8_t func) {
-	return pci_config_read_register(bus, slot, func, 0x2) >> 16;
+	return (uint8_t)(pci_config_read_register(bus, slot, func, 0x2) >> 16);
 }
 
 uint8_t pci_config_get_class_code(uint8_t bus, uint8_t slot, uint8_t func) {
-	return pci_config_read_register(bus, slot, func, 0x2) >> 24;
+	return (uint8_t)(pci_config_read_register(bus, slot, func, 0x2) >> 24);
 }
 
 uint8_t pci_config_get_cache_line_size(uint8_t bus, uint8_t slot, uint8_t func) {
-	return pci_config_read_register(bus, slot, func, 0x3);
+	return (uint8_t)pci_config_read_register(bus, slot, func, 0x3);
 }
 
 uint8_t pci_config_get_latency_timer(uint8_t bus, uint8_t slot, uint8_t func) {
-	return pci_config_read_register(bus, slot, func, 0x3) >> 8;
+	return (uint8_t)(pci_config_read_register(bus, slot, func, 0x3) >> 8);
 }
 
 uint8_t pci_config_get_header_type(uint8_t bus, uint8_t slot, uint8_t func) {
-	return pci_config_read_register(bus, slot, func, 0x3) >> 16;
+	return (uint8_t)(pci_config_read_register(bus, slot, func, 0x3) >> 16);
 }
 
 uint8_t pci_config_get_bist(uint8_t bus, uint8_t slot, uint8_t func) {
-	return pci_config_read_register(bus, slot, func, 0x3) >> 24;
+	return (uint8_t)(pci_config_read_register(bus, slot, func, 0x3) >> 24);
 }
 
 uint32_t pci_config_get_bar0(uint8_t bus, uint8_t slot, uint8_t func) {
@@ -126,7 +126,7 @@ uint16_t pci_config_get_subsystem_vendor_id(uint8_t bus, uint8_t slot, uint8_t f
 	if (header_type != 0x0)
 		panic();
 
-	return pci_config_read_register(bus, slot, func, 0xB);
+	return (uint16_t)pci_config_read_register(bus, slot, func, 0xB);
 }
 
 uint16_t pci_config_get_subsystem_id(uint8_t bus, uint8_t slot, uint8_t func) {
@@ -134,7 +134,7 @@ uint16_t pci_config_get_subsystem_id(uint8_t bus, uint8_t slot, uint8_t func) {
 	if (header_type != 0x0)
 		panic();
 
-	return pci_config_read_register(bus, slot, func, 0xB) >> 16;
+	return (uint16_t)(pci_config_read_register(bus, slot, func, 0xB) >> 16);
 }
 
 uint32_t pci_config_get_expansion_rom_base_address(uint8_t bus, uint8_t slot, uint8_t func) {
@@ -150,7 +150,7 @@ uint8_t pci_config_get_capabilities_pointer(uint8_t bus, uint8_t slot, uint8_t f
 	if (header_type != 0x0)
 		panic();
 
-	return pci_config_read_register(bus, slot, func, 0xD);
+	return (uint8_t)pci_config_read_register(bus, slot, func, 0xD);
 }
 
 uint8_t pci_config_get_interrupt_line(uint8_t bus, uint8_t slot, uint8_t func) {
@@ -158,7 +158,7 @@ uint8_t pci_config_get_interrupt_line(uint8_t bus, uint8_t slot, uint8_t func) {
 	if (header_type != 0x0)
 		panic();
 
-	return pci_config_read_register(bus, slot, func, 0xF);
+	return (uint8_t)pci_config_read_register(bus, slot, func, 0xF);
 }
 
 uint8_t pci_config_get_interrupt_pin(uint8_t bus, uint8_t slot, uint8_t func) {
@@ -166,7 +166,7 @@ uint8_t pci_config_get_interrupt_pin(uint8_t bus, uint8_t slot, uint8_t func) {
 	if (header_type != 0x0)
 		panic();
 
-	return pci_config_read_register(bus, slot, func, 0xF) >> 8;
+	return (uint8_t)(pci_config_read_register(bus, slot, func, 0xF) >> 8);
 }
 
 uint8_t pci_config_get_min_grant(uint8_t bus, uint8_t slot, uint8_t func) {
@@ -174,7 +174,7 @@ uint8_t pci_config_get_min_grant(uint8_t bus, uint8_t slot, uint8_t func) {
 	if (header_type != 0x0)
 		panic();
 
-	return pci_config_read_register(bus, slot, func, 0xF) >> 16;
+	return (uint8_t)(pci_config_read_register(bus, slot, func, 0xF) >> 16);
 }
 
 uint8_t pci_config_get_max_latency(uint8_t bus, uint8_t slot, uint8_t func) {
@@ -182,7 +182,7 @@ uint8_t pci_config_get_max_latency(uint8_t bus, uint8_t slot, uint8_t func) {
 	if (header_type != 0x0)
 		panic();
 
-	return pci_config_read_register(bus, slot, func, 0xF) >> 24;
+	return (uint8_t)(pci_config_read_register(bus, slot, func, 0xF) >> 24);
 }
 
 pci_config_type_0_header pci_config_get_type_0_header(uint8_t bus, uint8_t slot, uint8_t func) {

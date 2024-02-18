@@ -1,14 +1,14 @@
-#include <init.h>
+#include <kernel/init.h>
 
-#include <drivers/pci.h>
-#include <lib/io.h>
-#include <platform.h>
+#include <kernel/drivers/pci.h>
+#include <kernel/lib/io.h>
+#include <kernel/platform.h>
 #include <stdbool.h>
 
-bool nvme_controller_found;
-pci_config_type_0_header nvme_controller_header;
+static bool nvme_controller_found;
+static pci_config_type_0_header nvme_controller_header;
 
-void pci_print_device(uint8_t bus, uint8_t slot, uint8_t func, uint16_t vendor_id) {
+static void pci_print_device(uint8_t bus, uint8_t slot, uint8_t func, uint16_t vendor_id) {
 	uint16_t device_id = pci_config_get_device_id(bus, slot, func);
 	uint8_t class_code = pci_config_get_class_code(bus, slot, func);
 	uint8_t subclass   = pci_config_get_subclass(bus, slot, func);
@@ -29,36 +29,36 @@ void pci_print_device(uint8_t bus, uint8_t slot, uint8_t func, uint16_t vendor_i
 	}
 }
 
-void pci_print_devices() {
+static void pci_print_devices(void) {
 	kprintf("Listing PCI Devices...\n");
 
 	for (size_t bus = 0; bus < 256; ++bus) {
 		for (size_t slot = 0; slot < 32; ++slot) {
 			size_t func = 0;
 
-			uint16_t vendor_id = pci_config_get_vendor_id(bus, slot, func);
+			uint16_t vendor_id = pci_config_get_vendor_id((uint8_t)bus, (uint8_t)slot, (uint8_t)func);
 			if (vendor_id == 0xFFFF)
 				continue;
 
-			pci_print_device(bus, slot, func, vendor_id);
+			pci_print_device((uint8_t)bus, (uint8_t)slot, (uint8_t)func, vendor_id);
 
-			uint8_t header_type = pci_config_get_header_type(bus, slot, func);
+			uint8_t header_type = pci_config_get_header_type((uint8_t)bus, (uint8_t)slot, (uint8_t)func);
 
 			if (header_type != 0x80)
 				continue;
 
 			for (func = 1; func < 8; ++func) {
-				uint16_t vendor_id = pci_config_get_vendor_id(bus, slot, func);
+				vendor_id = pci_config_get_vendor_id((uint8_t)bus, (uint8_t)slot, (uint8_t)func);
 				if (vendor_id == 0xFFFF)
 					continue;
 
-				pci_print_device(bus, slot, func, vendor_id);
+				pci_print_device((uint8_t)bus, (uint8_t)slot, (uint8_t)func, vendor_id);
 			}
 		}
 	}
 }
 
-void kmain() {
+void kmain(void) {
 	kprintf("Starting kernel...\n");
 	pci_print_devices();
 
@@ -80,5 +80,5 @@ void kmain() {
 	}
 
 	void *bar0_address = (void *)(((uint64_t)nvme_controller_header.bar1 << 32) | (nvme_controller_header.bar0 & 0xFFFFFFF0));
-	kprintf("bar0_address=%8lX\n", bar0_address);
+	kprintf("bar0_address=0x%8lX\n", bar0_address);
 }

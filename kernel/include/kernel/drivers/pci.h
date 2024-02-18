@@ -35,7 +35,7 @@ pci_config_type_0_header pci_config_get_type_0_header(uint8_t bus, uint8_t slot,
 /*
 	Read from the PCI config
 */
-uint16_t pci_config_read_word(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset);
+uint32_t pci_config_read_register(uint8_t bus, uint8_t slot, uint8_t func, uint8_t reg);
 
 /*
 	Common

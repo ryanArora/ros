@@ -1,7 +1,7 @@
 /*
 	Panic
 */
-void panic();
+void panic(void);
 
 /*
 	Write a character to the screen.

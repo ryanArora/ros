@@ -1,9 +1,9 @@
-#include <platform.h>
+#include <kernel/platform.h>
 
 #include <efi/efi.h>
-#include <init.h>
+#include <kernel/init.h>
 
-EFI_SYSTEM_TABLE *ST;
+static EFI_SYSTEM_TABLE *ST;
 
 void kputchar(const char ch) {
 	if (ch == '\n') {
@@ -12,7 +12,7 @@ void kputchar(const char ch) {
 	}
 
 	WCHAR str[2];
-	str[0] = ch;
+	str[0] = (WCHAR)ch;
 	str[1] = '\0';
 	ST->ConOut->OutputString(ST->ConOut, str);
 }

@@ -1,24 +1,22 @@
-#include <lib/io.h>
+#include <kernel/lib/io.h>
 
-#include <efi/efi.h>
-#include <platform.h>
+#include <kernel/platform.h>
 #include <stdarg.h>
-#include <stdbool.h>
 
-void kprint(const char *str) {
+static void kprint(const char *str) {
 	char ch;
 	while ((ch = *str)) {
 		kputchar(ch);
 		++str;
 	}
-};
+}
 
 typedef enum BASE {
 	DECIMAL		= 10,
 	HEXADECIMAL = 16,
 } BASE;
 
-void kprintuld(uint64_t num, BASE base, uint8_t min_width) {
+static void kprintuld(uint64_t num, BASE base, uint8_t min_width) {
 	if (num == 0) {
 		kputchar('0');
 
@@ -35,7 +33,7 @@ void kprintuld(uint64_t num, BASE base, uint8_t min_width) {
 	size_t len = 0;
 
 	while (num > 0) {
-		char digit = num % base;
+		char digit = (char)(num % (unsigned int)base);
 
 		if (digit < 10)
 			nums[len] = '0' + digit;
@@ -44,7 +42,7 @@ void kprintuld(uint64_t num, BASE base, uint8_t min_width) {
 		else
 			panic();
 
-		num /= base;
+		num /= (unsigned int)base;
 		++len;
 	}
 
@@ -57,16 +55,6 @@ void kprintuld(uint64_t num, BASE base, uint8_t min_width) {
 	for (size_t i = 0; i < len; ++i) {
 		kputchar(nums[len - 1 - i]);
 	}
-}
-
-void kprintld(int32_t num, BASE base) {
-	if (num >= 0) {
-		kprintuld(num, base, true);
-		return;
-	}
-
-	kputchar('-');
-	kprintuld(-num, base, true);
 }
 
 typedef enum KPRINTF_STATE {
@@ -84,7 +72,7 @@ void kprintf(const char *fmt, ...) {
 	va_start(args, fmt);
 
 	KPRINTF_STATE state = KPRINTF_STATE_NORMAL;
-	unsigned char ch;
+	char ch;
 
 	uint8_t min_width_specifier[MAX_MIN_WIDTH_SPECIFIER_LENGTH];
 	uint8_t min_width_specifier_len = 0;
@@ -112,7 +100,7 @@ void kprintf(const char *fmt, ...) {
 					kprint("true");
 				} else {
 					panic();
-				};
+				}
 
 				state = KPRINTF_STATE_NORMAL;
 			} else if (ch == 'd') {
@@ -122,7 +110,7 @@ void kprintf(const char *fmt, ...) {
 				kprintuld(va_arg(args, uint32_t), HEXADECIMAL, 0);
 				state = KPRINTF_STATE_NORMAL;
 			} else if ('0' <= ch && ch <= '9') {
-				uint8_t digit								 = ch - '0';
+				uint8_t digit								 = (uint8_t)(ch - '0');
 				min_width_specifier[min_width_specifier_len] = digit;
 				++min_width_specifier_len;
 
@@ -134,7 +122,7 @@ void kprintf(const char *fmt, ...) {
 			}
 		} else if (state == KPRINTF_STATE_FIND_FORMAT_AFTER_MIN_WIDTH) {
 			if ('0' <= ch && ch <= '9') {
-				uint8_t digit								 = ch - '0';
+				uint8_t digit								 = (uint8_t)(ch - '0');
 				min_width_specifier[min_width_specifier_len] = digit;
 				++min_width_specifier_len;
 				state = KPRINTF_STATE_FIND_FORMAT_AFTER_MIN_WIDTH;
@@ -193,4 +181,4 @@ void kprintf(const char *fmt, ...) {
 
 		++fmt;
 	}
-};
+}

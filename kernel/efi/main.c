@@ -1,52 +1,59 @@
+#include <efi/efi.h>
+#include <kernel/drivers/gop.h>
+#include <kernel/init.h>
+#include <kernel/lib/io.h>
 #include <kernel/platform.h>
 
-#include <efi/efi.h>
-#include <kernel/init.h>
+static EFI_SYSTEM_TABLE *St;
 
-static EFI_SYSTEM_TABLE *ST;
+void kputchar(char ch) {
+	gop_draw_char(ch);
+}
 
-void kputchar(const char ch) {
-	if (ch == '\n') {
-		ST->ConOut->OutputString(ST->ConOut, L"\r\n");
-		return;
+__declspec(noreturn) void panic() {
+	kprintf("FATAL: kernel panic\n");
+	while (true)
+		__asm__("hlt");
+}
+
+__declspec(noreturn) EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
+	St = SystemTable;
+	EFI_STATUS Status;
+
+	gop_init(SystemTable);
+
+	/* GetMemoryMap */
+	UINTN MemoryMapSize;
+	EFI_MEMORY_DESCRIPTOR *MemoryMap;
+	UINTN MapKey;
+	UINTN DescriptorSize;
+	UINT32 DescriptorVersion;
+
+	MemoryMapSize = 0;
+	MemoryMap	  = NULL;
+	Status		  = SystemTable->BootServices->GetMemoryMap(&MemoryMapSize, MemoryMap, &MapKey, &DescriptorSize, &DescriptorVersion);
+	if (Status != EFI_BUFFER_TOO_SMALL) {
+		panic();
 	}
 
-	WCHAR str[2];
-	str[0] = (WCHAR)ch;
-	str[1] = '\0';
-	ST->ConOut->OutputString(ST->ConOut, str);
-}
+	Status = SystemTable->BootServices->AllocatePool(EfiBootServicesData, MemoryMapSize + 2 * DescriptorSize, (VOID **)&MemoryMap);
+	if (EFI_ERROR(Status)) {
+		panic();
+	}
 
-void panic() {
-	ST->RuntimeServices->ResetSystem(EfiResetShutdown, EFI_DEVICE_ERROR, 0, NULL);
-}
+	Status = SystemTable->BootServices->GetMemoryMap(&MemoryMapSize, MemoryMap, &MapKey, &DescriptorSize, &DescriptorVersion);
+	if (EFI_ERROR(Status)) {
+		panic();
+	}
 
-EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
-	EFI_STATUS Status;
-	EFI_INPUT_KEY Key;
+	/* ExitBootServices */
+	Status = SystemTable->BootServices->ExitBootServices(ImageHandle, MapKey);
+	if (EFI_ERROR(Status)) {
+		panic();
+	}
 
-	/* Store the system table for future use in other functions */
-	ST = SystemTable;
-
-	ST->ConOut->ClearScreen(ST->ConOut);
-
-	/* Cross-platform entrypoint for the kernel */
 	kmain();
 
-	/* Now wait for a keystroke before continuing, otherwise your
-	   message will flash off the screen before you see it.
-
-	   First, we need to empty the console input buffer to flush
-	   out any keystrokes entered before this point */
-	Status = ST->ConIn->Reset(ST->ConIn, FALSE);
-	if (EFI_ERROR(Status))
-		return Status;
-
-	/* Now wait until a key becomes available.  This is a simple
-	   polling implementation.  You could try and use the WaitForKey
-	   event instead if you like */
-	while ((Status = ST->ConIn->ReadKeyStroke(ST->ConIn, &Key)) == EFI_NOT_READY)
-		;
-
-	return Status;
+	while (true)
+		__asm__("hlt");
 }

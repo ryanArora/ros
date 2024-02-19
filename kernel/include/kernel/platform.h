@@ -3,7 +3,7 @@
 /*
 	Panic
 */
-void panic(void);
+__declspec(noreturn) void panic(void);
 
 /*
 	Write a character to the screen.

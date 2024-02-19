@@ -2,8 +2,8 @@
 #include <fonts/spleen-8x16.h>
 #include <kernel/drivers/gop.h>
 #include <kernel/lib/io.h>
+#include <kernel/lib/panic.h>
 #include <kernel/lib/string.h>
-#include <kernel/platform.h>
 
 static EFI_GRAPHICS_OUTPUT_PROTOCOL *Gop;
 
@@ -40,15 +40,6 @@ void gop_draw_char(char c) {
 	}
 
 	gop_x += font.Width;
-}
-
-void gop_draw_string(const char *str, size_t n) {
-	for (uint32_t i = 0; i < n; ++i) {
-		if (str[i] == '\0')
-			break;
-
-		gop_draw_char(str[i]);
-	}
 }
 
 void gop_set_resolution(uint32_t width, uint32_t height) {

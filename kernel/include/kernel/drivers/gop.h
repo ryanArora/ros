@@ -13,4 +13,3 @@ void gop_init(EFI_SYSTEM_TABLE *SystemTable);
 void gop_draw_pixel(uint32_t pixel, uint32_t x, uint32_t y);
 void gop_draw_char(char c);
 void gop_set_resolution(uint32_t width, uint32_t height);
-void gop_draw_string(const char *str, size_t n);

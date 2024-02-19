@@ -1,7 +1,7 @@
 #include <kernel/drivers/pci.h>
 
 #include <kernel/lib/io.h>
-#include <kernel/platform.h>
+#include <kernel/lib/panic.h>
 
 #define PCI_CONFIG_ADDRESS 0xCF8
 #define PCI_CONFIG_DATA	   0xCFC

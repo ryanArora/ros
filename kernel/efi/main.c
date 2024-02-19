@@ -2,17 +2,7 @@
 #include <kernel/drivers/gop.h>
 #include <kernel/init.h>
 #include <kernel/lib/io.h>
-#include <kernel/platform.h>
-
-void kputchar(char ch) {
-	gop_draw_char(ch);
-}
-
-__declspec(noreturn) void panic() {
-	kprintf("FATAL: kernel panic\n");
-	while (true)
-		__asm__("hlt");
-}
+#include <kernel/lib/panic.h>
 
 __declspec(noreturn) EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
 	gop_init(SystemTable);

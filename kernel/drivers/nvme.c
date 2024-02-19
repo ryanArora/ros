@@ -1,7 +1,7 @@
 #include <kernel/drivers/nvme.h>
 #include <kernel/init.h>
 #include <kernel/lib/io.h>
-#include <kernel/platform.h>
+#include <kernel/lib/panic.h>
 
 void *base_address_register;
 

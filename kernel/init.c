@@ -2,7 +2,6 @@
 
 #include <kernel/drivers/nvme.h>
 #include <kernel/lib/io.h>
-#include <kernel/platform.h>
 #include <stdbool.h>
 
 /*

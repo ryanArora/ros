@@ -92,3 +92,12 @@ uint64_t nvme_get_completion_queue_x_tail_doorbell(uint64_t x) {
 	uint64_t doorbell_stride = (nvme_get_controller_capabilities() & ((uint64_t)0xF << 32)) >> 32;
 	return *(uint64_t *)((uint8_t *)base_address_register + 0x1000 + 2 * (x + 1) * doorbell_stride);
 }
+
+typedef struct __attribute__((packed)) nvme_submission_queue_entry {
+	uint32_t command;
+	uint32_t namespace_identifier;
+	uint32_t reserved[2];
+	uint32_t metadata_pointer[2];
+	uint32_t data_pointer[4];
+	uint32_t command_specific[6];
+} nvme_submission_queue_entry;

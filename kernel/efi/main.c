@@ -4,8 +4,6 @@
 #include <kernel/lib/io.h>
 #include <kernel/platform.h>
 
-static EFI_SYSTEM_TABLE *St;
-
 void kputchar(char ch) {
 	gop_draw_char(ch);
 }
@@ -17,12 +15,9 @@ __declspec(noreturn) void panic() {
 }
 
 __declspec(noreturn) EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
-	St = SystemTable;
-	EFI_STATUS Status;
-
 	gop_init(SystemTable);
 
-	/* GetMemoryMap */
+	EFI_STATUS Status;
 	UINTN MemoryMapSize;
 	EFI_MEMORY_DESCRIPTOR *MemoryMap;
 	UINTN MapKey;

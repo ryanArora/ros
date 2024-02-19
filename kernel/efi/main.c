@@ -27,25 +27,21 @@ __declspec(noreturn) EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABL
 	MemoryMapSize = 0;
 	MemoryMap	  = NULL;
 	Status		  = SystemTable->BootServices->GetMemoryMap(&MemoryMapSize, MemoryMap, &MapKey, &DescriptorSize, &DescriptorVersion);
-	if (Status != EFI_BUFFER_TOO_SMALL) {
+	if (Status != EFI_BUFFER_TOO_SMALL)
 		panic();
-	}
 
 	Status = SystemTable->BootServices->AllocatePool(EfiBootServicesData, MemoryMapSize + 2 * DescriptorSize, (VOID **)&MemoryMap);
-	if (EFI_ERROR(Status)) {
+	if (EFI_ERROR(Status))
 		panic();
-	}
 
 	Status = SystemTable->BootServices->GetMemoryMap(&MemoryMapSize, MemoryMap, &MapKey, &DescriptorSize, &DescriptorVersion);
-	if (EFI_ERROR(Status)) {
+	if (EFI_ERROR(Status))
 		panic();
-	}
 
 	/* ExitBootServices */
 	Status = SystemTable->BootServices->ExitBootServices(ImageHandle, MapKey);
-	if (EFI_ERROR(Status)) {
+	if (EFI_ERROR(Status))
 		panic();
-	}
 
 	kmain();
 

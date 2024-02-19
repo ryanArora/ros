@@ -14,7 +14,7 @@ typedef enum NVME_STATUS {
 } NVME_STATUS;
 
 /*
-	defined in src/init.c
+	defined in drivers/pci.c
 */
 extern bool nvme_controller_found;
 extern pci_config_type_0_header nvme_controller_header;

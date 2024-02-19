@@ -3,6 +3,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+void pci_init(void);
+
 typedef struct pci_config_type_0_header {
 	uint16_t vendor_id;
 	uint16_t device_id;

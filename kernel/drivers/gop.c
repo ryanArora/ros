@@ -26,12 +26,12 @@ static uint32_t gop_y = 12;
 void gop_draw_char(char c) {
 	if (c == '\n') {
 		gop_x = 0;
-		gop_y += font.Height;
+		gop_y += font.height;
 		return;
 	}
 
-	int mask[8]				   = {1, 2, 4, 8, 16, 32, 64, 128};
-	const unsigned char *glyph = font.Bitmap + (c - 32) * 16;
+	int mask[8]		  = {1, 2, 4, 8, 16, 32, 64, 128};
+	const char *glyph = font.bitmap + (c - 32) * 16;
 
 	for (uint32_t cy = 0; cy < 16; ++cy) {
 		for (uint32_t cx = 0; cx < 8; ++cx) {
@@ -39,7 +39,7 @@ void gop_draw_char(char c) {
 		}
 	}
 
-	gop_x += font.Width;
+	gop_x += font.width;
 }
 
 void gop_set_resolution(uint32_t width, uint32_t height) {

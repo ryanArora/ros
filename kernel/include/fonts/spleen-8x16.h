@@ -1,11 +1,11 @@
-#pragma once
 // Created from bdf2c Version 4, (c) 2009, 2010 by Lutz Sammer
 //	License AGPLv3: GNU Affero General Public License version 3
+#pragma once
 
 #include "font.h"
 
 	/// character bitmap for each encoding
-static const unsigned char __font_bitmap__[] = {
+static const char __font_bitmap__[] = {
 //  32 $20 'SPACE'
 //	width 8, bbx 0, bby -4, bbw 8, bbh 16
 	________,
@@ -1720,8 +1720,8 @@ static const unsigned char __font_bitmap__[] = {
 
 	/// bitmap font structure
 const struct bitmap_font font = {
-	.Width = 8,
-	.Height = 16,
-	.Bitmap = __font_bitmap__,
+	.width = 8,
+	.height = 16,
+	.bitmap = __font_bitmap__,
 };
 

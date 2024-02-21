@@ -36,8 +36,8 @@ void console_putchar(char c) {
 		memmove((char *)Gop->Mode->FrameBufferBase, (char *)Gop->Mode->FrameBufferBase + 4 * CONSOLE_WIDTH * font.height,
 				4 * CONSOLE_WIDTH * (CONSOLE_HEIGHT - font.height));
 
-		for (size_t x = 0; x < CONSOLE_WIDTH; ++x) {
-			for (size_t y = CONSOLE_HEIGHT - font.height; y < CONSOLE_HEIGHT; ++y) {
+		for (uint32_t x = 0; x < CONSOLE_WIDTH; ++x) {
+			for (uint32_t y = CONSOLE_HEIGHT - font.height; y < CONSOLE_HEIGHT; ++y) {
 				gop_draw_pixel(console_background, x, y);
 			}
 		}
@@ -57,8 +57,8 @@ void console_putchar(char c) {
 }
 
 void console_clear(void) {
-	for (size_t x = 0; x < CONSOLE_WIDTH; ++x) {
-		for (size_t y = 0; y < CONSOLE_HEIGHT; ++y) {
+	for (uint32_t x = 0; x < CONSOLE_WIDTH; ++x) {
+		for (uint32_t y = 0; y < CONSOLE_HEIGHT; ++y) {
 			gop_draw_pixel(console_background, x, y);
 		}
 	}

@@ -10,8 +10,8 @@ void *memcpy(void *dest, const void *src, size_t n) {
 }
 
 void *memmove(void *dest, const void *src, size_t n) {
-	uint8_t *from = (uint8_t *)src;
-	uint8_t *to	  = (uint8_t *)dest;
+	const uint8_t *from = (const uint8_t *)src;
+	uint8_t *to			= (uint8_t *)dest;
 
 	if (from == to || n == 0)
 		return dest;
@@ -21,7 +21,7 @@ void *memmove(void *dest, const void *src, size_t n) {
 		/*         <to........>  */
 		/* copy in reverse, to avoid overwriting from */
 		int i;
-		for (i = n - 1; i >= 0; i--)
+		for (i = (int)n - 1; i >= 0; i--)
 			to[i] = from[i];
 		return dest;
 	}

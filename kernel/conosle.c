@@ -5,15 +5,19 @@
 #include <kernel/lib/string.h>
 #include <stdint.h>
 
+uint32_t console_background;
+uint32_t console_foreground;
+
 static uint32_t console_x;
 static uint32_t console_y;
 
 extern EFI_GRAPHICS_OUTPUT_PROTOCOL *Gop;
 
 void console_init(void) {
+	console_background = 0x0000FF;
+	console_foreground = 0xFFFFFF;
+
 	console_clear();
-	console_x = 0;
-	console_y = 0;
 }
 
 void console_putchar(char c) {
@@ -34,7 +38,7 @@ void console_putchar(char c) {
 
 		for (size_t x = 0; x < CONSOLE_WIDTH; ++x) {
 			for (size_t y = CONSOLE_HEIGHT - font.height; y < CONSOLE_HEIGHT; ++y) {
-				gop_draw_pixel(CONSOLE_BACKGROUND, x, y);
+				gop_draw_pixel(console_background, x, y);
 			}
 		}
 		console_y -= font.height;
@@ -45,7 +49,7 @@ void console_putchar(char c) {
 
 	for (uint32_t cy = 0; cy < 16; ++cy) {
 		for (uint32_t cx = 0; cx < 8; ++cx) {
-			gop_draw_pixel(glyph[cy] & mask[cx] ? CONSOLE_FOREGROUND : CONSOLE_BACKGROUND, console_x + 8 - cx, console_y + cy);
+			gop_draw_pixel(glyph[cy] & mask[cx] ? console_foreground : console_background, console_x + 8 - cx, console_y + cy);
 		}
 	}
 
@@ -55,7 +59,10 @@ void console_putchar(char c) {
 void console_clear(void) {
 	for (size_t x = 0; x < CONSOLE_WIDTH; ++x) {
 		for (size_t y = 0; y < CONSOLE_HEIGHT; ++y) {
-			gop_draw_pixel(CONSOLE_BACKGROUND, x, y);
+			gop_draw_pixel(console_background, x, y);
 		}
 	}
+
+	console_x = 0;
+	console_y = 0;
 }

@@ -1,13 +1,13 @@
 #include <kernel/lib/io.h>
 
-#include <kernel/drivers/gop.h>
+#include <kernel/console.h>
 #include <kernel/lib/panic.h>
 #include <stdarg.h>
 
 static void kprint(const char *str) {
 	char ch;
 	while ((ch = *str)) {
-		gop_draw_char(ch);
+		console_putchar(ch);
 		++str;
 	}
 }
@@ -19,11 +19,11 @@ typedef enum BASE {
 
 static void kprintuld(uint64_t num, BASE base, uint8_t min_width) {
 	if (num == 0) {
-		gop_draw_char('0');
+		console_putchar('0');
 
 		if (min_width > 1) {
 			for (size_t i = 0; i < min_width - 1; ++i) {
-				gop_draw_char('0');
+				console_putchar('0');
 			}
 		}
 
@@ -49,12 +49,12 @@ static void kprintuld(uint64_t num, BASE base, uint8_t min_width) {
 
 	if (min_width > len) {
 		for (size_t i = 0; i < min_width - len; ++i) {
-			gop_draw_char('0');
+			console_putchar('0');
 		}
 	}
 
 	for (size_t i = 0; i < len; ++i) {
-		gop_draw_char(nums[len - 1 - i]);
+		console_putchar(nums[len - 1 - i]);
 	}
 }
 
@@ -83,11 +83,11 @@ void kprintf(const char *fmt, ...) {
 			if (ch == '%') {
 				state = KPRINTF_STATE_FIND_FORMAT;
 			} else {
-				gop_draw_char(ch);
+				console_putchar(ch);
 			}
 		} else if (state == KPRINTF_STATE_FIND_FORMAT) {
 			if (ch == '%') {
-				gop_draw_char('%');
+				console_putchar('%');
 				state = KPRINTF_STATE_NORMAL;
 			} else if (ch == 's') {
 				kprint(va_arg(args, const char *));

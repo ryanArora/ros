@@ -1,6 +1,6 @@
 #pragma once
 
-__declspec(noreturn) void panic(void);
+#include <kernel/lib/io.h>
 
 #define panic()                                                                                                                                                \
 	do {                                                                                                                                                       \

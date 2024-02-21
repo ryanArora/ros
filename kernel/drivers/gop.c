@@ -24,7 +24,7 @@ void gop_set_resolution(uint32_t width, uint32_t height) {
 		if (EFI_ERROR(Status))
 			panic();
 
-		if (Info->HorizontalResolution == 1280 && Info->VerticalResolution == 720) {
+		if (Info->HorizontalResolution == GOP_WIDTH && Info->VerticalResolution == GOP_HEIGHT) {
 			GopModeFound = TRUE;
 			GopMode		 = i;
 		}

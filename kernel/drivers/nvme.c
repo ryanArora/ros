@@ -1,4 +1,5 @@
 #include <kernel/drivers/nvme.h>
+
 #include <kernel/init.h>
 #include <kernel/lib/io.h>
 #include <kernel/lib/panic.h>
@@ -6,6 +7,8 @@
 void *base_address_register;
 
 void nvme_init(void) {
+	kprintf("\nInitializing NVMe controller...\n");
+
 	if (!nvme_controller_found) {
 		kprintf("FATAL: No NVMe Controller found.\n");
 		panic();
@@ -24,7 +27,7 @@ void nvme_init(void) {
 	}
 
 	base_address_register = (void *)(((uint64_t)nvme_controller_header.bar1 << 32) | (nvme_controller_header.bar0 & 0xFFFFFFF0));
-	kprintf("NVMe base_address_register=0x%16lX\n\n", base_address_register);
+	kprintf("NVMe base_address_register=0x%16lX\n", base_address_register);
 
 	kprintf("Controller capabilities.  0x%16lX\n", nvme_get_controller_capabilities());
 	kprintf("Version.                  0x%8X\n", nvme_get_version());

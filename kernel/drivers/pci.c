@@ -29,7 +29,7 @@ static void pci_probe_device(uint8_t bus, uint8_t slot, uint8_t func, uint16_t v
 }
 
 void pci_init(void) {
-	kprintf("Probing PCI Devices...\n");
+	kprintf("\nProbing PCI Devices...\n");
 
 	for (size_t bus = 0; bus < 256; ++bus) {
 		for (size_t slot = 0; slot < 32; ++slot) {

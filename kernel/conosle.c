@@ -5,10 +5,16 @@
 #include <kernel/lib/string.h>
 #include <stdint.h>
 
-static uint32_t console_x = 0;
-static uint32_t console_y = 0;
+static uint32_t console_x;
+static uint32_t console_y;
 
 extern EFI_GRAPHICS_OUTPUT_PROTOCOL *Gop;
+
+void console_init(void) {
+	console_clear();
+	console_x = 0;
+	console_y = 0;
+}
 
 void console_putchar(char c) {
 	if (c == '\n') {
@@ -25,7 +31,12 @@ void console_putchar(char c) {
 	if (console_y + font.height > CONSOLE_HEIGHT) {
 		memmove((char *)Gop->Mode->FrameBufferBase, (char *)Gop->Mode->FrameBufferBase + 4 * CONSOLE_WIDTH * font.height,
 				4 * CONSOLE_WIDTH * (CONSOLE_HEIGHT - font.height));
-		memset((char *)Gop->Mode->FrameBufferBase + 4 * CONSOLE_WIDTH * (CONSOLE_HEIGHT - font.height), 0, 4 * CONSOLE_WIDTH * font.height);
+
+		for (size_t x = 0; x < CONSOLE_WIDTH; ++x) {
+			for (size_t y = CONSOLE_HEIGHT - font.height; y < CONSOLE_HEIGHT; ++y) {
+				gop_draw_pixel(CONSOLE_BACKGROUND, x, y);
+			}
+		}
 		console_y -= font.height;
 	}
 
@@ -39,4 +50,12 @@ void console_putchar(char c) {
 	}
 
 	console_x += font.width;
+}
+
+void console_clear(void) {
+	for (size_t x = 0; x < CONSOLE_WIDTH; ++x) {
+		for (size_t y = 0; y < CONSOLE_HEIGHT; ++y) {
+			gop_draw_pixel(CONSOLE_BACKGROUND, x, y);
+		}
+	}
 }

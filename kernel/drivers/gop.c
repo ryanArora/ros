@@ -2,7 +2,7 @@
 
 #include <kernel/lib/panic.h>
 
-static EFI_GRAPHICS_OUTPUT_PROTOCOL *Gop;
+EFI_GRAPHICS_OUTPUT_PROTOCOL *Gop;
 
 void gop_init(EFI_SYSTEM_TABLE *SystemTable) {
 	EFI_GUID GopGuid  = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;

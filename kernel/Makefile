@@ -7,7 +7,7 @@ SRCS := $(shell find . -type f -name '*.c')
 OBJS := $(patsubst %.c,%.o,$(SRCS))
 EFI_TARGET := BOOTX64.EFI
 
-.PHONY: clean
+.PHONY: all clean
 
 all: $(EFI_TARGET)
 

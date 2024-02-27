@@ -1,5 +1,5 @@
 CC := clang
-CFLAGS := -Wall -Wextra -O3 -Iinclude
+CFLAGS := -Wall -Wextra -Wno-unused-parameter -O3 -Iinclude
 
 SRCS := $(shell find . -type f -name '*.c')
 OBJS := $(patsubst %.c,%.o,$(SRCS))

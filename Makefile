@@ -1,6 +1,7 @@
 OS_NAME := ros
 EFI_TARGET := kernel/BOOTX64.EFI
 EFI_IMG_TARGET := x86_64-efi-$(OS_NAME).img
+OVMF_PATH := /usr/share/ovmf/x64/OVMF.fd
 
 .PHONY: all dev clean kernel rex
 
@@ -26,7 +27,7 @@ clean:
 
 dev: $(EFI_IMG_TARGET)
 	qemu-system-x86_64 \
-		-bios /usr/share/ovmf/OVMF.fd \
+		-bios $(OVMF_PATH) \
 		-drive id=disk,file=$<,if=none,format=raw \
 		-device nvme,serial=deadbeef,drive=disk \
 		-device qemu-xhci

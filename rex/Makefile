@@ -1,8 +1,8 @@
-CC := clang
-CFLAGS := -Wall -Wextra -Wno-unused-parameter -O3 -Iinclude
+CPPC := clang++
+CPPFLAGS := -Wall -Wextra -Wno-unused-parameter -O3
 
-SRCS := $(shell find . -type f -name '*.c')
-OBJS := $(patsubst %.c,%.o,$(SRCS))
+SRCS := $(shell find . -type f -name '*.cpp')
+OBJS := $(patsubst %.cpp,%.o,$(SRCS))
 TARGET := rex
 
 .PHONY: all clean
@@ -10,10 +10,10 @@ TARGET := rex
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(CC) -o $@ $^
+	$(CPPC) -o $@ $^
 
-%.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+%.o: %.cpp
+	$(CPPC) $(CPPFLAGS) -c -o $@ $<
 
 clean:
 	rm -f $(TARGET) $(OBJS)

@@ -9,7 +9,7 @@ usage(const char *program_name)
 	printf("Usage: %s [COMMAND]\n\n", program_name);
 
 	printf("Commands:\n");
-	printf("\trun\t\tRun the project\n");
+	printf("\trun\t\tRun a program\n");
 }
 
 int

@@ -1,8 +1,26 @@
-BasedOnStyle: LLVM
 UseTab: Always
 IndentWidth: 4
 TabWidth: 4
+AccessModifierOffset: -4
+ColumnLimit: 80
+InsertNewlineAtEOF: true
+LineEnding: LF
+InsertTrailingCommas: Wrapped
+
 AlignConsecutiveMacros: true
-AlignConsecutiveAssignments: true
-AllowShortFunctionsOnASingleLine: false
-ColumnLimit: 160
+AlignConsecutiveDeclarations: Consecutive
+AlignConsecutiveAssignments: Consecutive
+AlignOperands: AlignAfterOperator
+
+BinPackArguments: false
+BinPackParameters: false
+BreakBeforeBinaryOperators: NonAssignment
+
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterFunction: true
+
+AlwaysBreakAfterDefinitionReturnType: All
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: WithoutElse
+PackConstructorInitializers: Never

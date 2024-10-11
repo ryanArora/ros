@@ -4,8 +4,8 @@
     "explorer.excludeGitIgnore": true,
     "files.insertFinalNewline": true,
     "files.readonlyInclude": {
-        "kernel/include/efi/**/*": true,
-        "kernel/include/fonts/**/*": true
+        "include/efi/**/*": true,
+        "include/fonts/**/*": true
     },
     "[c]": {
         "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"

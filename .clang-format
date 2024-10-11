@@ -1,0 +1,9 @@
+IndentWidth: 4
+SortIncludes: false
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterFunction: true
+AlwaysBreakAfterReturnType: AllDefinitions
+PointerAlignment: Left
+AllowShortIfStatementsOnASingleLine: true
+AlignConsecutiveMacros: true

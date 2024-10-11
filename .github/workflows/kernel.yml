@@ -1,0 +1,21 @@
+name: Kernel CI
+
+on:
+    push:
+        branches: ["main"]
+    pull_request:
+        branches: ["main"]
+
+defaults:
+    run:
+        working-directory: kernel
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Create EFI image
+              run: make

@@ -1,0 +1,8 @@
+*.o
+*.EFI
+*.img
+*.a
+*.lib
+
+compile_commands.json
+.cache/

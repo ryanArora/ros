@@ -1,4 +1,4 @@
-name: Kernel CI
+name: kernel
 
 on:
     push:
@@ -16,6 +16,4 @@ jobs:
 
         steps:
             - uses: actions/checkout@v4
-
-            - name: Create EFI image
-              run: make
+            - run: make

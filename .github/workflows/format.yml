@@ -16,5 +16,5 @@ jobs:
                   git ls-files \
                       | grep -E '\.(c|h)$' | grep -Ev '^kernel/include/efi' \
                       | grep -Ev '^kernel/include/fonts' \
-                      | xargs clang-format --verbose -i \
+                      | xargs clang-format --verbose -i
                   git diff --exit-code

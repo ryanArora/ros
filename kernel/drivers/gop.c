@@ -27,8 +27,8 @@ gop_set_resolution(uint32_t width, uint32_t height)
         EFI_STATUS Status = Gop->QueryMode(Gop, i, &SizeOfInfo, &Info);
         if (EFI_ERROR(Status)) panic();
 
-        if (Info->HorizontalResolution == GOP_WIDTH &&
-            Info->VerticalResolution == GOP_HEIGHT) {
+        if (Info->HorizontalResolution == width &&
+            Info->VerticalResolution == height) {
             GopModeFound = TRUE;
             GopMode = i;
         }

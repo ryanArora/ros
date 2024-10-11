@@ -1,3 +1,3 @@
 # `ros`
 
-Ryan's Operating System.
+Ryan's Operating System

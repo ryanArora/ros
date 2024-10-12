@@ -38,7 +38,9 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
     if (EFI_ERROR(Status)) panic();
 
     kmain();
+    asm volatile("cli");
+    asm volatile("hlt");
 
-    while (true)
-        __asm__("hlt");
+    while (1)
+        ;
 }

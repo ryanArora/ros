@@ -10,7 +10,7 @@ extern uint32_t console_foreground;
         console_background = 0xFF0000;                                         \
         console_foreground = 0xFFFFFF;                                         \
         kprintf("\nFATAL: kernel panic at %s:%d\n", __FILE__, __LINE__);       \
-        while (1)                                                              \
-            __asm__("hlt");                                                    \
+        asm volatile("cli");                                                   \
+        asm volatile("hlt");                                                   \
                                                                                \
     } while (0)

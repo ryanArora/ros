@@ -1,37 +1,37 @@
 CC := clang
-CFLAGS := -Wall -Wextra -Werror -I../include --system-header-prefix=efi --system-header-prefix=fonts -target x86_64-unknown-windows -ffreestanding -fshort-wchar -mno-red-zone
+CFLAGS := -Wall -Wextra -Wno-excessive-regsave -Werror -I../include --system-header-prefix=efi --system-header-prefix=fonts -target x86_64-unknown-windows -ffreestanding -fshort-wchar -mno-red-zone
 CSRCS := $(shell find . -type f -name '*.c')
 COBJS := $(CSRCS:.c=.o)
 
-AS := as
-ASFLAGS := --64
-ASSRCS := $(shell find . -type f -name '*.S')
-ASOBJS := $(ASSRCS:.S=.o)
+AS := clang
+ASFLAGS = -target x86_64-unknown-windows
+ASSRCS := $(shell find . -type f -name '*.s')
+ASOBJS := $(ASSRCS:.s=.s.o)
 
-OBJS := $(COBJS) $(ASOBJS)
+LD := clang
 LDFLAGS := -target x86_64-unknown-windows -nostdlib -Wl,-entry:efi_main -Wl,-subsystem:efi_application -fuse-ld=lld-link
-EFI_TARGET := BOOTX64.EFI
+OBJS := $(COBJS) $(ASOBJS)
+TARGET := BOOTX64.EFI
 
-.PHONY: all clean depend
+DEPEND := .depend
 
-all: $(EFI_TARGET)
+.PHONY: all clean $(DEPEND)
 
-$(EFI_TARGET): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^
+all: $(TARGET)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-%.o: %.s
-	$(AS) $(ASFLAGS) -o $@ $<
+%.s.o: %.s
+	$(AS) $(ASFLAGS) -c -o $@ $<
+
+$(TARGET): $(OBJS)
+	$(CC) $(LDFLAGS) -o $@ $^
 
 clean:
-	rm -f $(EFI_TARGET) $(OBJS) .depend
+	rm -f $(TARGET) $(OBJS) $(DEPEND)
 
-depend: .depend
+$(DEPEND): $(CSRCS)
+	$(CC) $(CFLAGS) -MM $^ > $(DEPEND)
 
-.depend: $(CSRCS)
-	rm -f .depend
-	$(CC) $(CFLAGS) -MM $^ > .depend
-
--include .depend
+-include $(DEPEND)

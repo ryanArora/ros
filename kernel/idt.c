@@ -39,31 +39,32 @@ idt_set_descriptor(uint8_t vector, void* isr, uint8_t flags)
 void
 idt_init(void)
 {
-    idt_set_descriptor(0, exception_handler_division_error, 0x8E);
-    idt_set_descriptor(1, exception_handler_debug, 0x8E);
-    idt_set_descriptor(2, exception_handler_non_maskable_interrupt, 0x8E);
-    idt_set_descriptor(3, exception_handler_breakpoint, 0x8E);
-    idt_set_descriptor(4, exception_handler_overflow, 0x8E);
-    idt_set_descriptor(5, exception_handler_bound_range_exceeded, 0x8E);
-    idt_set_descriptor(6, exception_handler_invalid_opcode, 0x8E);
-    idt_set_descriptor(7, exception_handler_device_not_available, 0x8E);
-    idt_set_descriptor(8, exception_handler_double_fault, 0x8E);
-    idt_set_descriptor(9, exception_handler_coprocessor_segment_overrun, 0x8E);
-    idt_set_descriptor(10, exception_handler_invalid_tss, 0x8E);
-    idt_set_descriptor(11, exception_handler_segment_not_present, 0x8E);
-    idt_set_descriptor(12, exception_handler_stack_segment_fault, 0x8E);
-    idt_set_descriptor(13, exception_handler_general_protection_fault, 0x8E);
-    idt_set_descriptor(14, exception_handler_page_fault, 0x8E);
-    idt_set_descriptor(16, exception_handler_x87_floating_point_exception,
-                       0x8E);
-    idt_set_descriptor(17, exception_handler_alignment_check, 0x8E);
-    idt_set_descriptor(18, exception_handler_machine_check, 0x8E);
-    idt_set_descriptor(19, exception_handler_simd_floating_point, 0x8E);
-    idt_set_descriptor(20, exception_handler_virtualization, 0x8E);
-    idt_set_descriptor(21, exception_handler_control_protection, 0x8E);
-    idt_set_descriptor(28, exception_handler_hypervisor_injection, 0x8E);
-    idt_set_descriptor(29, exception_handler_vmm_communication, 0x8E);
-    idt_set_descriptor(30, exception_handler_security_exception, 0x8E);
+    // clang-format off
+    idt_set_descriptor(0x00, exception_handler_division_error,               0x8E);
+    idt_set_descriptor(0x01, exception_handler_debug,                        0x8E);
+    idt_set_descriptor(0x02, exception_handler_non_maskable_interrupt,       0x8E);
+    idt_set_descriptor(0x03, exception_handler_breakpoint,                   0x8E);
+    idt_set_descriptor(0x04, exception_handler_overflow,                     0x8E);
+    idt_set_descriptor(0x05, exception_handler_bound_range_exceeded,         0x8E);
+    idt_set_descriptor(0x06, exception_handler_invalid_opcode,               0x8E);
+    idt_set_descriptor(0x07, exception_handler_device_not_available,         0x8E);
+    idt_set_descriptor(0x08, exception_handler_double_fault,                 0x8E);
+    idt_set_descriptor(0x09, exception_handler_coprocessor_segment_overrun,  0x8E);
+    idt_set_descriptor(0x0A, exception_handler_invalid_tss,                  0x8E);
+    idt_set_descriptor(0x0B, exception_handler_segment_not_present,          0x8E);
+    idt_set_descriptor(0x0C, exception_handler_stack_segment_fault,          0x8E);
+    idt_set_descriptor(0x0D, exception_handler_general_protection_fault,     0x8E);
+    idt_set_descriptor(0x0E, exception_handler_page_fault,                   0x8E);
+    idt_set_descriptor(0x10, exception_handler_x87_floating_point_exception, 0x8E);
+    idt_set_descriptor(0x11, exception_handler_alignment_check,              0x8E);
+    idt_set_descriptor(0x12, exception_handler_machine_check,                0x8E);
+    idt_set_descriptor(0x13, exception_handler_simd_floating_point,          0x8E);
+    idt_set_descriptor(0x14, exception_handler_virtualization,               0x8E);
+    idt_set_descriptor(0x15, exception_handler_control_protection,           0x8E);
+    idt_set_descriptor(0x1C, exception_handler_hypervisor_injection,         0x8E);
+    idt_set_descriptor(0x1D, exception_handler_vmm_communication,            0x8E);
+    idt_set_descriptor(0x1E, exception_handler_security_exception,           0x8E);
+    // clang-format on
 
     struct idtr idtr;
     idtr.base = (uintptr_t)&idt;

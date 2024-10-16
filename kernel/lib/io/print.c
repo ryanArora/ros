@@ -4,12 +4,24 @@
 #include <kernel/lib/panic.h>
 #include <stdarg.h>
 
+void
+kputchar(char ch)
+{
+    if (console_ready) {
+        if (ch == '\b') {
+            console_backspace();
+            return;
+        }
+        console_putchar(ch);
+    }
+}
+
 static void
 kprint(const char* str)
 {
     char ch;
     while ((ch = *str)) {
-        console_putchar(ch);
+        kputchar(ch);
         ++str;
     }
 }
@@ -23,11 +35,11 @@ static void
 kprintuld(uint64_t num, BASE base, uint8_t min_width)
 {
     if (num == 0) {
-        console_putchar('0');
+        kputchar('0');
 
         if (min_width > 1) {
             for (size_t i = 0; i < min_width - 1; ++i) {
-                console_putchar('0');
+                kputchar('0');
             }
         }
 
@@ -53,12 +65,12 @@ kprintuld(uint64_t num, BASE base, uint8_t min_width)
 
     if (min_width > len) {
         for (size_t i = 0; i < min_width - len; ++i) {
-            console_putchar('0');
+            kputchar('0');
         }
     }
 
     for (size_t i = 0; i < len; ++i) {
-        console_putchar(nums[len - 1 - i]);
+        kputchar(nums[len - 1 - i]);
     }
 }
 
@@ -89,11 +101,11 @@ kprintf(const char* fmt, ...)
             if (ch == '%') {
                 state = KPRINTF_STATE_FIND_FORMAT;
             } else {
-                console_putchar(ch);
+                kputchar(ch);
             }
         } else if (state == KPRINTF_STATE_FIND_FORMAT) {
             if (ch == '%') {
-                console_putchar('%');
+                kputchar('%');
                 state = KPRINTF_STATE_NORMAL;
             } else if (ch == 's') {
                 kprint(va_arg(args, const char*));

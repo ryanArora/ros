@@ -2,6 +2,8 @@
 
 #include <kernel/console.h>
 #include <kernel/lib/io.h>
+#include <kernel/drivers/pic.h>
+#include <kernel/drivers/pit.h>
 #include "gdt.h"
 #include "idt.h"
 
@@ -14,7 +16,11 @@ kmain(void)
     gdt_init();
     idt_init();
 
-    // Test division error exception
-    int a = 0;
-    kprintf("a=%d\n", a / a);
+    pic_init();
+    pit_init();
+
+    asm volatile("sti" ::: "memory");
+
+    while (1)
+        asm volatile("hlt" ::: "memory");
 }

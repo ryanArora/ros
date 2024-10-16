@@ -1,7 +1,8 @@
 #include "idt.h"
 #include "exception.h"
-#include <kernel/lib/io.h>
 #include <kernel/lib/panic.h>
+#include <kernel/drivers/keyboard.h>
+#include <kernel/drivers/pit.h>
 
 #define IDT_ENTRIES 256
 
@@ -36,6 +37,14 @@ idt_set_descriptor(uint8_t vector, void* isr, uint8_t flags)
     descriptor->zero = 0;
 }
 
+__attribute__((interrupt)) void
+default_interrupt_handler(void* frame)
+{
+    (void)(frame);
+    kprintf("unhandled interrupt\n");
+    panic();
+}
+
 void
 idt_init(void)
 {
@@ -66,14 +75,17 @@ idt_init(void)
     idt_set_descriptor(0x1E, exception_handler_security_exception,           0x8E);
     // clang-format on
 
+    for (size_t i = 0x20; i < IDT_ENTRIES; ++i)
+        idt_set_descriptor(i, default_interrupt_handler, 0x8E);
+
+    idt_set_descriptor(0x20, timer_interrupt_handler, 0x8E);
+    idt_set_descriptor(0x21, keyboard_interrupt_handler, 0x8E);
+
     struct idtr idtr;
     idtr.base = (uintptr_t)&idt;
     idtr.limit = sizeof(idt) - 1;
 
-    asm volatile("lidt %0;"
-                 "sti"
-                 :
-                 : "m"(idtr));
+    asm volatile("lidt %0" : : "m"(idtr) : "memory");
 
     kprintf("Loaded the Interrupt Descriptor Table\n");
 }

@@ -4,12 +4,15 @@
 #include <kernel/drivers/gop.h>
 #include <kernel/lib/string.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 uint32_t console_background;
 uint32_t console_foreground;
 
 static uint32_t console_x;
 static uint32_t console_y;
+
+bool console_ready = false;
 
 extern EFI_GRAPHICS_OUTPUT_PROTOCOL* Gop;
 
@@ -20,12 +23,13 @@ console_init(void)
     console_foreground = 0xFFFFFF;
 
     console_clear();
+    console_ready = true;
 }
 
 void
-console_putchar(char c)
+console_putchar(char ch)
 {
-    if (c == '\n') {
+    if (ch == '\n') {
         console_x = 0;
         console_y += font.height;
         return;
@@ -52,7 +56,7 @@ console_putchar(char c)
     }
 
     int mask[8] = {1, 2, 4, 8, 16, 32, 64, 128};
-    const char* glyph = font.bitmap + (c - 32) * 16;
+    const char* glyph = font.bitmap + (ch - 32) * 16;
 
     for (uint32_t cy = 0; cy < 16; ++cy) {
         for (uint32_t cx = 0; cx < 8; ++cx) {
@@ -63,6 +67,15 @@ console_putchar(char c)
     }
 
     console_x += font.width;
+}
+
+void
+console_backspace(void)
+{
+    if (console_x == 0) return;
+    console_x -= font.width;
+    console_putchar(' ');
+    console_x -= font.width;
 }
 
 void

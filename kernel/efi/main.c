@@ -4,14 +4,15 @@
 #include <kernel/lib/io.h>
 #include <kernel/lib/panic.h>
 
+UINTN MemoryMapSize;
+EFI_MEMORY_DESCRIPTOR* MemoryMap;
+
 _Noreturn EFI_STATUS
 efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
 {
     gop_init(SystemTable);
 
     EFI_STATUS Status;
-    UINTN MemoryMapSize;
-    EFI_MEMORY_DESCRIPTOR* MemoryMap;
     UINTN MapKey;
     UINTN DescriptorSize;
     UINT32 DescriptorVersion;
@@ -38,8 +39,8 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
     if (EFI_ERROR(Status)) panic();
 
     kmain();
-    asm volatile("cli");
-    asm volatile("hlt");
+    asm volatile("cli" ::: "memory");
+    asm volatile("hlt" ::: "memory");
 
     while (1)
         ;

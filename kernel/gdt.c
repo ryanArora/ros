@@ -47,7 +47,7 @@ gdt_init(void)
     gdtr.limit = sizeof(gdt) - 1;
     gdtr.offset = (uintptr_t)&gdt;
 
-    asm volatile("lgdt %0" : : "m"(gdtr));
+    asm volatile("lgdt %0" : : "m"(gdtr) : "memory");
     gdt_reload_segments();
 
     kprintf("Loaded the Global Descriptor Table\n");

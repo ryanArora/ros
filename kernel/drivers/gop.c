@@ -1,6 +1,5 @@
 #include <kernel/drivers/gop.h>
-
-#include <kernel/lib/panic.h>
+#include <kernel/lib/io.h>
 
 EFI_GRAPHICS_OUTPUT_PROTOCOL* Gop;
 
@@ -10,7 +9,7 @@ gop_init(EFI_SYSTEM_TABLE* SystemTable)
     EFI_GUID GopGuid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
     EFI_STATUS Status =
         SystemTable->BootServices->LocateProtocol(&GopGuid, NULL, (VOID**)&Gop);
-    if (EFI_ERROR(Status)) panic();
+    assert(!EFI_ERROR(Status));
 
     gop_set_resolution(GOP_WIDTH, GOP_HEIGHT);
 }
@@ -25,7 +24,7 @@ gop_set_resolution(uint32_t width, uint32_t height)
         EFI_GRAPHICS_OUTPUT_MODE_INFORMATION* Info;
         UINTN SizeOfInfo;
         EFI_STATUS Status = Gop->QueryMode(Gop, i, &SizeOfInfo, &Info);
-        if (EFI_ERROR(Status)) panic();
+        assert(!EFI_ERROR(Status));
 
         if (Info->HorizontalResolution == width &&
             Info->VerticalResolution == height) {
@@ -34,10 +33,10 @@ gop_set_resolution(uint32_t width, uint32_t height)
         }
     }
 
-    if (!GopModeFound) panic();
+    assert(GopModeFound);
 
     EFI_STATUS Status = Gop->SetMode(Gop, GopMode);
-    if (EFI_ERROR(Status)) panic();
+    assert(!EFI_ERROR(Status));
 }
 
 void

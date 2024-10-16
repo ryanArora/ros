@@ -1,5 +1,5 @@
 CC := clang
-CFLAGS := -Wall -Wextra -Wno-excessive-regsave -Werror -I../include --system-header-prefix=efi --system-header-prefix=fonts -target x86_64-unknown-windows -ffreestanding -fshort-wchar -mno-red-zone
+CFLAGS := -D_GNU_SOURCE -Wall -Wextra -Wno-excessive-regsave -Werror -I../include --system-header-prefix=efi --system-header-prefix=fonts -target x86_64-unknown-windows -ffreestanding -fshort-wchar -mno-red-zone
 CSRCS := $(shell find . -type f -name '*.c')
 COBJS := $(CSRCS:.c=.o)
 

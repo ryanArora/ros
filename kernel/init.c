@@ -19,8 +19,8 @@ kmain(void)
     pic_init();
     pit_init();
 
-    asm volatile("sti" ::: "memory");
+    assert(false);
 
-    while (1)
-        asm volatile("hlt" ::: "memory");
+    interrupts_enable();
+    spin();
 }

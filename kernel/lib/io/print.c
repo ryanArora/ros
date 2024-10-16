@@ -1,7 +1,6 @@
 #include <kernel/lib/io.h>
 
 #include <kernel/console.h>
-#include <kernel/lib/panic.h>
 #include <stdarg.h>
 
 void
@@ -57,7 +56,7 @@ kprintuld(uint64_t num, BASE base, uint8_t min_width)
         else if (digit < 16)
             nums[len] = 'A' + digit - 10;
         else
-            panic();
+            assert(false);
 
         num /= (uint64_t)base;
         ++len;
@@ -118,7 +117,7 @@ kprintf(const char* fmt, ...)
                 } else if (arg == 1) {
                     kprint("true");
                 } else {
-                    panic();
+                    assert(false && "invalid kprintf state");
                 }
 
                 state = KPRINTF_STATE_NORMAL;
@@ -137,7 +136,7 @@ kprintf(const char* fmt, ...)
             } else if (ch == 'l') {
                 state = KPRINTF_STATE_FIND_FORMAT_AFTER_LONG;
             } else {
-                panic();
+                assert(false && "invalid kprintf state");
             }
         } else if (state == KPRINTF_STATE_FIND_FORMAT_AFTER_MIN_WIDTH) {
             if ('0' <= ch && ch <= '9') {
@@ -166,7 +165,7 @@ kprintf(const char* fmt, ...)
                 } else if (ch == 'l') {
                     state = KPRINTF_STATE_FIND_FORMAT_AFTER_MIN_WIDTH_AND_LONG;
                 } else {
-                    panic();
+                    assert(false && "invalid kprintf state");
                 }
             }
         } else if (state == KPRINTF_STATE_FIND_FORMAT_AFTER_LONG) {
@@ -196,10 +195,10 @@ kprintf(const char* fmt, ...)
                 min_width_specifier_len = 0;
                 state = KPRINTF_STATE_NORMAL;
             } else {
-                panic();
+                assert(false && "invalid kprintf state");
             }
         } else {
-            panic();
+            assert(false && "invalid kprintf state");
         }
 
         ++fmt;

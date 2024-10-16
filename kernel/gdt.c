@@ -1,6 +1,6 @@
 #include "gdt.h"
 #include <stdint.h>
-#include <kernel/lib/panic.h>
+#include <kernel/lib/io.h>
 
 #define GDT_ENTRIES 5
 

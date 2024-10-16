@@ -1,6 +1,5 @@
 #include "exception.h"
 #include <kernel/lib/io.h>
-#include <kernel/lib/panic.h>
 
 #define dump_exception_frame(frame)                                            \
     do {                                                                       \

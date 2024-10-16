@@ -15,7 +15,7 @@ $(EFI_IMG_TARGET): kernel
 	mcopy -i $@ $(EFI_TARGET) ::/EFI/BOOT
 
 kernel:
-	$(MAKE) -C kernel
+	$(MAKE) -C kernel .depend all
 
 clean:
 	rm -f $(EFI_IMG_TARGET)

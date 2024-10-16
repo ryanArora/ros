@@ -1,6 +1,8 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdbool.h>
+#include <kernel/lib/io.h>
 
 /*
     CPU Port IO Functions
@@ -18,3 +20,44 @@ uint32_t inl(uint16_t port);
 */
 void kputchar(char ch);
 void kprintf(const char* fmt, ...);
+
+/*
+    Die
+*/
+_Noreturn void abort(void);
+_Noreturn void spin(void);
+
+/*
+    Interrupts
+*/
+void interrupts_enable(void);
+void interrupts_disable(void);
+
+bool interupts_enabled(void);
+void interrupts_restore(bool interrupts_enabled);
+
+/*
+    Panic
+*/
+extern uint32_t console_background;
+extern uint32_t console_foreground;
+
+#define panic(...)                                                             \
+    do {                                                                       \
+        console_background = 0xFF0000;                                         \
+        console_foreground = 0xFFFFFF;                                         \
+        kprintf("%s:%d: %s: panic\n", __FILE__, __LINE__, __FUNCTION__);       \
+        __VA_OPT__(kprintf(__VA_ARGS__));                                      \
+        abort();                                                               \
+                                                                               \
+    } while (0)
+
+/*
+    Assert
+*/
+#define assert(cond)                                                           \
+    do {                                                                       \
+        if (!(cond))                                                           \
+            panic("%s:%d: %s: Assertion `%s` failed.\n", __FILE__, __LINE__,   \
+                  __FUNCTION__, #cond);                                        \
+    } while (0)

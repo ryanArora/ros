@@ -1,6 +1,6 @@
 #include "idt.h"
 #include "exception.h"
-#include <kernel/lib/panic.h>
+#include <kernel/lib/io.h>
 #include <kernel/drivers/keyboard.h>
 #include <kernel/drivers/pit.h>
 

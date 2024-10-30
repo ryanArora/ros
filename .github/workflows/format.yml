@@ -12,6 +12,9 @@ jobs:
 
         steps:
             - uses: actions/checkout@v4
+            - uses: KyleMayes/install-llvm-action@v2
+              with:
+                  version: "18"
             - run: |
                   git ls-files \
                       | grep -E '\.(c|h)$' | grep -Ev '^include/efi' \

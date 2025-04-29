@@ -2,7 +2,7 @@
 
 I started this project in the Fall term of my 2nd year of University because I was interested in Operating Systems development.
 
-This project:
+This project is a very simple Operating Systems kernel that:
 
 -   Boots from UEFI
 -   Loads the Global Descriptor Table

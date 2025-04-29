@@ -19,8 +19,6 @@ kmain(void)
     pic_init();
     pit_init();
 
-    assert(false);
-
     interrupts_enable();
     spin();
 }

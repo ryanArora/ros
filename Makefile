@@ -1,7 +1,7 @@
 OS_NAME := ros
 EFI_TARGET := kernel/BOOTX64.EFI
 EFI_IMG_TARGET := x86_64-efi-$(OS_NAME).img
-OVMF_PATH := /usr/share/ovmf/x64/OVMF.fd
+OVMF_PATH := OVMF.fd
 
 .PHONY: all dev clean kernel
 

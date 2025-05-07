@@ -1,7 +1,6 @@
 #include "mm.h"
-#include <efi/efi.h>
-#include <kernel/lib/io.h>
-#include <kernel/lib/string.h>
+#include "efi/efi.h"
+#include "lib/io.h"
 
 extern EFI_MEMORY_DESCRIPTOR* MemoryMap;
 extern UINTN MemoryMapSize;
@@ -9,7 +8,6 @@ extern UINTN MemoryMapSize;
 #define MAX_ORDER 10
 #define PAGE_SIZE 4096
 
-// Free list for each order
 typedef struct free_area {
     void* free_list;
     size_t nr_free;
@@ -36,7 +34,6 @@ is_page_aligned(void* addr)
 static void
 add_to_free_list(void* page, size_t order)
 {
-    // Use the first word of the page as a next pointer
     *(void**)page = free_areas[order].free_list;
     free_areas[order].free_list = page;
     free_areas[order].nr_free++;

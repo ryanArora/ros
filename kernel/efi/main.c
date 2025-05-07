@@ -1,8 +1,8 @@
 #include "efi/efierr.h"
-#include <efi/efi.h>
-#include <kernel/drivers/gop.h>
-#include <kernel/init.h>
-#include <kernel/lib/io.h>
+#include "efi/efi.h"
+#include "../drivers/gop.h"
+#include "../init.h"
+#include "../lib/io.h"
 
 UINTN MemoryMapSize;
 EFI_MEMORY_DESCRIPTOR* MemoryMap;

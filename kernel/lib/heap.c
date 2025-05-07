@@ -1,7 +1,7 @@
-#include <kernel/lib/heap.h>
-#include <efi/efi.h>
-#include <kernel/lib/io.h>
-#include <kernel/lib/string.h>
+#include "heap.h"
+#include "efi/efi.h"
+#include "io.h"
+#include "string.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include "../mm.h"

@@ -1,8 +1,8 @@
-#include <kernel/console.h>
+#include "console.h"
 
 #include <fonts/spleen-8x16.h>
-#include <kernel/drivers/gop.h>
-#include <kernel/lib/string.h>
+#include "./drivers/gop.h"
+#include "./lib/string.h"
 #include <stdint.h>
 #include <stdbool.h>
 

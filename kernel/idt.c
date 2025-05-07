@@ -1,8 +1,8 @@
 #include "idt.h"
 #include "exception.h"
-#include <kernel/lib/io.h>
-#include <kernel/drivers/keyboard.h>
-#include <kernel/drivers/pit.h>
+#include "lib/io.h"
+#include "drivers/keyboard.h"
+#include "drivers/pit.h"
 
 #define IDT_ENTRIES 256
 

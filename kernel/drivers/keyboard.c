@@ -1,5 +1,5 @@
-#include <kernel/drivers/keyboard.h>
-#include <kernel/lib/io.h>
+#include "keyboard.h"
+#include "../lib/io.h"
 #include <stdbool.h>
 #include <stdint.h>
 

@@ -2,7 +2,6 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <kernel/lib/io.h>
 
 /*
     CPU Port IO Functions

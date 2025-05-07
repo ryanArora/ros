@@ -1,5 +1,4 @@
-#include <kernel/lib/string.h>
-
+#include "string.h"
 #include <stdint.h>
 
 void*

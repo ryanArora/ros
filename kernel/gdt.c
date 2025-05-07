@@ -1,6 +1,6 @@
 #include "gdt.h"
 #include <stdint.h>
-#include <kernel/lib/io.h>
+#include "lib/io.h"
 
 #define GDT_ENTRIES 5
 

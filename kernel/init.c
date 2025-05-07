@@ -1,10 +1,10 @@
-#include <kernel/init.h>
+#include "init.h"
 
-#include <kernel/console.h>
-#include <kernel/lib/io.h>
-#include <kernel/lib/heap.h>
-#include <kernel/drivers/pic.h>
-#include <kernel/drivers/pit.h>
+#include "console.h"
+#include "lib/io.h"
+#include "lib/heap.h"
+#include "drivers/pic.h"
+#include "drivers/pit.h"
 #include "mm.h"
 #include "gdt.h"
 #include "idt.h"

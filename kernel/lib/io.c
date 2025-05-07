@@ -1,7 +1,96 @@
-#include <kernel/lib/io.h>
-
-#include <kernel/console.h>
+#include "io.h"
+#include "../console.h"
 #include <stdarg.h>
+
+_Noreturn void
+abort(void)
+{
+    asm volatile("cli;"
+                 "hlt" ::
+                     : "memory");
+    while (1)
+        ;
+}
+
+_Noreturn void
+spin(void)
+{
+    while (1)
+        asm volatile("hlt" ::: "memory");
+}
+
+void
+interrupts_enable(void)
+{
+    asm volatile("sti" ::: "memory");
+};
+
+void
+interrupts_disable(void)
+{
+    asm volatile("cli" ::: "memory");
+};
+
+bool
+interrupts_enabled(void)
+{
+    uint64_t rflags;
+    asm volatile("pushfq\n\t"
+                 "popq %0"
+                 : "=r"(rflags));
+    return (rflags & (1 << 9)) != 0;
+}
+
+void
+interrupts_restore(bool interrupts_enabled)
+{
+    if (interrupts_enabled)
+        asm volatile("sti" ::: "memory");
+    else
+        asm volatile("cli" ::: "memory");
+}
+
+void
+outb(uint16_t port, uint8_t val)
+{
+    asm volatile("outb %b0, %w1" : : "a"(val), "Nd"(port) : "memory");
+}
+
+void
+outw(uint16_t port, uint16_t val)
+{
+    asm volatile("outw %w0, %w1" : : "a"(val), "Nd"(port) : "memory");
+}
+
+void
+outl(uint16_t port, uint32_t val)
+{
+    asm volatile("outl %0, %w1" : : "a"(val), "Nd"(port) : "memory");
+}
+
+uint8_t
+inb(uint16_t port)
+{
+    uint8_t ret;
+    asm volatile("inb %w1, %b0" : "=a"(ret) : "Nd"(port) : "memory");
+    return ret;
+}
+
+uint16_t
+inw(uint16_t port)
+{
+    uint16_t ret;
+    asm volatile("inw %w1, %w0" : "=a"(ret) : "Nd"(port) : "memory");
+    return ret;
+}
+
+uint32_t
+inl(uint16_t port)
+{
+    uint32_t ret;
+    asm volatile("inl %w1, %0" : "=a"(ret) : "Nd"(port) : "memory");
+    return ret;
+}
 
 void
 kputchar(char ch)

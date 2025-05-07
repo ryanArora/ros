@@ -1,6 +1,6 @@
 #pragma once
 
-#include <kernel/drivers/gop.h>
+#include "drivers/gop.h"
 #include <stdbool.h>
 
 #define CONSOLE_WIDTH  GOP_WIDTH

@@ -8,6 +8,7 @@
 #include "mm.h"
 #include "gdt.h"
 #include "idt.h"
+#include "drivers/pci.h"
 
 void
 kmain(void)
@@ -20,6 +21,8 @@ kmain(void)
 
     mm_init();
     heap_init();
+
+    pci_init();
 
     pic_init();
     pit_init();

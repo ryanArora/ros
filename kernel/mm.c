@@ -6,141 +6,204 @@
 extern EFI_MEMORY_DESCRIPTOR* MemoryMap;
 extern UINTN MemoryMapSize;
 
-struct free_block {
-    bool free;
-    size_t size;
-    struct free_block* next;
-    struct free_block* prev;
-};
+#define MAX_ORDER 10
+#define PAGE_SIZE 4096
 
-static struct free_block* free_list = NULL;
+// Free list for each order
+typedef struct free_area {
+    void* free_list;
+    size_t nr_free;
+} free_area_t;
 
-static void print_free_list(void);
+static free_area_t free_areas[MAX_ORDER + 1];
+static void* memory_start;
+static size_t total_pages;
+
+static void*
+get_buddy(void* page, size_t order)
+{
+    size_t page_idx = ((uintptr_t)page - (uintptr_t)memory_start) / PAGE_SIZE;
+    size_t buddy_idx = page_idx ^ (1 << order);
+    return (void*)((uintptr_t)memory_start + (buddy_idx * PAGE_SIZE));
+}
+
+static bool
+is_page_aligned(void* addr)
+{
+    return ((uintptr_t)addr & (PAGE_SIZE - 1)) == 0;
+}
+
+static void
+add_to_free_list(void* page, size_t order)
+{
+    // Use the first word of the page as a next pointer
+    *(void**)page = free_areas[order].free_list;
+    free_areas[order].free_list = page;
+    free_areas[order].nr_free++;
+}
+
+static void*
+remove_from_free_list(size_t order)
+{
+    void* page = free_areas[order].free_list;
+    if (page) {
+        free_areas[order].free_list = *(void**)page;
+        free_areas[order].nr_free--;
+    }
+    return page;
+}
 
 void
 mm_init(void)
 {
-    struct free_block* last_block = NULL;
+    for (size_t i = 0; i <= MAX_ORDER; i++) {
+        free_areas[i].free_list = NULL;
+        free_areas[i].nr_free = 0;
+    }
 
-    for (size_t i = 0; i < MemoryMapSize / sizeof(EFI_MEMORY_DESCRIPTOR); ++i) {
+    void* largest_region_start = NULL;
+    size_t largest_region_pages = 0;
+
+    for (UINTN i = 0; i < MemoryMapSize / sizeof(EFI_MEMORY_DESCRIPTOR); i++) {
         EFI_MEMORY_DESCRIPTOR* desc = &MemoryMap[i];
         if (desc->Type != EfiConventionalMemory) continue;
         if (desc->PhysicalStart == 0) continue;
 
-        kprintf("ptr=0x%llX, size=0x%llX\n", desc->PhysicalStart,
-                desc->NumberOfPages * 4096);
-
-        struct free_block* block = (struct free_block*)desc->PhysicalStart;
-        block->size = desc->NumberOfPages * 4096;
-        block->next = NULL;
-        block->prev = last_block;
-        block->free = true;
-
-        if (free_list == NULL) {
-            free_list = block;
-            last_block = block;
-        } else {
-            last_block->next = block;
-            last_block = block;
+        if (desc->NumberOfPages > largest_region_pages) {
+            largest_region_start = (void*)(uintptr_t)desc->PhysicalStart;
+            largest_region_pages = desc->NumberOfPages;
         }
     }
+
+    if (largest_region_start != NULL) {
+        memory_start = largest_region_start;
+        total_pages = largest_region_pages;
+
+        for (size_t page_idx = 0; page_idx < total_pages;) {
+            size_t max_order = 0;
+            size_t pages_left = total_pages - page_idx;
+
+            for (size_t order = MAX_ORDER; order > 0; order--) {
+                if ((page_idx & ((1 << order) - 1)) == 0 &&
+                    pages_left >= (1 << order)) {
+                    max_order = order;
+                    break;
+                }
+            }
+
+            void* page =
+                (void*)((uintptr_t)memory_start + page_idx * PAGE_SIZE);
+            add_to_free_list(page, max_order);
+            page_idx += (1 << max_order);
+        }
+    }
+
+    if (memory_start == NULL) {
+        panic("no usable memory found");
+    }
+
+    kprintf("Memory manager initialized\n", total_pages);
 }
 
 void*
-kmalloc(size_t size)
+alloc_page(void)
 {
-    kprintf("kmalloc(%lld) before:\n", size);
-    print_free_list();
-
-    if (free_list == NULL) {
-        panic("free_list is NULL");
-    }
-    if (size == 0) return NULL;
-
-    size += sizeof(struct free_block);
-
-    for (struct free_block* block = free_list; block != NULL;
-         block = block->next) {
-        if (!block->free) continue;
-        if (block->size < size) continue;
-
-        if (block->size == size) {
-            block->free = false;
-            kprintf("kmalloc(%lld) after:\n", size);
-            print_free_list();
-            return block + 1;
-        }
-
-        size_t new_block_size = block->size - size;
-        if (new_block_size < sizeof(struct free_block) + 1) {
-            block->free = false;
-            kprintf("kmalloc(%lld) after:\n", size);
-            print_free_list();
-            return block + 1;
-        };
-
-        struct free_block* new_block_ptr = (void*)(block) + size;
-        new_block_ptr->size = new_block_size;
-        new_block_ptr->free = true;
-        new_block_ptr->next = block->next;
-        new_block_ptr->prev = block;
-
-        if (block->next != NULL) {
-            block->next->prev = new_block_ptr;
-        }
-
-        block->next = new_block_ptr;
-        block->size = size;
-        block->free = false;
-        kprintf("kmalloc(%lld) after:\n", size);
-        print_free_list();
-        return block + 1;
-    }
-
-    panic("out of memory");
+    return alloc_pages(0);
 }
 
 void
-kfree(void* ptr)
+free_page(void* ptr)
 {
-    kprintf("kfree(%lld) before:\n", ptr);
-    print_free_list();
-
-    if (ptr == NULL) return;
-
-    struct free_block* block = (struct free_block*)(ptr)-1;
-    block->free = true;
-
-    // Merge with next block if it's free
-    if (block->next != NULL && block->next->free) {
-        struct free_block* next_block = block->next;
-        block->size += next_block->size;
-        block->next = next_block->next;
-        if (next_block->next != NULL) {
-            next_block->next->prev = block;
-        }
-    }
-
-    // Merge with previous block if it's free
-    if (block->prev != NULL && block->prev->free) {
-        struct free_block* prev_block = block->prev;
-        prev_block->size += block->size;
-        prev_block->next = block->next;
-        if (block->next != NULL) {
-            block->next->prev = prev_block;
-        }
-    }
-
-    kprintf("kfree(%lld) after:\n", ptr);
-    print_free_list();
+    free_pages(ptr, 0);
 }
 
-static void
-print_free_list(void)
+size_t
+get_order(size_t size)
 {
-    for (struct free_block* block = free_list; block != NULL;
-         block = block->next) {
-        kprintf("ptr=0x%llX, size=0x%llX, free=%d\n", block, block->size,
-                block->free);
+    size_t order = 0;
+    size_t pages = (size + PAGE_SIZE - 1) / PAGE_SIZE;
+
+    while ((1 << order) < pages && order < MAX_ORDER) {
+        order++;
     }
+
+    return order;
+}
+
+void*
+alloc_pages(size_t order)
+{
+    if (order > MAX_ORDER) {
+        panic("order > MAX_ORDER");
+    }
+
+    size_t current = order;
+    void* page = NULL;
+
+    while (current <= MAX_ORDER) {
+        page = remove_from_free_list(current);
+        if (page) {
+            break;
+        }
+        current++;
+    }
+
+    if (!page) {
+        panic("out of memory");
+    }
+
+    while (current > order) {
+        current--;
+        void* buddy = (void*)((uintptr_t)page + (1 << current) * PAGE_SIZE);
+        add_to_free_list(buddy, current);
+    }
+
+    return page;
+}
+
+void
+free_pages(void* ptr, size_t order)
+{
+    if (!ptr || !is_page_aligned(ptr)) {
+        return;
+    }
+
+    if (ptr < memory_start ||
+        ptr >= (void*)((uintptr_t)memory_start + total_pages * PAGE_SIZE)) {
+        return;
+    }
+
+    while (order < MAX_ORDER) {
+        void* buddy = get_buddy(ptr, order);
+        void* current = free_areas[order].free_list;
+        void* prev = NULL;
+        bool found = false;
+
+        while (current) {
+            if (current == buddy) {
+                if (prev) {
+                    *(void**)prev = *(void**)current;
+                } else {
+                    free_areas[order].free_list = *(void**)current;
+                }
+                free_areas[order].nr_free--;
+                found = true;
+                break;
+            }
+            prev = current;
+            current = *(void**)current;
+        }
+
+        if (!found) {
+            add_to_free_list(ptr, order);
+            return;
+        }
+
+        if (buddy < ptr) {
+            ptr = buddy;
+        }
+        order++;
+    }
+
+    add_to_free_list(ptr, order);
 }

@@ -2,6 +2,7 @@
 
 #include <kernel/console.h>
 #include <kernel/lib/io.h>
+#include <kernel/lib/heap.h>
 #include <kernel/drivers/pic.h>
 #include <kernel/drivers/pit.h>
 #include "mm.h"
@@ -18,6 +19,7 @@ kmain(void)
     idt_init();
 
     mm_init();
+    heap_init();
 
     pic_init();
     pit_init();

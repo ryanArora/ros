@@ -1,31 +1,111 @@
 #include "pci.h"
 #include "../lib/io.h"
 #include <stdint.h>
+#include "nvme.h"
 
-#define PCI_CONFIG_ADDRESS 0xCF8
-#define PCI_CONFIG_DATA    0xCFC
+#define PCI_CONFIG_VENDOR_ID_OFFSET           0x00
+#define PCI_CONFIG_DEVICE_ID_OFFSET           0x02
+#define PCI_CONFIG_COMMAND_OFFSET             0x04
+#define PCI_CONFIG_STATUS_OFFSET              0x06
+#define PCI_CONFIG_REVISION_ID_OFFSET         0x08
+#define PCI_CONFIG_PROG_IF_OFFSET             0x09
+#define PCI_CONFIG_SUBCLASS_OFFSET            0x0A
+#define PCI_CONFIG_CLASS_CODE_OFFSET          0x0B
+#define PCI_CONFIG_CACHE_LINE_SIZE_OFFSET     0x0C
+#define PCI_CONFIG_LATENCY_TIMER_OFFSET       0x0D
+#define PCI_CONFIG_HEADER_TYPE_OFFSET         0x0E
+#define PCI_CONFIG_BIST_OFFSET                0x0F
+#define PCI_CONFIG_BAR0_OFFSET                0x10
+#define PCI_CONFIG_BAR1_OFFSET                0x14
+#define PCI_CONFIG_BAR2_OFFSET                0x18
+#define PCI_CONFIG_BAR3_OFFSET                0x1C
+#define PCI_CONFIG_BAR4_OFFSET                0x20
+#define PCI_CONFIG_BAR5_OFFSET                0x24
+#define PCI_CONFIG_CARDBUS_CIS_PTR_OFFSET     0x28
+#define PCI_CONFIG_SUBSYSTEM_VENDOR_ID_OFFSET 0x2C
+#define PCI_CONFIG_SUBSYSTEM_ID_OFFSET        0x2E
+#define PCI_CONFIG_EXPANSION_ROM_BASE_OFFSET  0x30
+#define PCI_CONFIG_CAPABILITIES_PTR_OFFSET    0x34
+#define PCI_CONFIG_INTERRUPT_LINE_OFFSET      0x3C
+#define PCI_CONFIG_INTERRUPT_PIN_OFFSET       0x3D
+#define PCI_CONFIG_MIN_GRANT_OFFSET           0x3E
+#define PCI_CONFIG_MAX_LATENCY_OFFSET         0x3F
 
-#define PCI_VENDOR_ID   0x00
-#define PCI_DEVICE_ID   0x02
-#define PCI_CLASS_CODE  0x0B
-#define PCI_SUBCLASS    0x0A
-#define PCI_HEADER_TYPE 0x0E
-#define PCI_PROG_IF     0x09
+#define PCI_CONFIG_HEADER_TYPE_PCI_DEVICE     0x00
+#define PCI_CONFIG_HEADER_TYPE_PCI_BRIDGE     0x01
+#define PCI_CONFIG_HEADER_TYPE_CARDBUS_BRIDGE 0x02
 
-#define PCI_INVALID_VENDOR 0xFFFF
+static void pci_enumerate_device_or_bridge(uint8_t bus, uint8_t device,
+                                           uint8_t function);
+static void pci_enumerate_device(uint8_t bus, uint8_t device, uint8_t function);
 
-// AHCI/SATA controller class and subclass
-#define PCI_CLASS_MASS_STORAGE 0x01
-#define PCI_SUBCLASS_SATA      0x06
-#define PCI_SUBCLASS_NVME      0x08
-#define PCI_PROG_IF_NVME       0x02
+void
+pci_init(void)
+{
+    kprintf("Initializing PCI devices...\n");
+
+    // Enumerate all PCI devices
+    for (size_t bus = 0; bus < 256; bus++) {
+        for (size_t device = 0; device < 32; device++) {
+            for (size_t function = 0; function < 8; function++) {
+                pci_enumerate_device_or_bridge(bus, device, function);
+            }
+        }
+    }
+}
+
+static void
+pci_enumerate_device_or_bridge(uint8_t bus, uint8_t device, uint8_t function)
+{
+    uint16_t vendor_id = pci_config_get_vendor_id(bus, device, function);
+    if (vendor_id == 0xFFFF) return;
+
+    uint8_t header_type = pci_config_get_header_type(bus, device, function);
+    switch (header_type) {
+    case PCI_CONFIG_HEADER_TYPE_PCI_DEVICE:
+        pci_enumerate_device(bus, device, function);
+        break;
+    case PCI_CONFIG_HEADER_TYPE_PCI_BRIDGE:
+        kprintf("warn: PCI-to-PCI bridge found, but not implemented\n");
+        break;
+    case PCI_CONFIG_HEADER_TYPE_CARDBUS_BRIDGE:
+        kprintf("warn: PCI-to-CardBus bridge found, but not implemented\n");
+        break;
+    default:
+        kprintf("warn: unknown PCI header type found: %d\n", header_type);
+        break;
+    }
+}
+
+static void
+pci_enumerate_device(uint8_t bus, uint8_t device, uint8_t function)
+{
+    uint16_t vendor_id = pci_config_get_vendor_id(bus, device, function);
+    uint16_t device_id = pci_config_get_device_id(bus, device, function);
+
+    kprintf(
+        "PCI device found at %X:%X:%X with Vendor ID: 0x%X, Device ID: 0x%X \n",
+        bus, device, function, vendor_id, device_id);
+
+    uint8_t class_code = pci_config_get_class_code(bus, device, function);
+    uint8_t subclass = pci_config_get_subclass(bus, device, function);
+    uint8_t prog_if = pci_config_get_prog_if(bus, device, function);
+
+    kprintf("Class code: 0x%X, Subclass: 0x%X, Prog IF: 0x%X\n", class_code,
+            subclass, prog_if);
+
+    if (class_code == 0x01 && subclass == 0x08 && prog_if == 0x02) {
+        kprintf("NVMe controller found\n");
+        nvme_init(bus, device, function);
+    }
+}
 
 static uint32_t
 pci_read_config_dword(uint8_t bus, uint8_t device, uint8_t function,
                       uint8_t offset)
 {
-    uint32_t address = (1 << 31) | (bus << 16) | (device << 11) |
-                       (function << 8) | (offset & 0xFC);
+    volatile uint32_t address = (1 << 31) | (bus << 16) | (device << 11) |
+                                (function << 8) | (offset & 0xFC);
     outl(PCI_CONFIG_ADDRESS, address);
     return inl(PCI_CONFIG_DATA);
 }
@@ -46,82 +126,186 @@ pci_read_config_byte(uint8_t bus, uint8_t device, uint8_t function,
     return (dword >> ((offset & 0x3) * 8)) & 0xFF;
 }
 
-static void
-pci_check_function(uint8_t bus, uint8_t device, uint8_t function)
+uint16_t
+pci_config_get_device_id(uint8_t bus, uint8_t device, uint8_t function)
 {
-    uint16_t vendor_id =
-        pci_read_config_word(bus, device, function, PCI_VENDOR_ID);
-    if (vendor_id == PCI_INVALID_VENDOR) {
-        return;
-    }
-
-    uint16_t device_id =
-        pci_read_config_word(bus, device, function, PCI_DEVICE_ID);
-    uint8_t class_code =
-        pci_read_config_byte(bus, device, function, PCI_CLASS_CODE);
-    uint8_t subclass =
-        pci_read_config_byte(bus, device, function, PCI_SUBCLASS);
-    uint8_t prog_if = pci_read_config_byte(bus, device, function, PCI_PROG_IF);
-
-    kprintf("PCI device found: %d:%d.%d - Vendor: 0x%X, Device: 0x%X, "
-            "Class: 0x%X, Subclass: 0x%X, ProgIF: 0x%X\n",
-            bus, device, function, vendor_id, device_id, class_code, subclass,
-            prog_if);
-
-    // Check for NVMe controller (class 0x01, subclass 0x08, prog_if 0x01)
-    if (class_code == PCI_CLASS_MASS_STORAGE && subclass == PCI_SUBCLASS_NVME &&
-        prog_if == PCI_PROG_IF_NVME) {
-        kprintf("Found NVMe Controller at %d:%d.%d\n", bus, device, function);
-    }
+    return pci_read_config_word(bus, device, function,
+                                PCI_CONFIG_DEVICE_ID_OFFSET);
 }
 
-static void
-pci_check_device(uint8_t bus, uint8_t device)
+uint16_t
+pci_config_get_vendor_id(uint8_t bus, uint8_t device, uint8_t function)
 {
-    uint16_t vendor_id = pci_read_config_word(bus, device, 0, PCI_VENDOR_ID);
-    if (vendor_id == PCI_INVALID_VENDOR) {
-        return;
-    }
-
-    pci_check_function(bus, device, 0);
-
-    uint8_t header_type = pci_read_config_byte(bus, device, 0, PCI_HEADER_TYPE);
-    if ((header_type & 0x80) != 0) {
-        // Multi-function device
-        for (uint8_t function = 1; function < 8; function++) {
-            if (pci_read_config_word(bus, device, function, PCI_VENDOR_ID) !=
-                PCI_INVALID_VENDOR) {
-                pci_check_function(bus, device, function);
-            }
-        }
-    }
+    return pci_read_config_word(bus, device, function,
+                                PCI_CONFIG_VENDOR_ID_OFFSET);
 }
 
-static void
-pci_check_bus(uint8_t bus)
+uint16_t
+pci_config_get_command(uint8_t bus, uint8_t device, uint8_t function)
 {
-    for (uint8_t device = 0; device < 32; device++) {
-        pci_check_device(bus, device);
-    }
+    return pci_read_config_word(bus, device, function,
+                                PCI_CONFIG_COMMAND_OFFSET);
 }
 
-void
-pci_init(void)
+uint16_t
+pci_config_get_status(uint8_t bus, uint8_t device, uint8_t function)
 {
-    kprintf("Enumerating PCI devices...\n");
+    return pci_read_config_word(bus, device, function,
+                                PCI_CONFIG_STATUS_OFFSET);
+}
 
-    // Check if multi-function PCI host controller exists
-    uint8_t header_type = pci_read_config_byte(0, 0, 0, PCI_HEADER_TYPE);
-    if ((header_type & 0x80) == 0) {
-        // Single PCI host controller
-        pci_check_bus(0);
-    } else {
-        // Multiple PCI host controllers
-        for (uint8_t function = 0; function < 8; function++) {
-            if (pci_read_config_word(0, 0, function, PCI_VENDOR_ID) !=
-                PCI_INVALID_VENDOR) {
-                pci_check_bus(function);
-            }
-        }
-    }
+uint8_t
+pci_config_get_revision_id(uint8_t bus, uint8_t device, uint8_t function)
+{
+    return pci_read_config_byte(bus, device, function,
+                                PCI_CONFIG_REVISION_ID_OFFSET);
+}
+
+uint8_t
+pci_config_get_prog_if(uint8_t bus, uint8_t device, uint8_t function)
+{
+    return pci_read_config_byte(bus, device, function,
+                                PCI_CONFIG_PROG_IF_OFFSET);
+}
+
+uint8_t
+pci_config_get_subclass(uint8_t bus, uint8_t device, uint8_t function)
+{
+    return pci_read_config_byte(bus, device, function,
+                                PCI_CONFIG_SUBCLASS_OFFSET);
+}
+
+uint8_t
+pci_config_get_class_code(uint8_t bus, uint8_t device, uint8_t function)
+{
+    return pci_read_config_byte(bus, device, function,
+                                PCI_CONFIG_CLASS_CODE_OFFSET);
+}
+
+uint8_t
+pci_config_get_cache_line_size(uint8_t bus, uint8_t device, uint8_t function)
+{
+    return pci_read_config_byte(bus, device, function,
+                                PCI_CONFIG_CACHE_LINE_SIZE_OFFSET);
+}
+
+uint8_t
+pci_config_get_latency_timer(uint8_t bus, uint8_t device, uint8_t function)
+{
+    return pci_read_config_byte(bus, device, function,
+                                PCI_CONFIG_LATENCY_TIMER_OFFSET);
+}
+
+uint8_t
+pci_config_get_header_type(uint8_t bus, uint8_t device, uint8_t function)
+{
+    return pci_read_config_byte(bus, device, function,
+                                PCI_CONFIG_HEADER_TYPE_OFFSET);
+}
+
+uint8_t
+pci_config_get_bist(uint8_t bus, uint8_t device, uint8_t function)
+{
+    return pci_read_config_byte(bus, device, function, PCI_CONFIG_BIST_OFFSET);
+}
+
+uint32_t
+pci_config_get_bar0(uint8_t bus, uint8_t device, uint8_t function)
+{
+    return pci_read_config_dword(bus, device, function, PCI_CONFIG_BAR0_OFFSET);
+}
+
+uint32_t
+pci_config_get_bar1(uint8_t bus, uint8_t device, uint8_t function)
+{
+    return pci_read_config_dword(bus, device, function, PCI_CONFIG_BAR1_OFFSET);
+}
+
+uint32_t
+pci_config_get_bar2(uint8_t bus, uint8_t device, uint8_t function)
+{
+    return pci_read_config_dword(bus, device, function, PCI_CONFIG_BAR2_OFFSET);
+}
+
+uint32_t
+pci_config_get_bar3(uint8_t bus, uint8_t device, uint8_t function)
+{
+    return pci_read_config_dword(bus, device, function, PCI_CONFIG_BAR3_OFFSET);
+}
+
+uint32_t
+pci_config_get_bar4(uint8_t bus, uint8_t device, uint8_t function)
+{
+    return pci_read_config_dword(bus, device, function, PCI_CONFIG_BAR4_OFFSET);
+}
+
+uint32_t
+pci_config_get_bar5(uint8_t bus, uint8_t device, uint8_t function)
+{
+    return pci_read_config_dword(bus, device, function, PCI_CONFIG_BAR5_OFFSET);
+}
+
+uint32_t
+pci_config_get_cardbus_cis_ptr(uint8_t bus, uint8_t device, uint8_t function)
+{
+    return pci_read_config_dword(bus, device, function,
+                                 PCI_CONFIG_CARDBUS_CIS_PTR_OFFSET);
+}
+
+uint16_t
+pci_config_get_subsystem_vendor_id(uint8_t bus, uint8_t device,
+                                   uint8_t function)
+{
+    return pci_read_config_word(bus, device, function,
+                                PCI_CONFIG_SUBSYSTEM_VENDOR_ID_OFFSET);
+}
+
+uint16_t
+pci_config_get_subsystem_id(uint8_t bus, uint8_t device, uint8_t function)
+{
+    return pci_read_config_word(bus, device, function,
+                                PCI_CONFIG_SUBSYSTEM_ID_OFFSET);
+}
+
+uint32_t
+pci_config_get_expansion_rom_base_addr(uint8_t bus, uint8_t device,
+                                       uint8_t function)
+{
+    return pci_read_config_dword(bus, device, function,
+                                 PCI_CONFIG_EXPANSION_ROM_BASE_OFFSET);
+}
+
+uint8_t
+pci_config_get_capabilities_ptr(uint8_t bus, uint8_t device, uint8_t function)
+{
+    return pci_read_config_byte(bus, device, function,
+                                PCI_CONFIG_CAPABILITIES_PTR_OFFSET);
+}
+
+uint8_t
+pci_config_get_interrupt_line(uint8_t bus, uint8_t device, uint8_t function)
+{
+    return pci_read_config_byte(bus, device, function,
+                                PCI_CONFIG_INTERRUPT_LINE_OFFSET);
+}
+
+uint8_t
+pci_config_get_interrupt_pin(uint8_t bus, uint8_t device, uint8_t function)
+{
+    return pci_read_config_byte(bus, device, function,
+                                PCI_CONFIG_INTERRUPT_PIN_OFFSET);
+}
+
+uint8_t
+pci_config_get_min_grant(uint8_t bus, uint8_t device, uint8_t function)
+{
+    return pci_read_config_byte(bus, device, function,
+                                PCI_CONFIG_MIN_GRANT_OFFSET);
+}
+
+uint8_t
+pci_config_get_max_latency(uint8_t bus, uint8_t device, uint8_t function)
+{
+    return pci_read_config_byte(bus, device, function,
+                                PCI_CONFIG_MAX_LATENCY_OFFSET);
 }

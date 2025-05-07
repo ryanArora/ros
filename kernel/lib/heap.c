@@ -38,6 +38,8 @@ heap_init(void)
         slab_caches[i].slabs = NULL;
         current_size *= 2;
     }
+
+    kprintf("Heap initialized\n");
 }
 
 static slab_header_t*

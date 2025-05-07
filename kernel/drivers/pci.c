@@ -126,6 +126,38 @@ pci_read_config_byte(uint8_t bus, uint8_t device, uint8_t function,
     return (dword >> ((offset & 0x3) * 8)) & 0xFF;
 }
 
+static void
+pci_write_config_dword(uint8_t bus, uint8_t device, uint8_t function,
+                       uint8_t offset, uint32_t value)
+{
+    volatile uint32_t address = (1 << 31) | (bus << 16) | (device << 11) |
+                                (function << 8) | (offset & 0xFC);
+    outl(PCI_CONFIG_ADDRESS, address);
+    outl(PCI_CONFIG_DATA, value);
+}
+
+static void
+pci_write_config_word(uint8_t bus, uint8_t device, uint8_t function,
+                      uint8_t offset, uint16_t value)
+{
+    uint32_t dword = pci_read_config_dword(bus, device, function, offset);
+    uint32_t shift = (offset & 0x2) * 8;
+    dword &= ~(0xFFFF << shift);
+    dword |= (value << shift);
+    pci_write_config_dword(bus, device, function, offset, dword);
+}
+
+static void
+pci_write_config_byte(uint8_t bus, uint8_t device, uint8_t function,
+                      uint8_t offset, uint8_t value)
+{
+    uint32_t dword = pci_read_config_dword(bus, device, function, offset);
+    uint32_t shift = (offset & 0x3) * 8;
+    dword &= ~(0xFF << shift);
+    dword |= (value << shift);
+    pci_write_config_dword(bus, device, function, offset, dword);
+}
+
 uint16_t
 pci_config_get_device_id(uint8_t bus, uint8_t device, uint8_t function)
 {
@@ -308,4 +340,219 @@ pci_config_get_max_latency(uint8_t bus, uint8_t device, uint8_t function)
 {
     return pci_read_config_byte(bus, device, function,
                                 PCI_CONFIG_MAX_LATENCY_OFFSET);
+}
+
+void
+pci_config_set_device_id(uint8_t bus, uint8_t device, uint8_t function,
+                         uint16_t value)
+{
+    pci_write_config_word(bus, device, function, PCI_CONFIG_DEVICE_ID_OFFSET,
+                          value);
+}
+
+void
+pci_config_set_vendor_id(uint8_t bus, uint8_t device, uint8_t function,
+                         uint16_t value)
+{
+    pci_write_config_word(bus, device, function, PCI_CONFIG_VENDOR_ID_OFFSET,
+                          value);
+}
+
+void
+pci_config_set_command(uint8_t bus, uint8_t device, uint8_t function,
+                       uint16_t value)
+{
+    pci_write_config_word(bus, device, function, PCI_CONFIG_COMMAND_OFFSET,
+                          value);
+}
+
+void
+pci_config_set_status(uint8_t bus, uint8_t device, uint8_t function,
+                      uint16_t value)
+{
+    pci_write_config_word(bus, device, function, PCI_CONFIG_STATUS_OFFSET,
+                          value);
+}
+
+void
+pci_config_set_revision_id(uint8_t bus, uint8_t device, uint8_t function,
+                           uint8_t value)
+{
+    pci_write_config_byte(bus, device, function, PCI_CONFIG_REVISION_ID_OFFSET,
+                          value);
+}
+
+void
+pci_config_set_prog_if(uint8_t bus, uint8_t device, uint8_t function,
+                       uint8_t value)
+{
+    pci_write_config_byte(bus, device, function, PCI_CONFIG_PROG_IF_OFFSET,
+                          value);
+}
+
+void
+pci_config_set_subclass(uint8_t bus, uint8_t device, uint8_t function,
+                        uint8_t value)
+{
+    pci_write_config_byte(bus, device, function, PCI_CONFIG_SUBCLASS_OFFSET,
+                          value);
+}
+
+void
+pci_config_set_class_code(uint8_t bus, uint8_t device, uint8_t function,
+                          uint8_t value)
+{
+    pci_write_config_byte(bus, device, function, PCI_CONFIG_CLASS_CODE_OFFSET,
+                          value);
+}
+
+void
+pci_config_set_cache_line_size(uint8_t bus, uint8_t device, uint8_t function,
+                               uint8_t value)
+{
+    pci_write_config_byte(bus, device, function,
+                          PCI_CONFIG_CACHE_LINE_SIZE_OFFSET, value);
+}
+
+void
+pci_config_set_latency_timer(uint8_t bus, uint8_t device, uint8_t function,
+                             uint8_t value)
+{
+    pci_write_config_byte(bus, device, function,
+                          PCI_CONFIG_LATENCY_TIMER_OFFSET, value);
+}
+
+void
+pci_config_set_header_type(uint8_t bus, uint8_t device, uint8_t function,
+                           uint8_t value)
+{
+    pci_write_config_byte(bus, device, function, PCI_CONFIG_HEADER_TYPE_OFFSET,
+                          value);
+}
+
+void
+pci_config_set_bist(uint8_t bus, uint8_t device, uint8_t function,
+                    uint8_t value)
+{
+    pci_write_config_byte(bus, device, function, PCI_CONFIG_BIST_OFFSET, value);
+}
+
+void
+pci_config_set_bar0(uint8_t bus, uint8_t device, uint8_t function,
+                    uint32_t value)
+{
+    pci_write_config_dword(bus, device, function, PCI_CONFIG_BAR0_OFFSET,
+                           value);
+}
+
+void
+pci_config_set_bar1(uint8_t bus, uint8_t device, uint8_t function,
+                    uint32_t value)
+{
+    pci_write_config_dword(bus, device, function, PCI_CONFIG_BAR1_OFFSET,
+                           value);
+}
+
+void
+pci_config_set_bar2(uint8_t bus, uint8_t device, uint8_t function,
+                    uint32_t value)
+{
+    pci_write_config_dword(bus, device, function, PCI_CONFIG_BAR2_OFFSET,
+                           value);
+}
+
+void
+pci_config_set_bar3(uint8_t bus, uint8_t device, uint8_t function,
+                    uint32_t value)
+{
+    pci_write_config_dword(bus, device, function, PCI_CONFIG_BAR3_OFFSET,
+                           value);
+}
+
+void
+pci_config_set_bar4(uint8_t bus, uint8_t device, uint8_t function,
+                    uint32_t value)
+{
+    pci_write_config_dword(bus, device, function, PCI_CONFIG_BAR4_OFFSET,
+                           value);
+}
+
+void
+pci_config_set_bar5(uint8_t bus, uint8_t device, uint8_t function,
+                    uint32_t value)
+{
+    pci_write_config_dword(bus, device, function, PCI_CONFIG_BAR5_OFFSET,
+                           value);
+}
+
+void
+pci_config_set_cardbus_cis_ptr(uint8_t bus, uint8_t device, uint8_t function,
+                               uint32_t value)
+{
+    pci_write_config_dword(bus, device, function,
+                           PCI_CONFIG_CARDBUS_CIS_PTR_OFFSET, value);
+}
+
+void
+pci_config_set_subsystem_vendor_id(uint8_t bus, uint8_t device,
+                                   uint8_t function, uint16_t value)
+{
+    pci_write_config_word(bus, device, function,
+                          PCI_CONFIG_SUBSYSTEM_VENDOR_ID_OFFSET, value);
+}
+
+void
+pci_config_set_subsystem_id(uint8_t bus, uint8_t device, uint8_t function,
+                            uint16_t value)
+{
+    pci_write_config_word(bus, device, function, PCI_CONFIG_SUBSYSTEM_ID_OFFSET,
+                          value);
+}
+
+void
+pci_config_set_expansion_rom_base_addr(uint8_t bus, uint8_t device,
+                                       uint8_t function, uint32_t value)
+{
+    pci_write_config_dword(bus, device, function,
+                           PCI_CONFIG_EXPANSION_ROM_BASE_OFFSET, value);
+}
+
+void
+pci_config_set_capabilities_ptr(uint8_t bus, uint8_t device, uint8_t function,
+                                uint8_t value)
+{
+    pci_write_config_byte(bus, device, function,
+                          PCI_CONFIG_CAPABILITIES_PTR_OFFSET, value);
+}
+
+void
+pci_config_set_interrupt_line(uint8_t bus, uint8_t device, uint8_t function,
+                              uint8_t value)
+{
+    pci_write_config_byte(bus, device, function,
+                          PCI_CONFIG_INTERRUPT_LINE_OFFSET, value);
+}
+
+void
+pci_config_set_interrupt_pin(uint8_t bus, uint8_t device, uint8_t function,
+                             uint8_t value)
+{
+    pci_write_config_byte(bus, device, function,
+                          PCI_CONFIG_INTERRUPT_PIN_OFFSET, value);
+}
+
+void
+pci_config_set_min_grant(uint8_t bus, uint8_t device, uint8_t function,
+                         uint8_t value)
+{
+    pci_write_config_byte(bus, device, function, PCI_CONFIG_MIN_GRANT_OFFSET,
+                          value);
+}
+
+void
+pci_config_set_max_latency(uint8_t bus, uint8_t device, uint8_t function,
+                           uint8_t value)
+{
+    pci_write_config_byte(bus, device, function, PCI_CONFIG_MAX_LATENCY_OFFSET,
+                          value);
 }

@@ -4,7 +4,7 @@
 #include <kernel/lib/io.h>
 #include <kernel/drivers/pic.h>
 #include <kernel/drivers/pit.h>
-#include <kernel/mm/pfa.h>
+#include "mm.h"
 #include "gdt.h"
 #include "idt.h"
 
@@ -17,7 +17,7 @@ kmain(void)
     gdt_init();
     idt_init();
 
-    pfa_init();
+    mm_init();
 
     pic_init();
     pit_init();

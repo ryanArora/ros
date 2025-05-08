@@ -234,22 +234,21 @@ nvme_send_admin_command_identify_controller()
     memset(sqe, 0, sizeof(struct nvme_submission_queue_entry));
 
     // Build the submission queue entry command
-    // clang-format off
     sqe->command.opcode = NVME_ADMIN_COMMAND_OPCODE_IDENTIFY;
-    sqe->command.fused_operation = 0;                                              // normal operation
-    sqe->command.prp_or_sgl_selection = 0;                                         // prp selection
-    sqe->command.command_identifier = NVME_COMMAND_IDENTIFIER_IDENTIFY_CONTROLLER; // command identifier
-    sqe->nsid = 0;                                                                 // no applicable namespace
-    sqe->metadata_ptr = 0;                                                         // no applicible metadata pointer
-    sqe->data_ptr[0] = (uintptr_t)nvme_identify_controller_buf;                    // data pointer
-    sqe->data_ptr[1] = 0;                                                          // no second data pointer
-    sqe->command_specific[0] = 1;                                                  // identify controller
-    sqe->command_specific[1] = 0;                                                  // no second command specific field
-    sqe->command_specific[2] = 0;                                                  // no third command specific field
-    sqe->command_specific[3] = 0;                                                  // no fourth command specific field
-    sqe->command_specific[4] = 0;                                                  // no fifth command specific field
-    sqe->command_specific[5] = 0;                                                  // no sixth command specific field
-    // clang-format on
+    sqe->command.fused_operation = 0;
+    sqe->command.prp_or_sgl_selection = 0;
+    sqe->command.command_identifier =
+        NVME_COMMAND_IDENTIFIER_IDENTIFY_CONTROLLER;
+    sqe->nsid = 0;
+    sqe->metadata_ptr = 0;
+    sqe->data_ptr[0] = (uintptr_t)nvme_identify_controller_buf;
+    sqe->data_ptr[1] = 0;
+    sqe->command_specific[0] = 1;
+    sqe->command_specific[1] = 0;
+    sqe->command_specific[2] = 0;
+    sqe->command_specific[3] = 0;
+    sqe->command_specific[4] = 0;
+    sqe->command_specific[5] = 0;
 
     // Update the submission queue tail pointer
     admin_submission_queue_tail =
@@ -324,22 +323,21 @@ nvme_send_admin_command_identify_namespace_list()
     memset(sqe, 0, sizeof(struct nvme_submission_queue_entry));
 
     // Build the submission queue entry command
-    // clang-format off
     sqe->command.opcode = NVME_ADMIN_COMMAND_OPCODE_IDENTIFY;
-    sqe->command.fused_operation = 0;                                                  // normal operation
-    sqe->command.prp_or_sgl_selection = 0;                                             // prp selection
-    sqe->command.command_identifier = NVME_COMMAND_IDENTIFIER_IDENTIFY_NAMESPACE_LIST; // command identifier
-    sqe->nsid = 0;                                                                     // no applicable namespace
-    sqe->metadata_ptr = 0;                                                             // no applicible metadata pointer
-    sqe->data_ptr[0] = (uintptr_t)nvme_identify_namespace_list_buf;                    // data pointer
-    sqe->data_ptr[1] = 0;                                                              // no second data pointer
-    sqe->command_specific[0] = 2;                                                      // identify namespace list
-    sqe->command_specific[1] = 0;                                                      // no second command specific field
-    sqe->command_specific[2] = 0;                                                      // no third command specific field
-    sqe->command_specific[3] = 0;                                                      // no fourth command specific field
-    sqe->command_specific[4] = 0;                                                      // no fifth command specific field
-    sqe->command_specific[5] = 0;                                                      // no sixth command specific field
-    // clang-format on
+    sqe->command.fused_operation = 0;
+    sqe->command.prp_or_sgl_selection = 0;
+    sqe->command.command_identifier =
+        NVME_COMMAND_IDENTIFIER_IDENTIFY_NAMESPACE_LIST;
+    sqe->nsid = 0;
+    sqe->metadata_ptr = 0;
+    sqe->data_ptr[0] = (uintptr_t)nvme_identify_namespace_list_buf;
+    sqe->data_ptr[1] = 0;
+    sqe->command_specific[0] = 2;
+    sqe->command_specific[1] = 0;
+    sqe->command_specific[2] = 0;
+    sqe->command_specific[3] = 0;
+    sqe->command_specific[4] = 0;
+    sqe->command_specific[5] = 0;
 
     // Update the submission queue tail pointer
     admin_submission_queue_tail =
@@ -422,22 +420,21 @@ nvme_send_admin_command_create_io_completion_queue()
     // Zero the submission queue entry
     memset(sqe, 0, sizeof(struct nvme_submission_queue_entry));
     // Build the submission queue entry command
-    // clang-format off
     sqe->command.opcode = NVME_ADMIN_COMMAND_OPCODE_CREATE_IO_COMPLETION_QUEUE;
-    sqe->command.fused_operation = 0;                                                     // normal operation
-    sqe->command.prp_or_sgl_selection = 0;                                                // prp selection
-    sqe->command.command_identifier = NVME_COMMAND_IDENTIFIER_CREATE_IO_COMPLETION_QUEUE; // command identifier
-    sqe->nsid = 0;                                                                        // no applicable namespace
-    sqe->metadata_ptr = 0;                                                                // no applicible metadata pointer
-    sqe->data_ptr[0] = (uintptr_t)io_completion_queue.addr;                               // physical address of completion queue
-    sqe->data_ptr[1] = 0;                                                                 // not applicable
-    sqe->command_specific[0] = 1 | (io_completion_queue.size << 16);                      // queue ID (1) and queue size - 1
-    sqe->command_specific[1] = (1 << 1) | 1;                                              // physically contiguous (bit 0) and raise interrupts (bit 1)
-    sqe->command_specific[2] = 0;                                                         // no third command specific field
-    sqe->command_specific[3] = 0;                                                         // no fourth command specific field
-    sqe->command_specific[4] = 0;                                                         // no fifth command specific field
-    sqe->command_specific[5] = 0;                                                         // no sixth command specific field
-    // clang-format on
+    sqe->command.fused_operation = 0;
+    sqe->command.prp_or_sgl_selection = 0;
+    sqe->command.command_identifier =
+        NVME_COMMAND_IDENTIFIER_CREATE_IO_COMPLETION_QUEUE;
+    sqe->nsid = 0;
+    sqe->metadata_ptr = 0;
+    sqe->data_ptr[0] = (uintptr_t)io_completion_queue.addr;
+    sqe->data_ptr[1] = 0;
+    sqe->command_specific[0] = 1 | (io_completion_queue.size << 16);
+    sqe->command_specific[1] = (1 << 1) | 1;
+    sqe->command_specific[2] = 0;
+    sqe->command_specific[3] = 0;
+    sqe->command_specific[4] = 0;
+    sqe->command_specific[5] = 0;
 
     // Update the submission queue tail pointer
     admin_submission_queue_tail =
@@ -500,22 +497,21 @@ nvme_send_admin_command_create_io_submission_queue()
     memset(sqe, 0, sizeof(struct nvme_submission_queue_entry));
 
     // Build the submission queue entry command
-    // clang-format off
     sqe->command.opcode = NVME_ADMIN_COMMAND_OPCODE_CREATE_IO_SUBMISSION_QUEUE;
-    sqe->command.fused_operation = 0;                                                     // normal operation
-    sqe->command.prp_or_sgl_selection = 0;                                                // prp selection
-    sqe->command.command_identifier = NVME_COMMAND_IDENTIFIER_CREATE_IO_SUBMISSION_QUEUE; // command identifier
-    sqe->nsid = 0;                                                                        // no applicable namespace
-    sqe->metadata_ptr = 0;                                                                // no applicible metadata pointer
-    sqe->data_ptr[0] = (uintptr_t)io_submission_queue.addr;                               // physical address of submission queue
-    sqe->data_ptr[1] = 0;                                                                 // not applicable
-    sqe->command_specific[0] = 1 | (io_submission_queue.size << 16);                      // queue ID (1) and queue size - 1
-    sqe->command_specific[1] = 1 | (1 << 16);                                             // physically contiguous (bit 0) and completion queue ID (1)
-    sqe->command_specific[2] = 0;                                                         // no third command specific field
-    sqe->command_specific[3] = 0;                                                         // no fourth command specific field
-    sqe->command_specific[4] = 0;                                                         // no fifth command specific field
-    sqe->command_specific[5] = 0;                                                         // no sixth command specific field
-    // clang-format on
+    sqe->command.fused_operation = 0;
+    sqe->command.prp_or_sgl_selection = 0;
+    sqe->command.command_identifier =
+        NVME_COMMAND_IDENTIFIER_CREATE_IO_SUBMISSION_QUEUE;
+    sqe->nsid = 0;
+    sqe->metadata_ptr = 0;
+    sqe->data_ptr[0] = (uintptr_t)io_submission_queue.addr;
+    sqe->data_ptr[1] = 0;
+    sqe->command_specific[0] = 1 | (io_submission_queue.size << 16);
+    sqe->command_specific[1] = 1 | (1 << 16);
+    sqe->command_specific[2] = 0;
+    sqe->command_specific[3] = 0;
+    sqe->command_specific[4] = 0;
+    sqe->command_specific[5] = 0;
 
     // Update the submission queue tail pointer
     admin_submission_queue_tail =
@@ -567,14 +563,11 @@ nvme_send_admin_command_create_io_submission_queue()
 static void
 nvme_submit_io(uint8_t opcode, uint64_t lba, uint16_t nblocks, void* buf)
 {
-    /* 0a.  Safety checks ----------------------------------------------------
-     */
     if (nblocks == 0 || nblocks > 0x1000)
         panic("nvme_submit_io: illegal block count %u\n", nblocks);
     if (nvme_max_transfer_size_pages && nblocks > nvme_max_transfer_size_pages)
         panic("nvme_submit_io: request exceeds MDTS\n");
 
-    /* 1.  Build submission queue entry ------------------------------------ */
     struct nvme_submission_queue_entry* sqe =
         &io_submission_queue.addr[io_submission_queue_tail];
 
@@ -602,7 +595,6 @@ nvme_submit_io(uint8_t opcode, uint64_t lba, uint16_t nblocks, void* buf)
         nvme_submission_queue_tail_doorbell(NVME_SUBMISSION_QID_IO),
         io_submission_queue_tail);
 
-    // Use interrupt handling for IO
     io_cmd_done = false;
     while (!io_cmd_done)
         ;

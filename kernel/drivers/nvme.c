@@ -31,6 +31,8 @@
 
 #define NVME_COMPLETION_QID_ADMIN 0
 #define NVME_SUBMISSION_QID_ADMIN 0
+#define NVME_SUBMISSION_QID_IO    1
+#define NVME_COMPLETION_QID_IO    1
 
 #define NVME_OK 0x00
 
@@ -42,8 +44,11 @@ static void nvme_send_admin_command_identify_controller();
 static void nvme_send_admin_command_identify_namespace_list();
 static void nvme_send_admin_command_create_io_submission_queue();
 static void nvme_send_admin_command_create_io_completion_queue();
+static void nvme_submit_io(uint8_t opcode, uint64_t lba, uint16_t nblocks,
+                           void* buf);
 static uint32_t nvme_submission_queue_tail_doorbell(uint16_t qid);
 static uint32_t nvme_completion_queue_head_doorbell(uint16_t qid);
+
 __attribute__((interrupt)) static void nvme_interrupt_handler(void* frame);
 
 struct nvme_submission_queue_entry_command {
@@ -101,12 +106,11 @@ static uint32_t nsid;
 static char nvme_identify_controller_buf[4096];
 static char nvme_identify_namespace_list_buf[4096];
 
-bool identify_controller_interrupt_handled = false;
-bool identify_namespace_list_interrupt_handled = false;
-bool create_io_completion_queue_interrupt_handled = false;
-bool create_io_submission_queue_interrupt_handled = false;
-bool read_interrupt_handled = false;
-bool write_interrupt_handled = false;
+static bool io_cmd_done = false;
+
+static uint16_t io_submission_queue_tail = 0;
+static uint16_t io_completion_queue_head = 0;
+static uint8_t io_completion_queue_phase = 1;
 
 uint32_t nvme_max_transfer_size_pages = 0;
 
@@ -219,6 +223,14 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
     nvme_send_admin_command_identify_namespace_list();
     nvme_send_admin_command_create_io_completion_queue();
     nvme_send_admin_command_create_io_submission_queue();
+
+    int* buffer = alloc_page();
+    memset(buffer, 0, 4096);
+    kprintf("Before: %d, %d, %d, %d, %d\n", buffer[0], buffer[1], buffer[2],
+            buffer[3], buffer[4]);
+    nvme_submit_io(NVME_IO_COMMAND_OPCODE_READ, 0, 1, buffer);
+    kprintf("After: %d, %d, %d, %d, %d\n", buffer[0], buffer[1], buffer[2],
+            buffer[3], buffer[4]);
 }
 
 static void
@@ -261,8 +273,52 @@ nvme_send_admin_command_identify_controller()
         nvme_submission_queue_tail_doorbell(NVME_SUBMISSION_QID_ADMIN),
         admin_submission_queue_tail);
 
-    while (!identify_controller_interrupt_handled)
-        ;
+    // Poll
+    while (true) {
+        struct nvme_completion_queue_entry* cqe =
+            &admin_completion_queue.addr[admin_completion_queue_head];
+
+        if (cqe->phase != admin_completion_queue_phase) continue;
+
+        if (cqe->command_identifier ==
+            NVME_COMMAND_IDENTIFIER_IDENTIFY_CONTROLLER) {
+            uint16_t status = cqe->status_field;
+            uint8_t sct = (status >> 8) & 0x7;
+            uint8_t sc = status & 0xFF;
+
+            if (sct != NVME_OK || sc != NVME_OK) {
+                panic("Identify controller command failed, sct=%d, sc=%d\n",
+                      sct, sc);
+            }
+
+            uint8_t cntrltype = *(uint8_t*)(nvme_identify_controller_buf + 536);
+            if (cntrltype != NVME_CONTROLLER_TYPE_IO) {
+                panic("NVMe controller is not an I/O controller (type=0x%X)",
+                      cntrltype);
+            }
+
+            uint8_t mdts = *(uint8_t*)(nvme_identify_controller_buf + 77);
+            if (mdts != 0) {
+                nvme_max_transfer_size_pages = (1 << mdts);
+            } else {
+                nvme_max_transfer_size_pages = 0;
+            }
+
+            // Update completion queue head and phase if needed
+            admin_completion_queue_head =
+                (admin_completion_queue_head + 1) % admin_completion_queue.size;
+
+            if (admin_completion_queue_head == 0)
+                admin_completion_queue_phase = !admin_completion_queue_phase;
+
+            // Ring completion queue doorbell
+            nvme_write_reg_dword(
+                nvme_completion_queue_head_doorbell(NVME_COMPLETION_QID_ADMIN),
+                admin_completion_queue_head);
+
+            break;
+        }
+    }
 
     kprintf("Identified NVMe controller\n");
 }
@@ -307,8 +363,57 @@ nvme_send_admin_command_identify_namespace_list()
         nvme_submission_queue_tail_doorbell(NVME_SUBMISSION_QID_ADMIN),
         admin_submission_queue_tail);
 
-    while (!identify_namespace_list_interrupt_handled)
-        ;
+    // Poll
+    while (true) {
+        struct nvme_completion_queue_entry* cqe =
+            &admin_completion_queue.addr[admin_completion_queue_head];
+
+        if (cqe->phase != admin_completion_queue_phase) continue;
+
+        if (cqe->command_identifier ==
+            NVME_COMMAND_IDENTIFIER_IDENTIFY_NAMESPACE_LIST) {
+            uint16_t status = cqe->status_field;
+            uint8_t sct = (status >> 8) & 0x7;
+            uint8_t sc = status & 0xFF;
+
+            if (sct != NVME_OK || sc != NVME_OK) {
+                panic("Identify namespace list command failed, sct=%d, sc=%d\n",
+                      sct, sc);
+            }
+
+            uint32_t* ns_list = (uint32_t*)nvme_identify_namespace_list_buf;
+            size_t ns_count = 0;
+
+            for (size_t i = 0; i < 1024; ++i) {
+                if (ns_list[i] == 0) break;
+                ++ns_count;
+            }
+
+            if (ns_count == 0) {
+                panic("no namespaces found\n");
+            }
+
+            if (ns_count > 1) {
+                panic("multiple namespaces are not supported\n");
+            }
+
+            nsid = ns_list[0];
+
+            // Update completion queue head and phase if needed
+            admin_completion_queue_head =
+                (admin_completion_queue_head + 1) % admin_completion_queue.size;
+
+            if (admin_completion_queue_head == 0)
+                admin_completion_queue_phase = !admin_completion_queue_phase;
+
+            // Ring completion queue doorbell
+            nvme_write_reg_dword(
+                nvme_completion_queue_head_doorbell(NVME_COMPLETION_QID_ADMIN),
+                admin_completion_queue_head);
+
+            break;
+        }
+    }
 
     kprintf("Identified NVMe namespace list\n");
 }
@@ -352,8 +457,41 @@ nvme_send_admin_command_create_io_completion_queue()
         nvme_submission_queue_tail_doorbell(NVME_SUBMISSION_QID_ADMIN),
         admin_submission_queue_tail);
 
-    while (!create_io_completion_queue_interrupt_handled)
-        ;
+    // Poll
+    while (true) {
+        struct nvme_completion_queue_entry* cqe =
+            &admin_completion_queue.addr[admin_completion_queue_head];
+
+        if (cqe->phase != admin_completion_queue_phase) continue;
+
+        if (cqe->command_identifier ==
+            NVME_COMMAND_IDENTIFIER_CREATE_IO_COMPLETION_QUEUE) {
+            uint16_t status = cqe->status_field;
+            uint8_t sct = (status >> 8) & 0x7;
+            uint8_t sc = status & 0xFF;
+
+            if (sct != NVME_OK || sc != NVME_OK) {
+                panic("Create IO completion queue command failed, sct=%d, "
+                      "sc=%d\n",
+                      sct, sc);
+            }
+
+            // Update completion queue head and phase if needed
+            admin_completion_queue_head =
+                (admin_completion_queue_head + 1) % admin_completion_queue.size;
+
+            if (admin_completion_queue_head == 0)
+                admin_completion_queue_phase = !admin_completion_queue_phase;
+
+            // Ring completion queue doorbell
+            nvme_write_reg_dword(
+                nvme_completion_queue_head_doorbell(NVME_COMPLETION_QID_ADMIN),
+                admin_completion_queue_head);
+
+            break;
+        }
+    }
+
     kprintf("Created IO completion queue\n");
 }
 
@@ -397,94 +535,15 @@ nvme_send_admin_command_create_io_submission_queue()
         nvme_submission_queue_tail_doorbell(NVME_SUBMISSION_QID_ADMIN),
         admin_submission_queue_tail);
 
-    while (!create_io_submission_queue_interrupt_handled)
-        ;
-    kprintf("Created IO submission queue\n");
-}
-
-__attribute__((interrupt)) static void
-nvme_interrupt_handler(void* frame)
-{
-    (void)frame;
-
+    // Poll
     while (true) {
         struct nvme_completion_queue_entry* cqe =
             &admin_completion_queue.addr[admin_completion_queue_head];
 
-        if (cqe->phase != admin_completion_queue_phase) break;
+        if (cqe->phase != admin_completion_queue_phase) continue;
 
-        switch (cqe->command_identifier) {
-        case NVME_COMMAND_IDENTIFIER_IDENTIFY_CONTROLLER: {
-            uint16_t status = cqe->status_field;
-            uint8_t sct = (status >> 8) & 0x7;
-            uint8_t sc = status & 0xFF;
-
-            if (sct != NVME_OK || sc != NVME_OK) {
-                panic("Identify controller command failed, sct=%d, sc=%d\n",
-                      sct, sc);
-            }
-
-            uint8_t cntrltype = *(uint8_t*)(nvme_identify_controller_buf + 536);
-            if (cntrltype != NVME_CONTROLLER_TYPE_IO) {
-                panic("NVMe controller is not an I/O controller (type=0x%X)",
-                      cntrltype);
-            }
-
-            uint8_t mdts = *(uint8_t*)(nvme_identify_controller_buf + 77);
-            if (mdts != 0) {
-                nvme_max_transfer_size_pages = (1 << mdts);
-            } else {
-                nvme_max_transfer_size_pages = 0;
-            }
-
-            identify_controller_interrupt_handled = true;
-            break;
-        }
-        case NVME_COMMAND_IDENTIFIER_IDENTIFY_NAMESPACE_LIST: {
-            uint16_t status = cqe->status_field;
-            uint8_t sct = (status >> 8) & 0x7;
-            uint8_t sc = status & 0xFF;
-
-            if (sct != NVME_OK || sc != NVME_OK) {
-                panic("Identify namespace list command failed, sct=%d, sc=%d\n",
-                      sct, sc);
-            }
-
-            uint32_t* ns_list = (uint32_t*)nvme_identify_namespace_list_buf;
-            size_t ns_count = 0;
-
-            for (size_t i = 0; i < 1024; ++i) {
-                if (ns_list[i] == 0) break;
-                ++ns_count;
-            }
-
-            if (ns_count == 0) {
-                panic("no namespaces found\n");
-            }
-
-            if (ns_count > 1) {
-                panic("multiple namespaces are not supported\n");
-            }
-
-            nsid = ns_list[0];
-            identify_namespace_list_interrupt_handled = true;
-            break;
-        }
-        case NVME_COMMAND_IDENTIFIER_CREATE_IO_COMPLETION_QUEUE: {
-            uint16_t status = cqe->status_field;
-            uint8_t sct = (status >> 8) & 0x7;
-            uint8_t sc = status & 0xFF;
-
-            if (sct != NVME_OK || sc != NVME_OK) {
-                panic("Create IO completion queue command failed, sct=%d, "
-                      "sc=%d\n",
-                      sct, sc);
-            }
-
-            create_io_completion_queue_interrupt_handled = true;
-            break;
-        }
-        case NVME_COMMAND_IDENTIFIER_CREATE_IO_SUBMISSION_QUEUE: {
+        if (cqe->command_identifier ==
+            NVME_COMMAND_IDENTIFIER_CREATE_IO_SUBMISSION_QUEUE) {
             uint16_t status = cqe->status_field;
             uint8_t sct = (status >> 8) & 0x7;
             uint8_t sc = status & 0xFF;
@@ -495,22 +554,108 @@ nvme_interrupt_handler(void* frame)
                       sct, sc);
             }
 
-            create_io_submission_queue_interrupt_handled = true;
-            break;
-        }
-        }
+            // Update completion queue head and phase if needed
+            admin_completion_queue_head =
+                (admin_completion_queue_head + 1) % admin_completion_queue.size;
 
-        admin_completion_queue_head++;
-        if (admin_completion_queue_head >= admin_completion_queue.size) {
-            admin_completion_queue_head = 0;
-            admin_completion_queue_phase ^= 1; // toggle phase bit
+            if (admin_completion_queue_head == 0)
+                admin_completion_queue_phase = !admin_completion_queue_phase;
+
+            // Ring completion queue doorbell
+            nvme_write_reg_dword(
+                nvme_completion_queue_head_doorbell(NVME_COMPLETION_QID_ADMIN),
+                admin_completion_queue_head);
+
+            break;
         }
     }
 
-    // Ring doorbell
+    kprintf("Created IO submission queue\n");
+}
+
+static void
+nvme_submit_io(uint8_t opcode, uint64_t lba, uint16_t nblocks, void* buf)
+{
+    /* 0a.  Safety checks ----------------------------------------------------
+     */
+    if (nblocks == 0 || nblocks > 0x1000)
+        panic("nvme_submit_io: illegal block count %u\n", nblocks);
+    if (nvme_max_transfer_size_pages && nblocks > nvme_max_transfer_size_pages)
+        panic("nvme_submit_io: request exceeds MDTS\n");
+
+    /* 1.  Build submission queue entry ------------------------------------ */
+    struct nvme_submission_queue_entry* sqe =
+        &io_submission_queue.addr[io_submission_queue_tail];
+
+    memset(sqe, 0, sizeof *sqe);
+
+    sqe->command.opcode = opcode;
+    sqe->command.fused_operation = 0;
+    sqe->command.prp_or_sgl_selection = 0;
+    sqe->command.command_identifier = 0x1234;
+    sqe->nsid = nsid;
+    uintptr_t phys = (uintptr_t)buf;
+    sqe->data_ptr[0] = phys;
+    sqe->data_ptr[1] = phys + 4096;
+    sqe->command_specific[0] = (uint32_t)lba;
+    sqe->command_specific[1] = (uint32_t)(lba >> 32);
+    sqe->command_specific[2] = nblocks - 1;
+    sqe->command_specific[3] = 0;
+    sqe->command_specific[4] = 0;
+    sqe->command_specific[5] = 0;
+
+    io_submission_queue_tail =
+        (io_submission_queue_tail + 1) % io_submission_queue.size;
+
     nvme_write_reg_dword(
-        nvme_completion_queue_head_doorbell(NVME_COMPLETION_QID_ADMIN),
-        admin_completion_queue_head);
+        nvme_submission_queue_tail_doorbell(NVME_SUBMISSION_QID_IO),
+        io_submission_queue_tail);
+
+    // Use interrupt handling for IO
+    io_cmd_done = false;
+    while (!io_cmd_done)
+        ;
+
+    kprintf("IO command done\n");
+}
+
+__attribute__((interrupt)) static void
+nvme_interrupt_handler(void* frame)
+{
+    (void)frame;
+
+    while (true) {
+        struct nvme_completion_queue_entry* cqe =
+            &io_completion_queue.addr[io_completion_queue_head];
+
+        if (cqe->phase != io_completion_queue_phase) break;
+
+        if (cqe->command_identifier == 0x1234) {
+            // Check status
+            uint16_t status = cqe->status_field;
+            uint8_t sct = (status >> 8) & 0x7;
+            uint8_t sc = status & 0xFF;
+
+            if (sct != NVME_OK || sc != NVME_OK) {
+                panic("IO command failed, sct=%d, sc=%d\n", sct, sc);
+            }
+
+            // Update completion queue head and phase if needed
+            io_completion_queue_head =
+                (io_completion_queue_head + 1) % io_completion_queue.size;
+
+            if (io_completion_queue_head == 0)
+                io_completion_queue_phase = !io_completion_queue_phase;
+
+            // Ring completion queue doorbell
+            nvme_write_reg_dword(
+                nvme_completion_queue_head_doorbell(NVME_COMPLETION_QID_IO),
+                io_completion_queue_head);
+
+            io_cmd_done = true;
+            break;
+        }
+    }
 
     // Send End-of-Interrupt to the PIC
     outb(0x20, 0x20);

@@ -15,10 +15,21 @@
 #define NVME_REGISTER_OFFSET_ASQ   0x28
 #define NVME_REGISTER_OFFSET_ACQ   0x30
 
+#define NVME_ADMIN_COMMNAD_OPCODE_CREATE_IO_SUBMISSION_QUEUE 0x01
+#define NVME_ADMIN_COMMNAD_OPCODE_CREATE_IO_COMPLETION_QUEUE 0x05
+#define NVME_ADMIN_COMMNAD_OPCODE_IDENTIFY                   0x06
+
+#define NVME_COMMAND_IDENTIFIER_IDENTIFY_CONTROLLER 0x01
+
+#define NVME_CONTROLLER_TYPE_IO 0x01
+
+#define NVME_OK 0x00
+
 static uint32_t nvme_read_reg_dword(uint32_t offset);
 static void nvme_write_reg_dword(uint32_t offset, uint32_t value);
 static int64_t nvme_read_reg_qword(uint32_t offset);
 static void nvme_write_reg_qword(uint32_t offset, uint64_t value);
+static void nvme_send_admin_command_identify_controller();
 __attribute__((interrupt)) static void nvme_interrupt_handler(void* frame);
 
 struct nvme_submission_queue_entry_command {
@@ -68,7 +79,18 @@ static uint16_t admin_submission_queue_tail = 0;
 static uint16_t admin_completion_queue_head = 0;
 static uint8_t admin_completion_queue_phase = 1;
 
-static char nvme_identify_data[4096];
+// static struct nvme_submission_queue io_submission_queue;
+// static struct nvme_completion_queue io_completion_queue;
+
+// static uint16_t io_submission_queue_tail = 0;
+// static uint16_t io_completion_queue_head = 0;
+// static uint8_t io_completion_queue_phase = 1;
+
+static char nvme_identify_controller_buf[4096];
+
+bool identity_interrupt_handled = false;
+
+uint32_t nvme_max_transfer_size_pages = 0;
 
 void
 nvme_init(uint8_t bus, uint8_t device, uint8_t function)
@@ -173,34 +195,53 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
     idt_set_descriptor(irq_line + 32, nvme_interrupt_handler, 0x8E);
     interrupts_enable();
 
-    // Send the identify command to the controller.
+    nvme_send_admin_command_identify_controller();
+}
 
-    // Zero the identify data buffer
-    memset(nvme_identify_data, 0, sizeof(nvme_identify_data));
+static void
+nvme_send_admin_command_identify_controller()
+{
+    struct nvme_submission_queue_entry* sqe =
+        &admin_submission_queue.addr[admin_submission_queue_tail];
 
     // Zero the submission queue entry
-    memset(admin_submission_queue.addr, 0,
-           sizeof(struct nvme_submission_queue_entry));
+    memset(sqe, 0, sizeof(struct nvme_submission_queue_entry));
 
     // Build the submission queue entry command
-    admin_submission_queue.addr[0].command.opcode = 0x06;
-    admin_submission_queue.addr[0].command.fused_operation = 0;
-    admin_submission_queue.addr[0].command.prp_or_sgl_selection = 0;
-    admin_submission_queue.addr[0].command.command_identifier = 1;
-
-    admin_submission_queue.addr[0].nsid = 0;
-    admin_submission_queue.addr[0].metadata_ptr = 0;
-    admin_submission_queue.addr[0].data_ptr[0] = (uintptr_t)nvme_identify_data;
-    admin_submission_queue.addr[0].data_ptr[1] = 0;
-    admin_submission_queue.addr[0].command_specific[0] = 1;
+    // clang-format off
+    sqe->command.opcode = NVME_ADMIN_COMMNAD_OPCODE_IDENTIFY;
+    sqe->command.fused_operation = 0;                                              // normal operation
+    sqe->command.prp_or_sgl_selection = 0;                                         // prp selection
+    sqe->command.command_identifier = NVME_COMMAND_IDENTIFIER_IDENTIFY_CONTROLLER; // command identifier
+    sqe->nsid = 0;                                                                 // no applicable namespace
+    sqe->metadata_ptr = 0;                                                         // no applicible metadata pointer
+    sqe->data_ptr[0] = (uintptr_t)nvme_identify_controller_buf;                              // data pointer
+    sqe->data_ptr[1] = 0;                                                          // no second data pointer
+    sqe->command_specific[0] = 1;                                                  // identify controller
+    sqe->command_specific[1] = 0;                                                  // no second command specific field
+    sqe->command_specific[2] = 0;                                                  // no third command specific field
+    sqe->command_specific[3] = 0;                                                  // no fourth command specific field
+    sqe->command_specific[4] = 0;                                                  // no fifth command specific field
+    sqe->command_specific[5] = 0;                                                  // no sixth command specific field
+    // clang-format on
 
     // Update the submission queue tail pointer
     admin_submission_queue_tail =
         (admin_submission_queue_tail + 1) % admin_submission_queue.size;
 
+    // Zero the identify data buffer
+    memset(nvme_identify_controller_buf, 0,
+           sizeof(nvme_identify_controller_buf));
+
     // Ring doorbell
     nvme_write_reg_dword(0x1000 + (2 * 0) * (4 << nvme_doorbell_stride),
                          admin_submission_queue_tail);
+
+    while (!identity_interrupt_handled)
+        ;
+
+    kprintf("Identified NVMe controller\n");
+    kprintf("Max Transfer Size: %d pages\n", nvme_max_transfer_size_pages);
 }
 
 __attribute__((interrupt)) static void
@@ -221,25 +262,24 @@ nvme_interrupt_handler(void* frame)
             uint8_t sct = (status >> 8) & 0x7;
             uint8_t sc = status & 0xFF;
 
-            if (sct != 0 || sc != 0) {
+            if (sct != NVME_OK || sc != NVME_OK) {
                 panic("Identify command failed, sct=%d, sc=%d\n", sct, sc);
             }
 
-            uint8_t cntrltype = *(uint8_t*)(nvme_identify_data + 536);
-            if (cntrltype != 0x01) {
+            uint8_t cntrltype = *(uint8_t*)(nvme_identify_controller_buf + 536);
+            if (cntrltype != NVME_CONTROLLER_TYPE_IO) {
                 panic("NVMe controller is not an I/O controller (type=0x%X)",
                       cntrltype);
             }
 
-            uint8_t mdts = *(uint8_t*)(nvme_identify_data + 77);
-            if (mdts == 0) {
-                kprintf("MDTS = 0 → no limit on transfer size\n");
+            uint8_t mdts = *(uint8_t*)(nvme_identify_controller_buf + 77);
+            if (mdts != 0) {
+                nvme_max_transfer_size_pages = (1 << mdts);
             } else {
-                uint32_t max_transfer_bytes = (1 << mdts) * 4096;
-                kprintf("Max Transfer Size: %d bytes\n", max_transfer_bytes);
+                nvme_max_transfer_size_pages = 0;
             }
 
-            kprintf("Identify command completed, sct=%d, sc=%d\n", sct, sc);
+            identity_interrupt_handled = true;
         }
 
         admin_completion_queue_head++;

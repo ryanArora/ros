@@ -114,7 +114,10 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
               "page size");
     }
 
-    // Stop the controller
+    // Reset the controller
+    kprintf("Resetting NVMe controller\n");
+
+    // Disable the controller
     nvme_write_reg_dword(NVME_REGISTER_OFFSET_CC, 0);
     while (nvme_read_reg_dword(NVME_REGISTER_OFFSET_CSTS) & 0x1)
         ;
@@ -132,9 +135,6 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
     nvme_write_reg_qword(NVME_REGISTER_OFFSET_ACQ,
                          (uintptr_t)admin_completion_queue.addr);
 
-    kprintf("ASQ = 0x%llX, ACQ = 0x%llX\n", admin_submission_queue.addr,
-            admin_completion_queue.addr);
-
     // Set ACA sizes
     nvme_write_reg_dword(NVME_REGISTER_OFFSET_AQA,
                          (admin_completion_queue.size << 16) |
@@ -151,7 +151,7 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
     while ((nvme_read_reg_dword(NVME_REGISTER_OFFSET_CSTS) & 0x1) == 0)
         ;
 
-    kprintf("NVMe controller is ready\n");
+    kprintf("NVMe controller is enabled\n");
 }
 
 static uint32_t

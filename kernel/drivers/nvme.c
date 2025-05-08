@@ -223,14 +223,6 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
     nvme_send_admin_command_identify_namespace_list();
     nvme_send_admin_command_create_io_completion_queue();
     nvme_send_admin_command_create_io_submission_queue();
-
-    int* buffer = alloc_page();
-    memset(buffer, 0, 4096);
-    kprintf("Before: %d, %d, %d, %d, %d\n", buffer[0], buffer[1], buffer[2],
-            buffer[3], buffer[4]);
-    nvme_submit_io(NVME_IO_COMMAND_OPCODE_READ, 0, 1, buffer);
-    kprintf("After: %d, %d, %d, %d, %d\n", buffer[0], buffer[1], buffer[2],
-            buffer[3], buffer[4]);
 }
 
 static void
@@ -617,6 +609,18 @@ nvme_submit_io(uint8_t opcode, uint64_t lba, uint16_t nblocks, void* buf)
         ;
 
     kprintf("IO command done\n");
+}
+
+void
+nvme_write(uint64_t lba, uint16_t nblocks, void* buf)
+{
+    nvme_submit_io(NVME_IO_COMMAND_OPCODE_WRITE, lba, nblocks, buf);
+}
+
+void
+nvme_read(uint64_t lba, uint16_t nblocks, void* buf)
+{
+    nvme_submit_io(NVME_IO_COMMAND_OPCODE_READ, lba, nblocks, buf);
 }
 
 __attribute__((interrupt)) static void

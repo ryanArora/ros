@@ -15,11 +15,13 @@
 #define NVME_REGISTER_OFFSET_ASQ   0x28
 #define NVME_REGISTER_OFFSET_ACQ   0x30
 
-#define NVME_ADMIN_COMMNAD_OPCODE_CREATE_IO_SUBMISSION_QUEUE 0x01
-#define NVME_ADMIN_COMMNAD_OPCODE_CREATE_IO_COMPLETION_QUEUE 0x05
-#define NVME_ADMIN_COMMNAD_OPCODE_IDENTIFY                   0x06
+#define NVME_ADMIN_COMMAND_OPCODE_CREATE_IO_SUBMISSION_QUEUE 0x01
+#define NVME_ADMIN_COMMAND_OPCODE_CREATE_IO_COMPLETION_QUEUE 0x05
+#define NVME_ADMIN_COMMAND_OPCODE_IDENTIFY                   0x06
 
-#define NVME_COMMAND_IDENTIFIER_IDENTIFY_CONTROLLER 0x01
+#define NVME_COMMAND_IDENTIFIER_IDENTIFY_CONTROLLER        0x01
+#define NVME_COMMAND_IDENTIFIER_CREATE_IO_COMPLETION_QUEUE 0x02
+#define NVME_COMMAND_IDENTIFIER_CREATE_IO_SUBMISSION_QUEUE 0x03
 
 #define NVME_CONTROLLER_TYPE_IO 0x01
 
@@ -30,6 +32,8 @@ static void nvme_write_reg_dword(uint32_t offset, uint32_t value);
 static int64_t nvme_read_reg_qword(uint32_t offset);
 static void nvme_write_reg_qword(uint32_t offset, uint64_t value);
 static void nvme_send_admin_command_identify_controller();
+static void nvme_send_admin_command_create_io_submission_queue();
+static void nvme_send_admin_command_create_io_completion_queue();
 __attribute__((interrupt)) static void nvme_interrupt_handler(void* frame);
 
 struct nvme_submission_queue_entry_command {
@@ -79,8 +83,8 @@ static uint16_t admin_submission_queue_tail = 0;
 static uint16_t admin_completion_queue_head = 0;
 static uint8_t admin_completion_queue_phase = 1;
 
-// static struct nvme_submission_queue io_submission_queue;
-// static struct nvme_completion_queue io_completion_queue;
+static struct nvme_submission_queue io_submission_queue;
+static struct nvme_completion_queue io_completion_queue;
 
 // static uint16_t io_submission_queue_tail = 0;
 // static uint16_t io_completion_queue_head = 0;
@@ -88,7 +92,9 @@ static uint8_t admin_completion_queue_phase = 1;
 
 static char nvme_identify_controller_buf[4096];
 
-bool identity_interrupt_handled = false;
+bool identify_controller_interrupt_handled = false;
+bool create_io_completion_queue_interrupt_handled = false;
+bool create_io_submission_queue_interrupt_handled = false;
 
 uint32_t nvme_max_transfer_size_pages = 0;
 
@@ -163,12 +169,14 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
 
     // Initialize admin submission queue
     admin_submission_queue.addr = alloc_page();
+    memset(admin_submission_queue.addr, 0, 4096);
     admin_submission_queue.size = 63;
     nvme_write_reg_qword(NVME_REGISTER_OFFSET_ASQ,
                          (uintptr_t)admin_submission_queue.addr);
 
     // Initialize admin completion queue
     admin_completion_queue.addr = alloc_page();
+    memset(admin_completion_queue.addr, 0, 4096);
     admin_completion_queue.size = 63;
     nvme_write_reg_qword(NVME_REGISTER_OFFSET_ACQ,
                          (uintptr_t)admin_completion_queue.addr);
@@ -196,6 +204,8 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
     interrupts_enable();
 
     nvme_send_admin_command_identify_controller();
+    nvme_send_admin_command_create_io_completion_queue();
+    nvme_send_admin_command_create_io_submission_queue();
 }
 
 static void
@@ -209,13 +219,13 @@ nvme_send_admin_command_identify_controller()
 
     // Build the submission queue entry command
     // clang-format off
-    sqe->command.opcode = NVME_ADMIN_COMMNAD_OPCODE_IDENTIFY;
+    sqe->command.opcode = NVME_ADMIN_COMMAND_OPCODE_IDENTIFY;
     sqe->command.fused_operation = 0;                                              // normal operation
     sqe->command.prp_or_sgl_selection = 0;                                         // prp selection
     sqe->command.command_identifier = NVME_COMMAND_IDENTIFIER_IDENTIFY_CONTROLLER; // command identifier
     sqe->nsid = 0;                                                                 // no applicable namespace
     sqe->metadata_ptr = 0;                                                         // no applicible metadata pointer
-    sqe->data_ptr[0] = (uintptr_t)nvme_identify_controller_buf;                              // data pointer
+    sqe->data_ptr[0] = (uintptr_t)nvme_identify_controller_buf;                    // data pointer
     sqe->data_ptr[1] = 0;                                                          // no second data pointer
     sqe->command_specific[0] = 1;                                                  // identify controller
     sqe->command_specific[1] = 0;                                                  // no second command specific field
@@ -237,11 +247,98 @@ nvme_send_admin_command_identify_controller()
     nvme_write_reg_dword(0x1000 + (2 * 0) * (4 << nvme_doorbell_stride),
                          admin_submission_queue_tail);
 
-    while (!identity_interrupt_handled)
+    while (!identify_controller_interrupt_handled)
         ;
 
     kprintf("Identified NVMe controller\n");
     kprintf("Max Transfer Size: %d pages\n", nvme_max_transfer_size_pages);
+}
+
+static void
+nvme_send_admin_command_create_io_completion_queue()
+{
+    io_completion_queue.addr = alloc_page();
+    memset(io_completion_queue.addr, 0, 4096);
+    io_completion_queue.size = 63;
+
+    struct nvme_submission_queue_entry* sqe =
+        &admin_submission_queue.addr[admin_submission_queue_tail];
+
+    // Zero the submission queue entry
+    memset(sqe, 0, sizeof(struct nvme_submission_queue_entry));
+    // Build the submission queue entry command
+    // clang-format off
+    sqe->command.opcode = NVME_ADMIN_COMMAND_OPCODE_CREATE_IO_COMPLETION_QUEUE;
+    sqe->command.fused_operation = 0;                                                     // normal operation
+    sqe->command.prp_or_sgl_selection = 0;                                                // prp selection
+    sqe->command.command_identifier = NVME_COMMAND_IDENTIFIER_CREATE_IO_COMPLETION_QUEUE; // command identifier
+    sqe->nsid = 0;                                                                        // no applicable namespace
+    sqe->metadata_ptr = 0;                                                                // no applicible metadata pointer
+    sqe->data_ptr[0] = (uintptr_t)io_completion_queue.addr;                               // physical address of completion queue
+    sqe->data_ptr[1] = 0;                                                                 // not applicable
+    sqe->command_specific[0] = 1 | (io_completion_queue.size << 16);                      // queue ID (1) and queue size - 1
+    sqe->command_specific[1] = (1 << 1) | 1;                                              // physically contiguous (bit 0) and raise interrupts (bit 1)
+    sqe->command_specific[2] = 0;                                                         // no third command specific field
+    sqe->command_specific[3] = 0;                                                         // no fourth command specific field
+    sqe->command_specific[4] = 0;                                                         // no fifth command specific field
+    sqe->command_specific[5] = 0;                                                         // no sixth command specific field
+    // clang-format on
+
+    // Update the submission queue tail pointer
+    admin_submission_queue_tail =
+        (admin_submission_queue_tail + 1) % admin_submission_queue.size;
+
+    // Ring doorbell
+    nvme_write_reg_dword(0x1000 + (2 * 0) * (4 << nvme_doorbell_stride),
+                         admin_submission_queue_tail);
+
+    while (!create_io_completion_queue_interrupt_handled)
+        ;
+    kprintf("Created IO completion queue\n");
+}
+
+static void
+nvme_send_admin_command_create_io_submission_queue()
+{
+    io_submission_queue.addr = alloc_page();
+    memset(io_submission_queue.addr, 0, 4096);
+    io_submission_queue.size = 63;
+
+    struct nvme_submission_queue_entry* sqe =
+        &admin_submission_queue.addr[admin_submission_queue_tail];
+
+    // Zero the submission queue entry
+    memset(sqe, 0, sizeof(struct nvme_submission_queue_entry));
+
+    // Build the submission queue entry command
+    // clang-format off
+    sqe->command.opcode = NVME_ADMIN_COMMAND_OPCODE_CREATE_IO_SUBMISSION_QUEUE;
+    sqe->command.fused_operation = 0;                                                     // normal operation
+    sqe->command.prp_or_sgl_selection = 0;                                                // prp selection
+    sqe->command.command_identifier = NVME_COMMAND_IDENTIFIER_CREATE_IO_SUBMISSION_QUEUE; // command identifier
+    sqe->nsid = 0;                                                                        // no applicable namespace
+    sqe->metadata_ptr = 0;                                                                // no applicible metadata pointer
+    sqe->data_ptr[0] = (uintptr_t)io_submission_queue.addr;                               // physical address of submission queue
+    sqe->data_ptr[1] = 0;                                                                 // not applicable
+    sqe->command_specific[0] = 1 | (io_submission_queue.size << 16);                      // queue ID (1) and queue size - 1
+    sqe->command_specific[1] = 1 | (1 << 16);                                             // physically contiguous (bit 0) and completion queue ID (1)
+    sqe->command_specific[2] = 0;                                                         // no third command specific field
+    sqe->command_specific[3] = 0;                                                         // no fourth command specific field
+    sqe->command_specific[4] = 0;                                                         // no fifth command specific field
+    sqe->command_specific[5] = 0;                                                         // no sixth command specific field
+    // clang-format on
+
+    // Update the submission queue tail pointer
+    admin_submission_queue_tail =
+        (admin_submission_queue_tail + 1) % admin_submission_queue.size;
+
+    // Ring doorbell
+    nvme_write_reg_dword(0x1000 + (2 * 0) * (4 << nvme_doorbell_stride),
+                         admin_submission_queue_tail);
+
+    while (!create_io_submission_queue_interrupt_handled)
+        ;
+    kprintf("Created IO submission queue\n");
 }
 
 __attribute__((interrupt)) static void
@@ -257,13 +354,18 @@ nvme_interrupt_handler(void* frame)
         if (cqe->phase != admin_completion_queue_phase) break;
 
         // Process completion entry
-        if (cqe->command_identifier == 1) {
+        kprintf("Processing completion entry identifier: %d\n",
+                cqe->command_identifier);
+
+        switch (cqe->command_identifier) {
+        case NVME_COMMAND_IDENTIFIER_IDENTIFY_CONTROLLER: {
             uint16_t status = cqe->status_field;
             uint8_t sct = (status >> 8) & 0x7;
             uint8_t sc = status & 0xFF;
 
             if (sct != NVME_OK || sc != NVME_OK) {
-                panic("Identify command failed, sct=%d, sc=%d\n", sct, sc);
+                panic("Identify controller command failed, sct=%d, sc=%d\n",
+                      sct, sc);
             }
 
             uint8_t cntrltype = *(uint8_t*)(nvme_identify_controller_buf + 536);
@@ -279,7 +381,37 @@ nvme_interrupt_handler(void* frame)
                 nvme_max_transfer_size_pages = 0;
             }
 
-            identity_interrupt_handled = true;
+            identify_controller_interrupt_handled = true;
+            break;
+        }
+        case NVME_COMMAND_IDENTIFIER_CREATE_IO_COMPLETION_QUEUE: {
+            uint16_t status = cqe->status_field;
+            uint8_t sct = (status >> 8) & 0x7;
+            uint8_t sc = status & 0xFF;
+
+            if (sct != NVME_OK || sc != NVME_OK) {
+                panic("Create IO completion queue command failed, sct=%d, "
+                      "sc=%d\n",
+                      sct, sc);
+            }
+
+            create_io_completion_queue_interrupt_handled = true;
+            break;
+        }
+        case NVME_COMMAND_IDENTIFIER_CREATE_IO_SUBMISSION_QUEUE: {
+            uint16_t status = cqe->status_field;
+            uint8_t sct = (status >> 8) & 0x7;
+            uint8_t sc = status & 0xFF;
+
+            if (sct != NVME_OK || sc != NVME_OK) {
+                panic("Create IO submission queue command failed, sct=%d, "
+                      "sc=%d\n",
+                      sct, sc);
+            }
+
+            create_io_submission_queue_interrupt_handled = true;
+            break;
+        }
         }
 
         admin_completion_queue_head++;
@@ -292,6 +424,9 @@ nvme_interrupt_handler(void* frame)
     // Ring doorbell
     nvme_write_reg_dword(0x1000 + (2 * 0 + 1) * (4 << nvme_doorbell_stride),
                          admin_completion_queue_head);
+
+    // Send End-of-Interrupt to the PIC
+    outb(0x20, 0x20);
 }
 
 static uint32_t

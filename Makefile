@@ -8,11 +8,25 @@ OVMF_PATH := OVMF.fd
 all: kernel $(EFI_IMG_TARGET)
 
 $(EFI_IMG_TARGET): kernel
-	dd if=/dev/zero of=$@ bs=1k count=1440
-	mformat -i $@ -f 1440 ::
-	mmd -i $@ ::/EFI
-	mmd -i $@ ::/EFI/BOOT
-	mcopy -i $@ $(EFI_TARGET) ::/EFI/BOOT
+	dd if=/dev/zero of=$@ bs=1M count=1024
+	parted $@ --script -- mklabel gpt
+	parted $@ --script -- mkpart primary fat32 1MiB 100MiB
+	parted $@ --script -- mkpart primary ext2 100MiB 100%
+
+	printf "%s\n" \
+		"run" \
+		"list-partitions" \
+		"mkfs fat /dev/sda1" \
+		"mkfs ext2 /dev/sda2" \
+		"mount /dev/sda1 /" \
+		"mkdir /EFI" \
+		"mkdir /EFI/BOOT" \
+		"copy-in kernel/BOOTX64.EFI /EFI/BOOT" \
+		"umount /dev/sda1" \
+		"mount /dev/sda2 /" \
+		"copy-in root /" \
+		"umount /dev/sda2" \
+	| guestfish --rw -a $@
 
 kernel:
 	$(MAKE) -C kernel .depend all
@@ -25,4 +39,4 @@ dev: $(EFI_IMG_TARGET)
 	qemu-system-x86_64 \
 		-bios $(OVMF_PATH) \
 		-drive id=disk,file=$<,if=none,format=raw \
-		-device nvme,serial=deadbeef,drive=disk 
+		-device nvme,serial=deadbeef,drive=disk

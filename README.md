@@ -2,12 +2,15 @@
 
 I started this project in the Fall term of my 2nd year of University because I was interested in Operating Systems development.
 
-This project is a very simple Operating Systems kernel that:
+This project is a simple Operating Systems kernel that:
 
 -   Boots from UEFI
 -   Loads the Global Descriptor Table
 -   Loads the Interrupt Descriptor Table
 -   Has a simple console keyboard driver
+-   Page frame allocator
+-   Heap (slab allocator)
+-   NVMe block driver
 
 I took lots of inspiration from [osdev.org](https://wiki.osdev.org/).
 
@@ -15,7 +18,7 @@ I took lots of inspiration from [osdev.org](https://wiki.osdev.org/).
 
 -   Linux
 -   clang, lld-link
--   dosfstools
+-   dd, parted, guestfish
 -   qemu-system-x86_64
 
 ## Development

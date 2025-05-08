@@ -215,14 +215,13 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
 
     kprintf("NVMe controller is enabled\n");
 
-    uint8_t irq_line = pci_config_get_interrupt_line(bus, device, function);
-    idt_set_descriptor(irq_line + 32, nvme_interrupt_handler, 0x8E);
-    interrupts_enable();
-
     nvme_send_admin_command_identify_controller();
     nvme_send_admin_command_identify_namespace_list();
     nvme_send_admin_command_create_io_completion_queue();
     nvme_send_admin_command_create_io_submission_queue();
+
+    uint8_t irq_line = pci_config_get_interrupt_line(bus, device, function);
+    idt_set_descriptor(irq_line + 32, nvme_interrupt_handler, 0x8E);
 }
 
 static void
@@ -607,8 +606,6 @@ nvme_submit_io(uint8_t opcode, uint64_t lba, uint16_t nblocks, void* buf)
     io_cmd_done = false;
     while (!io_cmd_done)
         ;
-
-    kprintf("IO command done\n");
 }
 
 void

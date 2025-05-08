@@ -29,6 +29,9 @@
 
 #define NVME_CONTROLLER_TYPE_IO 0x01
 
+#define NVME_COMPLETION_QID_ADMIN 0
+#define NVME_SUBMISSION_QID_ADMIN 0
+
 #define NVME_OK 0x00
 
 static uint32_t nvme_read_reg_dword(uint32_t offset);
@@ -39,6 +42,8 @@ static void nvme_send_admin_command_identify_controller();
 static void nvme_send_admin_command_identify_namespace_list();
 static void nvme_send_admin_command_create_io_submission_queue();
 static void nvme_send_admin_command_create_io_completion_queue();
+static uint32_t nvme_submission_queue_tail_doorbell(uint16_t qid);
+static uint32_t nvme_completion_queue_head_doorbell(uint16_t qid);
 __attribute__((interrupt)) static void nvme_interrupt_handler(void* frame);
 
 struct nvme_submission_queue_entry_command {
@@ -93,10 +98,6 @@ static struct nvme_completion_queue io_completion_queue;
 
 static uint32_t nsid;
 
-// static uint16_t io_submission_queue_tail = 0;
-// static uint16_t io_completion_queue_head = 0;
-// static uint8_t io_completion_queue_phase = 1;
-
 static char nvme_identify_controller_buf[4096];
 static char nvme_identify_namespace_list_buf[4096];
 
@@ -104,6 +105,8 @@ bool identify_controller_interrupt_handled = false;
 bool identify_namespace_list_interrupt_handled = false;
 bool create_io_completion_queue_interrupt_handled = false;
 bool create_io_submission_queue_interrupt_handled = false;
+bool read_interrupt_handled = false;
+bool write_interrupt_handled = false;
 
 uint32_t nvme_max_transfer_size_pages = 0;
 
@@ -254,8 +257,9 @@ nvme_send_admin_command_identify_controller()
            sizeof(nvme_identify_controller_buf));
 
     // Ring doorbell
-    nvme_write_reg_dword(0x1000 + (2 * 0) * (4 << nvme_doorbell_stride),
-                         admin_submission_queue_tail);
+    nvme_write_reg_dword(
+        nvme_submission_queue_tail_doorbell(NVME_SUBMISSION_QID_ADMIN),
+        admin_submission_queue_tail);
 
     while (!identify_controller_interrupt_handled)
         ;
@@ -295,12 +299,13 @@ nvme_send_admin_command_identify_namespace_list()
         (admin_submission_queue_tail + 1) % admin_submission_queue.size;
 
     // Zero the identify data buffer
-    memset(nvme_identify_controller_buf, 0,
-           sizeof(nvme_identify_controller_buf));
+    memset(nvme_identify_namespace_list_buf, 0,
+           sizeof(nvme_identify_namespace_list_buf));
 
     // Ring doorbell
-    nvme_write_reg_dword(0x1000 + (2 * 0) * (4 << nvme_doorbell_stride),
-                         admin_submission_queue_tail);
+    nvme_write_reg_dword(
+        nvme_submission_queue_tail_doorbell(NVME_SUBMISSION_QID_ADMIN),
+        admin_submission_queue_tail);
 
     while (!identify_namespace_list_interrupt_handled)
         ;
@@ -343,8 +348,9 @@ nvme_send_admin_command_create_io_completion_queue()
         (admin_submission_queue_tail + 1) % admin_submission_queue.size;
 
     // Ring doorbell
-    nvme_write_reg_dword(0x1000 + (2 * 0) * (4 << nvme_doorbell_stride),
-                         admin_submission_queue_tail);
+    nvme_write_reg_dword(
+        nvme_submission_queue_tail_doorbell(NVME_SUBMISSION_QID_ADMIN),
+        admin_submission_queue_tail);
 
     while (!create_io_completion_queue_interrupt_handled)
         ;
@@ -387,8 +393,9 @@ nvme_send_admin_command_create_io_submission_queue()
         (admin_submission_queue_tail + 1) % admin_submission_queue.size;
 
     // Ring doorbell
-    nvme_write_reg_dword(0x1000 + (2 * 0) * (4 << nvme_doorbell_stride),
-                         admin_submission_queue_tail);
+    nvme_write_reg_dword(
+        nvme_submission_queue_tail_doorbell(NVME_SUBMISSION_QID_ADMIN),
+        admin_submission_queue_tail);
 
     while (!create_io_submission_queue_interrupt_handled)
         ;
@@ -501,8 +508,9 @@ nvme_interrupt_handler(void* frame)
     }
 
     // Ring doorbell
-    nvme_write_reg_dword(0x1000 + (2 * 0 + 1) * (4 << nvme_doorbell_stride),
-                         admin_completion_queue_head);
+    nvme_write_reg_dword(
+        nvme_completion_queue_head_doorbell(NVME_COMPLETION_QID_ADMIN),
+        admin_completion_queue_head);
 
     // Send End-of-Interrupt to the PIC
     outb(0x20, 0x20);
@@ -534,4 +542,16 @@ nvme_write_reg_qword(uint32_t offset, uint64_t value)
 {
     volatile uint64_t* nvme_reg = (volatile uint64_t*)(nvme_base_addr + offset);
     *nvme_reg = value;
+}
+
+static uint32_t
+nvme_submission_queue_tail_doorbell(uint16_t qid)
+{
+    return 0x1000 + (2 * qid) * (4 << nvme_doorbell_stride);
+}
+
+static uint32_t
+nvme_completion_queue_head_doorbell(uint16_t qid)
+{
+    return 0x1000 + (2 * qid + 1) * (4 << nvme_doorbell_stride);
 }

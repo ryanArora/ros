@@ -19,9 +19,13 @@
 #define NVME_ADMIN_COMMAND_OPCODE_CREATE_IO_COMPLETION_QUEUE 0x05
 #define NVME_ADMIN_COMMAND_OPCODE_IDENTIFY                   0x06
 
+#define NVME_IO_COMMAND_OPCODE_WRITE 0x01
+#define NVME_IO_COMMAND_OPCODE_READ  0x02
+
 #define NVME_COMMAND_IDENTIFIER_IDENTIFY_CONTROLLER        0x01
-#define NVME_COMMAND_IDENTIFIER_CREATE_IO_COMPLETION_QUEUE 0x02
-#define NVME_COMMAND_IDENTIFIER_CREATE_IO_SUBMISSION_QUEUE 0x03
+#define NVME_COMMAND_IDENTIFIER_IDENTIFY_NAMESPACE_LIST    0x02
+#define NVME_COMMAND_IDENTIFIER_CREATE_IO_COMPLETION_QUEUE 0x03
+#define NVME_COMMAND_IDENTIFIER_CREATE_IO_SUBMISSION_QUEUE 0x04
 
 #define NVME_CONTROLLER_TYPE_IO 0x01
 
@@ -32,6 +36,7 @@ static void nvme_write_reg_dword(uint32_t offset, uint32_t value);
 static int64_t nvme_read_reg_qword(uint32_t offset);
 static void nvme_write_reg_qword(uint32_t offset, uint64_t value);
 static void nvme_send_admin_command_identify_controller();
+static void nvme_send_admin_command_identify_namespace_list();
 static void nvme_send_admin_command_create_io_submission_queue();
 static void nvme_send_admin_command_create_io_completion_queue();
 __attribute__((interrupt)) static void nvme_interrupt_handler(void* frame);
@@ -86,13 +91,17 @@ static uint8_t admin_completion_queue_phase = 1;
 static struct nvme_submission_queue io_submission_queue;
 static struct nvme_completion_queue io_completion_queue;
 
+static uint32_t nsid;
+
 // static uint16_t io_submission_queue_tail = 0;
 // static uint16_t io_completion_queue_head = 0;
 // static uint8_t io_completion_queue_phase = 1;
 
 static char nvme_identify_controller_buf[4096];
+static char nvme_identify_namespace_list_buf[4096];
 
 bool identify_controller_interrupt_handled = false;
+bool identify_namespace_list_interrupt_handled = false;
 bool create_io_completion_queue_interrupt_handled = false;
 bool create_io_submission_queue_interrupt_handled = false;
 
@@ -204,6 +213,7 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
     interrupts_enable();
 
     nvme_send_admin_command_identify_controller();
+    nvme_send_admin_command_identify_namespace_list();
     nvme_send_admin_command_create_io_completion_queue();
     nvme_send_admin_command_create_io_submission_queue();
 }
@@ -251,7 +261,51 @@ nvme_send_admin_command_identify_controller()
         ;
 
     kprintf("Identified NVMe controller\n");
-    kprintf("Max Transfer Size: %d pages\n", nvme_max_transfer_size_pages);
+}
+
+static void
+nvme_send_admin_command_identify_namespace_list()
+{
+    struct nvme_submission_queue_entry* sqe =
+        &admin_submission_queue.addr[admin_submission_queue_tail];
+
+    // Zero the submission queue entry
+    memset(sqe, 0, sizeof(struct nvme_submission_queue_entry));
+
+    // Build the submission queue entry command
+    // clang-format off
+    sqe->command.opcode = NVME_ADMIN_COMMAND_OPCODE_IDENTIFY;
+    sqe->command.fused_operation = 0;                                                  // normal operation
+    sqe->command.prp_or_sgl_selection = 0;                                             // prp selection
+    sqe->command.command_identifier = NVME_COMMAND_IDENTIFIER_IDENTIFY_NAMESPACE_LIST; // command identifier
+    sqe->nsid = 0;                                                                     // no applicable namespace
+    sqe->metadata_ptr = 0;                                                             // no applicible metadata pointer
+    sqe->data_ptr[0] = (uintptr_t)nvme_identify_namespace_list_buf;                    // data pointer
+    sqe->data_ptr[1] = 0;                                                              // no second data pointer
+    sqe->command_specific[0] = 2;                                                      // identify namespace list
+    sqe->command_specific[1] = 0;                                                      // no second command specific field
+    sqe->command_specific[2] = 0;                                                      // no third command specific field
+    sqe->command_specific[3] = 0;                                                      // no fourth command specific field
+    sqe->command_specific[4] = 0;                                                      // no fifth command specific field
+    sqe->command_specific[5] = 0;                                                      // no sixth command specific field
+    // clang-format on
+
+    // Update the submission queue tail pointer
+    admin_submission_queue_tail =
+        (admin_submission_queue_tail + 1) % admin_submission_queue.size;
+
+    // Zero the identify data buffer
+    memset(nvme_identify_controller_buf, 0,
+           sizeof(nvme_identify_controller_buf));
+
+    // Ring doorbell
+    nvme_write_reg_dword(0x1000 + (2 * 0) * (4 << nvme_doorbell_stride),
+                         admin_submission_queue_tail);
+
+    while (!identify_namespace_list_interrupt_handled)
+        ;
+
+    kprintf("Identified NVMe namespace list\n");
 }
 
 static void
@@ -345,17 +399,12 @@ __attribute__((interrupt)) static void
 nvme_interrupt_handler(void* frame)
 {
     (void)frame;
-    kprintf("NVMe controller interrupt\n");
 
     while (true) {
         struct nvme_completion_queue_entry* cqe =
             &admin_completion_queue.addr[admin_completion_queue_head];
 
         if (cqe->phase != admin_completion_queue_phase) break;
-
-        // Process completion entry
-        kprintf("Processing completion entry identifier: %d\n",
-                cqe->command_identifier);
 
         switch (cqe->command_identifier) {
         case NVME_COMMAND_IDENTIFIER_IDENTIFY_CONTROLLER: {
@@ -382,6 +431,36 @@ nvme_interrupt_handler(void* frame)
             }
 
             identify_controller_interrupt_handled = true;
+            break;
+        }
+        case NVME_COMMAND_IDENTIFIER_IDENTIFY_NAMESPACE_LIST: {
+            uint16_t status = cqe->status_field;
+            uint8_t sct = (status >> 8) & 0x7;
+            uint8_t sc = status & 0xFF;
+
+            if (sct != NVME_OK || sc != NVME_OK) {
+                panic("Identify namespace list command failed, sct=%d, sc=%d\n",
+                      sct, sc);
+            }
+
+            uint32_t* ns_list = (uint32_t*)nvme_identify_namespace_list_buf;
+            size_t ns_count = 0;
+
+            for (size_t i = 0; i < 1024; ++i) {
+                if (ns_list[i] == 0) break;
+                ++ns_count;
+            }
+
+            if (ns_count == 0) {
+                panic("no namespaces found\n");
+            }
+
+            if (ns_count > 1) {
+                panic("multiple namespaces are not supported\n");
+            }
+
+            nsid = ns_list[0];
+            identify_namespace_list_interrupt_handled = true;
             break;
         }
         case NVME_COMMAND_IDENTIFIER_CREATE_IO_COMPLETION_QUEUE: {

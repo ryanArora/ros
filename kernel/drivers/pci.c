@@ -31,6 +31,17 @@
 #define PCI_CONFIG_MIN_GRANT_OFFSET           0x3E
 #define PCI_CONFIG_MAX_LATENCY_OFFSET         0x3F
 
+#define PCI_COMMAND_OFFSET_IO_SPACE                           0
+#define PCI_COMMAND_OFFSET_MEMORY_SPACE                       1
+#define PCI_COMMAND_OFFSET_BUS_MASTER                         2
+#define PCI_COMMAND_OFFSET_SPECIAL_CYCLES                     3
+#define PCI_COMMAND_OFFSET_MEMORY_WRITE_AND_INVALIDATE_ENABLE 4
+#define PCI_COMMAND_OFFSET_VGA_PALETTE_SNOOP                  5
+#define PCI_COMMAND_OFFSET_PARITY_ERROR_RESPONSE              6
+#define PCI_COMMAND_OFFSET_SERR_ENABLE                        8
+#define PCI_COMMAND_OFFSET_FAST_BACK_TO_BACK_ENABLE           9
+#define PCI_COMMAND_OFFSET_INTERRUPT_DISABLE                  10
+
 #define PCI_CONFIG_HEADER_TYPE_PCI_DEVICE     0x00
 #define PCI_CONFIG_HEADER_TYPE_PCI_BRIDGE     0x01
 #define PCI_CONFIG_HEADER_TYPE_CARDBUS_BRIDGE 0x02
@@ -555,4 +566,150 @@ pci_config_set_max_latency(uint8_t bus, uint8_t device, uint8_t function,
 {
     pci_write_config_byte(bus, device, function, PCI_CONFIG_MAX_LATENCY_OFFSET,
                           value);
+}
+
+static bool
+pci_command_get_bit(uint16_t command, uint8_t offset)
+{
+    return (command & (1 << offset)) != 0;
+}
+
+bool
+pci_command_get_io_space(uint16_t command)
+{
+    return pci_command_get_bit(command, PCI_COMMAND_OFFSET_IO_SPACE);
+}
+
+bool
+pci_command_get_memory_space(uint16_t command)
+{
+    return pci_command_get_bit(command, PCI_COMMAND_OFFSET_MEMORY_SPACE);
+}
+
+bool
+pci_command_get_bus_master(uint16_t command)
+{
+    return pci_command_get_bit(command, PCI_COMMAND_OFFSET_BUS_MASTER);
+}
+
+bool
+pci_command_get_special_cycles(uint16_t command)
+{
+    return pci_command_get_bit(command, PCI_COMMAND_OFFSET_SPECIAL_CYCLES);
+}
+
+bool
+pci_command_get_memory_write_and_invalidate_enable(uint16_t command)
+{
+    return pci_command_get_bit(
+        command, PCI_COMMAND_OFFSET_MEMORY_WRITE_AND_INVALIDATE_ENABLE);
+}
+
+bool
+pci_command_get_vga_palette_snoop(uint16_t command)
+{
+    return pci_command_get_bit(command, PCI_COMMAND_OFFSET_VGA_PALETTE_SNOOP);
+}
+
+bool
+pci_command_get_parity_error_response(uint16_t command)
+{
+    return pci_command_get_bit(command,
+                               PCI_COMMAND_OFFSET_PARITY_ERROR_RESPONSE);
+}
+
+bool
+pci_command_get_serr_enable(uint16_t command)
+{
+    return pci_command_get_bit(command, PCI_COMMAND_OFFSET_SERR_ENABLE);
+}
+
+bool
+pci_command_get_fast_back_to_back_enable(uint16_t command)
+{
+    return pci_command_get_bit(command,
+                               PCI_COMMAND_OFFSET_FAST_BACK_TO_BACK_ENABLE);
+}
+
+bool
+pci_command_get_interrupt_disable(uint16_t command)
+{
+    return pci_command_get_bit(command, PCI_COMMAND_OFFSET_INTERRUPT_DISABLE);
+}
+
+static uint16_t
+pci_command_set_bit(uint16_t command, uint8_t offset, bool value)
+{
+    if (value)
+        command |= 1 << offset;
+    else
+        command &= ~(1 << offset);
+
+    return command;
+}
+
+uint16_t
+pci_command_set_io_space(uint16_t command, bool value)
+{
+    return pci_command_set_bit(command, PCI_COMMAND_OFFSET_IO_SPACE, value);
+}
+
+uint16_t
+pci_command_set_memory_space(uint16_t command, bool value)
+{
+    return pci_command_set_bit(command, PCI_COMMAND_OFFSET_MEMORY_SPACE, value);
+}
+
+uint16_t
+pci_command_set_bus_master(uint16_t command, bool value)
+{
+    return pci_command_set_bit(command, PCI_COMMAND_OFFSET_BUS_MASTER, value);
+}
+
+uint16_t
+pci_command_set_special_cycles(uint16_t command, bool value)
+{
+    return pci_command_set_bit(command, PCI_COMMAND_OFFSET_SPECIAL_CYCLES,
+                               value);
+}
+
+uint16_t
+pci_command_set_memory_write_and_invalidate_enable(uint16_t command, bool value)
+{
+    return pci_command_set_bit(
+        command, PCI_COMMAND_OFFSET_MEMORY_WRITE_AND_INVALIDATE_ENABLE, value);
+}
+
+uint16_t
+pci_command_set_vga_palette_snoop(uint16_t command, bool value)
+{
+    return pci_command_set_bit(command, PCI_COMMAND_OFFSET_VGA_PALETTE_SNOOP,
+                               value);
+}
+
+uint16_t
+pci_command_set_parity_error_response(uint16_t command, bool value)
+{
+    return pci_command_set_bit(command,
+                               PCI_COMMAND_OFFSET_PARITY_ERROR_RESPONSE, value);
+}
+
+uint16_t
+pci_command_set_serr_enable(uint16_t command, bool value)
+{
+    return pci_command_set_bit(command, PCI_COMMAND_OFFSET_SERR_ENABLE, value);
+}
+
+uint16_t
+pci_command_set_fast_back_to_back_enable(uint16_t command, bool value)
+{
+    return pci_command_set_bit(
+        command, PCI_COMMAND_OFFSET_FAST_BACK_TO_BACK_ENABLE, value);
+}
+
+uint16_t
+pci_command_set_interrupt_disable(uint16_t command, bool value)
+{
+    return pci_command_set_bit(command, PCI_COMMAND_OFFSET_INTERRUPT_DISABLE,
+                               value);
 }

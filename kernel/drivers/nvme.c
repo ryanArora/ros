@@ -2,6 +2,8 @@
 #include "../lib/io.h"
 #include "pci.h"
 #include "../mm.h"
+#include "../idt.h"
+#include "../lib/string.h"
 
 #define NVME_REGISTER_OFFSET_CAP   0x00
 #define NVME_REGISTER_OFFSET_VS    0x08
@@ -17,11 +19,7 @@ static uint32_t nvme_read_reg_dword(uint32_t offset);
 static void nvme_write_reg_dword(uint32_t offset, uint32_t value);
 static int64_t nvme_read_reg_qword(uint32_t offset);
 static void nvme_write_reg_qword(uint32_t offset, uint64_t value);
-
-struct nvme_queue {
-    void* addr;
-    size_t size;
-};
+__attribute__((interrupt)) static void nvme_interrupt_handler(void* frame);
 
 struct nvme_submission_queue_entry_command {
     uint8_t opcode;
@@ -40,6 +38,11 @@ struct nvme_submission_queue_entry {
     uint32_t command_specific[6];
 };
 
+struct nvme_submission_queue {
+    struct nvme_submission_queue_entry* addr;
+    size_t size;
+};
+
 struct nvme_completion_queue_entry {
     uint32_t command_specific;
     uint32_t : 32;
@@ -50,11 +53,22 @@ struct nvme_completion_queue_entry {
     uint16_t status_field : 15;
 };
 
+struct nvme_completion_queue {
+    struct nvme_completion_queue_entry* addr;
+    size_t size;
+};
+
 static uint64_t nvme_base_addr;
 static uint64_t nvme_doorbell_stride;
 
-struct nvme_queue admin_submission_queue;
-struct nvme_queue admin_completion_queue;
+struct nvme_submission_queue admin_submission_queue;
+struct nvme_completion_queue admin_completion_queue;
+
+static uint16_t admin_submission_queue_tail = 0;
+static uint16_t admin_completion_queue_head = 0;
+static uint8_t admin_completion_queue_phase = 1;
+
+static char nvme_identify_data[4096];
 
 void
 nvme_init(uint8_t bus, uint8_t device, uint8_t function)
@@ -77,7 +91,9 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
     uint32_t bar0 = pci_config_get_bar0(bus, device, function);
     uint32_t bar1 = pci_config_get_bar1(bus, device, function);
     nvme_base_addr = ((uint64_t)bar1 << 32) | (bar0 & ~0xF);
-    nvme_doorbell_stride = (nvme_base_addr >> 12) & 0xF;
+
+    uint64_t cap = nvme_read_reg_qword(NVME_REGISTER_OFFSET_CAP);
+    nvme_doorbell_stride = (cap >> 32) & 0xF;
 
     // Check the controller version is supported.
     uint32_t nvme_version = nvme_read_reg_dword(NVME_REGISTER_OFFSET_VS);
@@ -115,7 +131,7 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
     }
 
     // Reset the controller
-    kprintf("Resetting NVMe controller\n");
+    kprintf("Resetting NVMe controller...\n");
 
     // Disable the controller
     nvme_write_reg_dword(NVME_REGISTER_OFFSET_CC, 0);
@@ -135,7 +151,7 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
     nvme_write_reg_qword(NVME_REGISTER_OFFSET_ACQ,
                          (uintptr_t)admin_completion_queue.addr);
 
-    // Set ACA sizes
+    // Set AQA sizes
     nvme_write_reg_dword(NVME_REGISTER_OFFSET_AQA,
                          (admin_completion_queue.size << 16) |
                              admin_submission_queue.size);
@@ -152,6 +168,90 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
         ;
 
     kprintf("NVMe controller is enabled\n");
+
+    uint8_t irq_line = pci_config_get_interrupt_line(bus, device, function);
+    idt_set_descriptor(irq_line + 32, nvme_interrupt_handler, 0x8E);
+    interrupts_enable();
+
+    // Send the identify command to the controller.
+
+    // Zero the identify data buffer
+    memset(nvme_identify_data, 0, sizeof(nvme_identify_data));
+
+    // Zero the submission queue entry
+    memset(admin_submission_queue.addr, 0,
+           sizeof(struct nvme_submission_queue_entry));
+
+    // Build the submission queue entry command
+    admin_submission_queue.addr[0].command.opcode = 0x06;
+    admin_submission_queue.addr[0].command.fused_operation = 0;
+    admin_submission_queue.addr[0].command.prp_or_sgl_selection = 0;
+    admin_submission_queue.addr[0].command.command_identifier = 1;
+
+    admin_submission_queue.addr[0].nsid = 0;
+    admin_submission_queue.addr[0].metadata_ptr = 0;
+    admin_submission_queue.addr[0].data_ptr[0] = (uintptr_t)nvme_identify_data;
+    admin_submission_queue.addr[0].data_ptr[1] = 0;
+    admin_submission_queue.addr[0].command_specific[0] = 1;
+
+    // Update the submission queue tail pointer
+    admin_submission_queue_tail =
+        (admin_submission_queue_tail + 1) % admin_submission_queue.size;
+
+    // Ring doorbell
+    nvme_write_reg_dword(0x1000 + (2 * 0) * (4 << nvme_doorbell_stride),
+                         admin_submission_queue_tail);
+}
+
+__attribute__((interrupt)) static void
+nvme_interrupt_handler(void* frame)
+{
+    (void)frame;
+    kprintf("NVMe controller interrupt\n");
+
+    while (true) {
+        struct nvme_completion_queue_entry* cqe =
+            &admin_completion_queue.addr[admin_completion_queue_head];
+
+        if (cqe->phase != admin_completion_queue_phase) break;
+
+        // Process completion entry
+        if (cqe->command_identifier == 1) {
+            uint16_t status = cqe->status_field;
+            uint8_t sct = (status >> 8) & 0x7;
+            uint8_t sc = status & 0xFF;
+
+            if (sct != 0 || sc != 0) {
+                panic("Identify command failed, sct=%d, sc=%d\n", sct, sc);
+            }
+
+            uint8_t cntrltype = *(uint8_t*)(nvme_identify_data + 536);
+            if (cntrltype != 0x01) {
+                panic("NVMe controller is not an I/O controller (type=0x%X)",
+                      cntrltype);
+            }
+
+            uint8_t mdts = *(uint8_t*)(nvme_identify_data + 77);
+            if (mdts == 0) {
+                kprintf("MDTS = 0 → no limit on transfer size\n");
+            } else {
+                uint32_t max_transfer_bytes = (1 << mdts) * 4096;
+                kprintf("Max Transfer Size: %d bytes\n", max_transfer_bytes);
+            }
+
+            kprintf("Identify command completed, sct=%d, sc=%d\n", sct, sc);
+        }
+
+        admin_completion_queue_head++;
+        if (admin_completion_queue_head >= admin_completion_queue.size) {
+            admin_completion_queue_head = 0;
+            admin_completion_queue_phase ^= 1; // toggle phase bit
+        }
+    }
+
+    // Ring doorbell
+    nvme_write_reg_dword(0x1000 + (2 * 0 + 1) * (4 << nvme_doorbell_stride),
+                         admin_completion_queue_head);
 }
 
 static uint32_t

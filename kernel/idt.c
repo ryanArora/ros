@@ -23,7 +23,7 @@ struct __attribute__((packed)) idtr {
 
 static struct idt_entry idt[IDT_ENTRIES];
 
-static void
+void
 idt_set_descriptor(uint8_t vector, void* isr, uint8_t flags)
 {
     struct idt_entry* descriptor = &idt[vector];

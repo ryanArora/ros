@@ -22,10 +22,10 @@ kmain(void)
     mm_init();
     heap_init();
 
-    pci_init();
-
     pic_init();
     pit_init();
+
+    pci_init();
 
     interrupts_enable();
     spin();

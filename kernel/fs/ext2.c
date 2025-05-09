@@ -71,10 +71,11 @@ fs_ext2_probe(size_t device_id)
     struct ext2_superblock* ext2_superblock = alloc_page();
     blk_read(device_id, EXT2_SUPERBLOCK_LBA, EXT2_SUPERBLOCK_BLOCKS,
              ext2_superblock);
-    uint32_t ext2_superblock_magic = ext2_superblock->magic;
-    free_page(ext2_superblock);
 
-    return ext2_superblock_magic == EXT2_SUPERBLOCK_MAGIC;
+    bool is_ext2 = ext2_superblock->magic == EXT2_SUPERBLOCK_MAGIC;
+
+    free_page(ext2_superblock);
+    return is_ext2;
 }
 
 static void

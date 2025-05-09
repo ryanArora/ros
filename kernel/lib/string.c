@@ -69,6 +69,12 @@ strcmp(const char* s1, const char* s2)
     return memcmp(s1, s2, strlen(s1));
 }
 
+int
+strncmp(const char* s1, const char* s2, size_t n)
+{
+    return memcmp(s1, s2, n);
+}
+
 char*
 strcpy(char* dest, const char* src)
 {

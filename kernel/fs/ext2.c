@@ -1,6 +1,7 @@
 #include "ext2.h"
 #include "../lib/io.h"
 #include "../blk.h"
+#include "../mm.h"
 
 static void ext2_mount(const char* path);
 
@@ -60,8 +61,6 @@ struct ext2_superblock {
     uint8_t unused[760];
 };
 
-static struct ext2_superblock ext2_superblock __attribute__((aligned(4096)));
-
 #define EXT2_SUPERBLOCK_LBA    2
 #define EXT2_SUPERBLOCK_BLOCKS 2
 #define EXT2_SUPERBLOCK_MAGIC  0xEF53
@@ -69,10 +68,13 @@ static struct ext2_superblock ext2_superblock __attribute__((aligned(4096)));
 bool
 fs_ext2_probe(size_t device_id)
 {
+    struct ext2_superblock* ext2_superblock = alloc_page();
     blk_read(device_id, EXT2_SUPERBLOCK_LBA, EXT2_SUPERBLOCK_BLOCKS,
-             &ext2_superblock);
+             ext2_superblock);
+    uint32_t ext2_superblock_magic = ext2_superblock->magic;
+    free_page(ext2_superblock);
 
-    return ext2_superblock.magic == EXT2_SUPERBLOCK_MAGIC;
+    return ext2_superblock_magic == EXT2_SUPERBLOCK_MAGIC;
 }
 
 static void

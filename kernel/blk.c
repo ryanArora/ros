@@ -140,10 +140,9 @@ blk_init_for_device(size_t device_id)
                             NULL);
 
         // probe
-        const struct fs* fs =
-            fs_probe(i); // TODO: change to device id and do real probing
+        const struct fs* fs = fs_probe(blk_device_table_size - 1);
         if (fs == NULL) {
-            panic("Failed to probe partition %s\n", partition_name);
+            kprintf("warn: %s has unknown filesystem\n", partition_name);
         }
         blk_device_table[blk_device_table_size - 1].fs = fs;
 

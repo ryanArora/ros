@@ -12,11 +12,6 @@ bool
 fs_fat16_probe(size_t device_id)
 {
     (void)device_id;
-
-    if (device_id == 0) {
-        return true;
-    }
-
     return false;
 }
 

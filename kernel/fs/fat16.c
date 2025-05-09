@@ -85,16 +85,6 @@ fs_fat16_probe(struct blk_device* dev)
     return is_fat16;
 }
 
-static enum fs_stat_result
-fat16_stat(struct blk_device* dev, const char* path, struct fs_stat* st)
-{
-    (void)dev;
-    (void)path;
-    (void)st;
-
-    panic("not implemented\n");
-}
-
 static void
 fat16_mount(struct blk_device* dev)
 {
@@ -115,6 +105,16 @@ fat16_umount(struct blk_device* dev)
 
     kfree(fat16);
     dev->fs->_internal = NULL;
+}
+
+static enum fs_stat_result
+fat16_stat(struct blk_device* dev, const char* path, struct fs_stat* st)
+{
+    (void)dev;
+    (void)path;
+    (void)st;
+
+    panic("not implemented\n");
 }
 
 static size_t

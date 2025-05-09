@@ -1,7 +1,5 @@
 #include "ext3.h"
 #include "../lib/io.h"
-#include "../blk/blk.h"
-#include "../mm.h"
 
 static void ext3_init(void);
 

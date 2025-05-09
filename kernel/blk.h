@@ -1,6 +1,6 @@
 #pragma once
 #include <stdint.h>
-#include "../fs/fs.h"
+#include "fs/fs.h"
 
 void
 blk_register_device(const char* name, uint64_t start_lba, uint64_t end_lba,

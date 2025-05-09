@@ -5,7 +5,7 @@
 #include "../idt.h"
 #include "../lib/string.h"
 #include "../lib/math.h"
-#include "../blk/blk.h"
+#include "../blk.h"
 
 #define NVME_REGISTER_OFFSET_CAP   0x00
 #define NVME_REGISTER_OFFSET_VS    0x08

@@ -9,7 +9,8 @@
 #include "gdt.h"
 #include "idt.h"
 #include "drivers/pci.h"
-#include "blk/blk.h"
+#include "blk.h"
+
 void
 kmain(void)
 {

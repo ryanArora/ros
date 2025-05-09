@@ -8,6 +8,8 @@
 
 static void fat16_mount(struct blk_device* dev);
 static void fat16_umount(struct blk_device* dev);
+static enum fs_stat_result fat16_stat(struct blk_device* dev, const char* path,
+                                      struct fs_stat* st);
 static size_t fat16_read(struct blk_device* dev, const char* path, void* buf,
                          size_t count, size_t offset);
 static size_t fat16_write(struct blk_device* dev, const char* path, void* buf,
@@ -17,6 +19,7 @@ struct fs fs_fat16 = {
     .name = "fat16",
     .mount = fat16_mount,
     .umount = fat16_umount,
+    .stat = fat16_stat,
     .read = fat16_read,
     .write = fat16_write,
     ._internal = NULL,
@@ -80,6 +83,16 @@ fs_fat16_probe(struct blk_device* dev)
 
     free_page(bpb);
     return is_fat16;
+}
+
+static enum fs_stat_result
+fat16_stat(struct blk_device* dev, const char* path, struct fs_stat* st)
+{
+    (void)dev;
+    (void)path;
+    (void)st;
+
+    panic("not implemented\n");
 }
 
 static void

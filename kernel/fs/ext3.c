@@ -1,11 +1,11 @@
 #include "ext3.h"
 #include "../lib/io.h"
 
-static void ext3_init(void);
+static void ext3_mount(const char* path);
 
 struct fs fs_ext3 = {
     .name = "ext3",
-    .init = ext3_init,
+    .mount = ext3_mount,
 };
 
 bool
@@ -21,7 +21,7 @@ fs_ext3_probe(size_t device_id)
 }
 
 static void
-ext3_init(void)
+ext3_mount(const char* path)
 {
-    kprintf("ext3 init\n");
+    kprintf("ext3 mount %s\n", path);
 }

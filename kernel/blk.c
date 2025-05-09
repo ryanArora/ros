@@ -45,6 +45,8 @@ struct blk_device {
 static struct blk_device* blk_device_table;
 static size_t blk_device_table_size = 0;
 
+static size_t blk_root_device_id = -1;
+
 static void blk_print_device_table(void);
 
 void
@@ -75,7 +77,21 @@ blk_init()
         blk_init_for_device(i);
     }
 
+    kprintf("Found root device: %s\n",
+            blk_device_table[blk_root_device_id].name);
     blk_print_device_table();
+
+    if (blk_root_device_id == (size_t)-1) {
+        panic("no root device found\n");
+    }
+
+    if (blk_device_table[blk_root_device_id].fs == NULL) {
+        panic("root device has unknown filesystem\n");
+    }
+
+    blk_device_table[blk_root_device_id].fs->mount("/");
+
+    // TODO: read /etc/fstab and mount other filesystems
 }
 
 static void
@@ -124,15 +140,27 @@ blk_init_for_device(size_t device_id)
                             NULL);
 
         // probe
-        const struct fs* fs = fs_probe(i);
+        const struct fs* fs =
+            fs_probe(i); // TODO: change to device id and do real probing
         if (fs == NULL) {
             panic("Failed to probe partition %s\n", partition_name);
         }
-
         blk_device_table[blk_device_table_size - 1].fs = fs;
+
+        // is this the root device?
+        if (entry->partition_name[0] == 'r' &&
+            entry->partition_name[2] == 'o' &&
+            entry->partition_name[4] == 'o' &&
+            entry->partition_name[6] == 't') {
+
+            if (blk_root_device_id != (size_t)-1) {
+                panic("multiple root devices found\n");
+            }
+
+            blk_root_device_id = blk_device_table_size - 1;
+        }
     }
 }
-
 void
 blk_read(size_t device_id, uint64_t lba, uint16_t num_blocks, void* buf)
 {

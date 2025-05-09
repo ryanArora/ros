@@ -6,11 +6,17 @@
 
 static void ext2_mount(struct blk_device* dev);
 static void ext2_umount(struct blk_device* dev);
+static size_t ext2_read(struct blk_device* dev, const char* path, void* buf,
+                        size_t count, size_t offset);
+static size_t ext2_write(struct blk_device* dev, const char* path, void* buf,
+                         size_t count, size_t offset);
 
 struct fs fs_ext2 = {
     .name = "ext2",
     .mount = ext2_mount,
     .umount = ext2_umount,
+    .read = ext2_read,
+    .write = ext2_write,
     ._internal = NULL,
 };
 
@@ -106,4 +112,30 @@ ext2_umount(struct blk_device* dev)
 
     kfree(ext2);
     dev->fs->_internal = NULL;
+}
+
+static size_t
+ext2_read(struct blk_device* dev, const char* path, void* buf, size_t count,
+          size_t offset)
+{
+    (void)dev;
+    (void)path;
+    (void)buf;
+    (void)count;
+    (void)offset;
+
+    panic("not implemented\n");
+}
+
+static size_t
+ext2_write(struct blk_device* dev, const char* path, void* buf, size_t count,
+           size_t offset)
+{
+    (void)dev;
+    (void)path;
+    (void)buf;
+    (void)count;
+    (void)offset;
+
+    panic("not implemented\n");
 }

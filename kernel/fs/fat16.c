@@ -4,14 +4,21 @@
 #include "../lib/string.h"
 #include "../lib/heap.h"
 #include "../blk.h"
+#include "../lib/io.h"
 
 static void fat16_mount(struct blk_device* dev);
 static void fat16_umount(struct blk_device* dev);
+static size_t fat16_read(struct blk_device* dev, const char* path, void* buf,
+                         size_t count, size_t offset);
+static size_t fat16_write(struct blk_device* dev, const char* path, void* buf,
+                          size_t count, size_t offset);
 
 struct fs fs_fat16 = {
     .name = "fat16",
     .mount = fat16_mount,
     .umount = fat16_umount,
+    .read = fat16_read,
+    .write = fat16_write,
     ._internal = NULL,
 };
 
@@ -95,4 +102,30 @@ fat16_umount(struct blk_device* dev)
 
     kfree(fat16);
     dev->fs->_internal = NULL;
+}
+
+static size_t
+fat16_read(struct blk_device* dev, const char* path, void* buf, size_t count,
+           size_t offset)
+{
+    (void)dev;
+    (void)path;
+    (void)buf;
+    (void)count;
+    (void)offset;
+
+    panic("not implemented\n");
+}
+
+static size_t
+fat16_write(struct blk_device* dev, const char* path, void* buf, size_t count,
+            size_t offset)
+{
+    (void)dev;
+    (void)path;
+    (void)buf;
+    (void)count;
+    (void)offset;
+
+    panic("not implemented\n");
 }

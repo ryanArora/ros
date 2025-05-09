@@ -34,26 +34,18 @@ struct gpt_partition_entry {
 };
 static struct gpt_partition_entry* gpt_partition_table_entries = NULL;
 
-struct blk_device {
-    const char* name;
-    uint64_t starting_lba;
-    uint64_t ending_lba;
-    void (*read)(uint64_t lba, uint16_t num_blocks, void* buf);
-    void (*write)(uint64_t lba, uint16_t num_blocks, void* buf);
-    const struct fs* fs;
-};
 static struct blk_device* blk_device_table;
 static size_t blk_device_table_size = 0;
 
-static size_t blk_root_device_id = -1;
+static struct blk_device* blk_root_device = NULL;
 
 static void blk_print_device_table(void);
 
-void
+struct blk_device*
 blk_register_device(const char* name, uint64_t start_lba, uint64_t end_lba,
                     void (*read)(uint64_t lba, uint16_t num_blocks, void* buf),
                     void (*write)(uint64_t lba, uint16_t num_blocks, void* buf),
-                    const struct fs* fs)
+                    struct fs* fs)
 {
     blk_device_table[blk_device_table_size].name = name;
     blk_device_table[blk_device_table_size].starting_lba = start_lba;
@@ -62,9 +54,11 @@ blk_register_device(const char* name, uint64_t start_lba, uint64_t end_lba,
     blk_device_table[blk_device_table_size].write = write;
     blk_device_table[blk_device_table_size].fs = fs;
     blk_device_table_size++;
+
+    return &blk_device_table[blk_device_table_size - 1];
 }
 
-static void blk_init_for_device(size_t device_id);
+static void blk_init_for_device(struct blk_device* dev);
 
 void
 blk_init()
@@ -74,32 +68,31 @@ blk_init()
     size_t table_size = blk_device_table_size; // Fix size because we add to the
                                                // table while in this loop
     for (size_t i = 0; i < table_size; i++) {
-        blk_init_for_device(i);
+        struct blk_device* dev = &blk_device_table[i];
+        blk_init_for_device(dev);
     }
 
-    kprintf("Found root device: %s\n",
-            blk_device_table[blk_root_device_id].name);
+    kprintf("Found root device: %s\n", blk_root_device->name);
     blk_print_device_table();
 
-    if (blk_root_device_id == (size_t)-1) {
+    if (blk_root_device == NULL) {
         panic("no root device found\n");
     }
 
-    if (blk_device_table[blk_root_device_id].fs == NULL) {
+    if (blk_root_device->fs == NULL) {
         panic("root device has unknown filesystem\n");
     }
 
-    blk_device_table[blk_root_device_id].fs->mount("/");
+    blk_root_device->fs->mount(blk_root_device);
 
     // TODO: read /etc/fstab and mount other filesystems
 }
 
 static void
-blk_init_for_device(size_t device_id)
+blk_init_for_device(struct blk_device* dev)
 {
-    struct blk_device* device = &blk_device_table[device_id];
-
-    blk_read(device_id, 1, 1, &gpt_partition_table_header);
+    blk_read(dev, 1, 1, &gpt_partition_table_header);
+    blk_read(dev, 1, 1, &gpt_partition_table_header);
 
     if (memcmp(gpt_partition_table_header.signature, "EFI PART", 8) == 0) {
         kprintf("GPT signature is valid\n");
@@ -116,8 +109,8 @@ blk_init_for_device(size_t device_id)
         CEIL_DIV(gpt_partition_table_header.number_of_partition_entries *
                      sizeof(struct gpt_partition_entry),
                  512);
-    blk_read(device_id, gpt_partition_table_header.partition_entry_lba,
-             num_blocks, gpt_partition_table_entries);
+    blk_read(dev, gpt_partition_table_header.partition_entry_lba, num_blocks,
+             gpt_partition_table_entries);
 
     for (size_t i = 0;
          i < gpt_partition_table_header.number_of_partition_entries; ++i) {
@@ -128,23 +121,23 @@ blk_init_for_device(size_t device_id)
             continue;
         }
 
-        char* partition_name = kmalloc(strlen(device->name) + 128);
-        strcpy(partition_name, device->name);
+        char* partition_name = kmalloc(strlen(dev->name) + 128);
+        strcpy(partition_name, dev->name);
         strcat(partition_name, "p");
         strcat(partition_name, itoa(i));
 
         kprintf("Initializing partition %s\n", partition_name);
 
-        blk_register_device(partition_name, entry->starting_lba,
-                            entry->ending_lba, device->read, device->write,
-                            NULL);
+        struct blk_device* partition_dev =
+            blk_register_device(partition_name, entry->starting_lba,
+                                entry->ending_lba, dev->read, dev->write, NULL);
 
         // probe
-        const struct fs* fs = fs_probe(blk_device_table_size - 1);
+        struct fs* fs = fs_probe(partition_dev);
         if (fs == NULL) {
             kprintf("warn: %s has unknown filesystem\n", partition_name);
         }
-        blk_device_table[blk_device_table_size - 1].fs = fs;
+        partition_dev->fs = fs;
 
         // is this the root device?
         if (entry->partition_name[0] == 'r' &&
@@ -152,16 +145,17 @@ blk_init_for_device(size_t device_id)
             entry->partition_name[4] == 'o' &&
             entry->partition_name[6] == 't') {
 
-            if (blk_root_device_id != (size_t)-1) {
+            if (blk_root_device != NULL) {
                 panic("multiple root devices found\n");
             }
 
-            blk_root_device_id = blk_device_table_size - 1;
+            blk_root_device = partition_dev;
         }
     }
 }
+
 void
-blk_read(size_t device_id, uint64_t lba, uint16_t num_blocks, void* buf)
+blk_read(struct blk_device* dev, uint64_t lba, uint16_t num_blocks, void* buf)
 {
     if (buf == NULL) {
         panic("buf is NULL\n");
@@ -171,22 +165,17 @@ blk_read(size_t device_id, uint64_t lba, uint16_t num_blocks, void* buf)
         panic("buf is not page aligned\n");
     }
 
-    if (device_id >= blk_device_table_size) {
-        panic("invalid device id\n");
-    }
+    lba += dev->starting_lba;
 
-    struct blk_device* device = &blk_device_table[device_id];
-    lba += device->starting_lba;
-
-    if (lba + num_blocks > device->ending_lba) {
+    if (lba + num_blocks > dev->ending_lba) {
         panic("out of device range\n");
     }
 
-    device->read(lba, num_blocks, buf);
+    dev->read(lba, num_blocks, buf);
 }
 
 void
-blk_write(size_t device_id, uint64_t lba, uint16_t num_blocks, void* buf)
+blk_write(struct blk_device* dev, uint64_t lba, uint16_t num_blocks, void* buf)
 {
     if (buf == NULL) {
         panic("buf is NULL\n");
@@ -196,18 +185,13 @@ blk_write(size_t device_id, uint64_t lba, uint16_t num_blocks, void* buf)
         panic("buf is not page aligned\n");
     }
 
-    if (device_id >= blk_device_table_size) {
-        panic("invalid device id\n");
-    }
+    lba += dev->starting_lba;
 
-    struct blk_device* device = &blk_device_table[device_id];
-    lba += device->starting_lba;
-
-    if (lba + num_blocks > device->ending_lba) {
+    if (lba + num_blocks > dev->ending_lba) {
         panic("out of device range\n");
     }
 
-    device->write(lba, num_blocks, buf);
+    dev->write(lba, num_blocks, buf);
 }
 
 static void

@@ -1,14 +1,22 @@
 #include "fat16.h"
-#include "../lib/io.h"
 #include "../mm.h"
 #include "../blk.h"
 #include "../lib/string.h"
+#include "../lib/heap.h"
+#include "../blk.h"
 
-static void fat16_mount(const char* path);
+static void fat16_mount(struct blk_device* dev);
+static void fat16_umount(struct blk_device* dev);
 
 struct fs fs_fat16 = {
     .name = "fat16",
     .mount = fat16_mount,
+    .umount = fat16_umount,
+    ._internal = NULL,
+};
+
+struct fat16_internal {
+    struct fat16_bpb* bpb;
 };
 
 struct fat16_bpb {
@@ -37,10 +45,10 @@ struct fat16_bpb {
 } __attribute__((packed));
 
 bool
-fs_fat16_probe(size_t device_id)
+fs_fat16_probe(struct blk_device* dev)
 {
     struct fat16_bpb* bpb = alloc_page();
-    blk_read(device_id, 0, 1, bpb);
+    blk_read(dev, 0, 1, bpb);
 
     uint16_t root_dir_sectors =
         ((bpb->root_entries * 32) + (bpb->bytes_per_sector - 1)) /
@@ -68,7 +76,23 @@ fs_fat16_probe(size_t device_id)
 }
 
 static void
-fat16_mount(const char* path)
+fat16_mount(struct blk_device* dev)
 {
-    kprintf("fat16 mount %s\n", path);
+    dev->fs->_internal = kmalloc(sizeof(struct fat16_internal));
+    struct fat16_internal* fat16 = dev->fs->_internal;
+
+    fat16->bpb = alloc_page();
+    blk_read(dev, 0, 1, fat16->bpb);
+}
+
+static void
+fat16_umount(struct blk_device* dev)
+{
+    struct fat16_internal* fat16 = dev->fs->_internal;
+
+    free_page(fat16->bpb);
+    fat16->bpb = NULL;
+
+    kfree(fat16);
+    dev->fs->_internal = NULL;
 }

@@ -2,12 +2,16 @@
 #include "../lib/io.h"
 #include "../blk.h"
 #include "../mm.h"
+#include "../lib/heap.h"
 
-static void ext2_mount(const char* path);
+static void ext2_mount(struct blk_device* dev);
+static void ext2_umount(struct blk_device* dev);
 
 struct fs fs_ext2 = {
     .name = "ext2",
     .mount = ext2_mount,
+    .umount = ext2_umount,
+    ._internal = NULL,
 };
 
 struct ext2_superblock {
@@ -61,16 +65,19 @@ struct ext2_superblock {
     uint8_t unused[760];
 };
 
+struct ext2_internal {
+    struct ext2_superblock* superblock;
+};
+
 #define EXT2_SUPERBLOCK_LBA    2
 #define EXT2_SUPERBLOCK_BLOCKS 2
 #define EXT2_SUPERBLOCK_MAGIC  0xEF53
 
 bool
-fs_ext2_probe(size_t device_id)
+fs_ext2_probe(struct blk_device* dev)
 {
     struct ext2_superblock* ext2_superblock = alloc_page();
-    blk_read(device_id, EXT2_SUPERBLOCK_LBA, EXT2_SUPERBLOCK_BLOCKS,
-             ext2_superblock);
+    blk_read(dev, EXT2_SUPERBLOCK_LBA, EXT2_SUPERBLOCK_BLOCKS, ext2_superblock);
 
     bool is_ext2 = ext2_superblock->magic == EXT2_SUPERBLOCK_MAGIC;
 
@@ -79,7 +86,24 @@ fs_ext2_probe(size_t device_id)
 }
 
 static void
-ext2_mount(const char* path)
+ext2_mount(struct blk_device* dev)
 {
-    kprintf("ext2 mount %s\n", path);
+    dev->fs->_internal = kmalloc(sizeof(struct ext2_internal));
+    struct ext2_internal* ext2 = dev->fs->_internal;
+
+    ext2->superblock = alloc_page();
+    blk_read(dev, EXT2_SUPERBLOCK_LBA, EXT2_SUPERBLOCK_BLOCKS,
+             ext2->superblock);
+}
+
+static void
+ext2_umount(struct blk_device* dev)
+{
+    struct ext2_internal* ext2 = dev->fs->_internal;
+
+    free_page(ext2->superblock);
+    ext2->superblock = NULL;
+
+    kfree(ext2);
+    dev->fs->_internal = NULL;
 }

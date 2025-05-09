@@ -1,12 +1,15 @@
 #pragma once
 #include <stdbool.h>
+#include "../blk.h"
+
+struct blk_device;
 
 struct fs {
     const char* name;
-    void (*mount)(const char* path);
+    const char* mount_path;
+    void (*mount)(struct blk_device* dev);
+    void (*umount)(struct blk_device* dev);
+    void* _internal;
 };
 
-const struct fs* fs_probe(size_t device_id);
-
-void fs_read(const char* path, void* buf, size_t count);
-void fs_write(const char* path, const void* buf, size_t count);
+struct fs* fs_probe(struct blk_device* dev);

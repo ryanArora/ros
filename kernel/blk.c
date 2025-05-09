@@ -50,8 +50,8 @@ blk_register_device(const char* name, uint64_t start_lba, uint64_t end_lba,
     blk_device_table[blk_device_table_size].name = name;
     blk_device_table[blk_device_table_size].starting_lba = start_lba;
     blk_device_table[blk_device_table_size].ending_lba = end_lba;
-    blk_device_table[blk_device_table_size].read = read;
-    blk_device_table[blk_device_table_size].write = write;
+    blk_device_table[blk_device_table_size]._internal_read = read;
+    blk_device_table[blk_device_table_size]._internal_write = write;
     blk_device_table[blk_device_table_size].fs = fs;
     blk_device_table_size++;
 
@@ -128,9 +128,9 @@ blk_init_for_device(struct blk_device* dev)
 
         kprintf("Initializing partition %s\n", partition_name);
 
-        struct blk_device* partition_dev =
-            blk_register_device(partition_name, entry->starting_lba,
-                                entry->ending_lba, dev->read, dev->write, NULL);
+        struct blk_device* partition_dev = blk_register_device(
+            partition_name, entry->starting_lba, entry->ending_lba,
+            dev->_internal_read, dev->_internal_write, NULL);
 
         // probe
         struct fs* fs = fs_probe(partition_dev);
@@ -171,7 +171,7 @@ blk_read(struct blk_device* dev, uint64_t lba, uint16_t num_blocks, void* buf)
         panic("out of device range\n");
     }
 
-    dev->read(lba, num_blocks, buf);
+    dev->_internal_read(lba, num_blocks, buf);
 }
 
 void
@@ -191,7 +191,7 @@ blk_write(struct blk_device* dev, uint64_t lba, uint16_t num_blocks, void* buf)
         panic("out of device range\n");
     }
 
-    dev->write(lba, num_blocks, buf);
+    dev->_internal_write(lba, num_blocks, buf);
 }
 
 static void

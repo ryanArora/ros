@@ -6,8 +6,8 @@ struct blk_device {
     const char* name;
     uint64_t starting_lba;
     uint64_t ending_lba;
-    void (*read)(uint64_t lba, uint16_t num_blocks, void* buf);
-    void (*write)(uint64_t lba, uint16_t num_blocks, void* buf);
+    void (*_internal_read)(uint64_t lba, uint16_t num_blocks, void* buf);
+    void (*_internal_write)(uint64_t lba, uint16_t num_blocks, void* buf);
     struct fs* fs;
 };
 

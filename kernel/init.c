@@ -9,7 +9,7 @@
 #include "gdt.h"
 #include "idt.h"
 #include "drivers/pci.h"
-
+#include "blk/blk.h"
 void
 kmain(void)
 {
@@ -27,6 +27,8 @@ kmain(void)
     pic_init();
     pit_init();
     interrupts_enable();
+
+    blk_init();
 
     spin();
 }

@@ -1,4 +1,5 @@
 #include "string.h"
+#include "heap.h"
 #include <stdint.h>
 
 void*
@@ -49,4 +50,53 @@ strlen(const char* s)
     for (i = 0; s[i] != '\0'; ++i)
         ;
     return i;
+}
+
+int
+memcmp(const void* s1, const void* s2, size_t n)
+{
+    const uint8_t* a = (const uint8_t*)s1;
+    const uint8_t* b = (const uint8_t*)s2;
+    for (size_t i = 0; i < n; ++i) {
+        if (a[i] != b[i]) return (a[i] < b[i]) ? -1 : 1;
+    }
+    return 0;
+}
+
+int
+strcmp(const char* s1, const char* s2)
+{
+    return memcmp(s1, s2, strlen(s1));
+}
+
+char*
+strcpy(char* dest, const char* src)
+{
+    return memcpy(dest, src, strlen(src));
+}
+
+char*
+strcat(char* dest, const char* src)
+{
+    return memcpy(dest + strlen(dest), src, strlen(src));
+}
+
+char*
+itoa(int value)
+{
+    char* str = kmalloc(128);
+    int i = 0;
+    if (value < 0) {
+        str[i++] = '-';
+        value = -value;
+    }
+    if (value == 0) {
+        str[i++] = '0';
+    }
+    while (value) {
+        str[i++] = value % 10 + '0';
+        value /= 10;
+    }
+    str[i] = '\0';
+    return str;
 }

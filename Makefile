@@ -8,10 +8,8 @@ OVMF_PATH := OVMF.fd
 all: kernel $(EFI_IMG_TARGET)
 
 $(EFI_IMG_TARGET): kernel
-	dd if=/dev/zero of=$@ bs=1M count=1024
-	parted $@ --script -- mklabel gpt
-	parted $@ --script -- mkpart primary fat32 1MiB 100MiB
-	parted $@ --script -- mkpart primary ext2 100MiB 100%
+	truncate -s 1G $@
+	parted $@ --script mklabel gpt mkpart boot fat16 1MiB 100MiB mkpart root ext2 100MiB 100%
 
 	printf "%s\n" \
 		"run" \

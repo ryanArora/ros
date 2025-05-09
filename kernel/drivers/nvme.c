@@ -4,6 +4,8 @@
 #include "../mm.h"
 #include "../idt.h"
 #include "../lib/string.h"
+#include "../lib/math.h"
+#include "../blk/blk.h"
 
 #define NVME_REGISTER_OFFSET_CAP   0x00
 #define NVME_REGISTER_OFFSET_VS    0x08
@@ -36,6 +38,9 @@
 
 #define NVME_OK 0x00
 
+#define PAGE_SIZE  4096
+#define BLOCK_SIZE 512
+
 static uint32_t nvme_read_reg_dword(uint32_t offset);
 static void nvme_write_reg_dword(uint32_t offset, uint32_t value);
 static int64_t nvme_read_reg_qword(uint32_t offset);
@@ -44,7 +49,7 @@ static void nvme_send_admin_command_identify_controller();
 static void nvme_send_admin_command_identify_namespace_list();
 static void nvme_send_admin_command_create_io_submission_queue();
 static void nvme_send_admin_command_create_io_completion_queue();
-static void nvme_submit_io(uint8_t opcode, uint64_t lba, uint16_t nblocks,
+static void nvme_submit_io(uint8_t opcode, uint64_t lba, uint16_t num_blocks,
                            void* buf);
 static uint32_t nvme_submission_queue_tail_doorbell(uint16_t qid);
 static uint32_t nvme_completion_queue_head_doorbell(uint16_t qid);
@@ -222,6 +227,10 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
 
     uint8_t irq_line = pci_config_get_interrupt_line(bus, device, function);
     idt_set_descriptor(irq_line + 32, nvme_interrupt_handler, 0x8E);
+
+    size_t end_lba = SIZE_MAX - 1000;
+
+    blk_register_device("nvme0n1", 0, end_lba, nvme_read, nvme_write, NULL);
 }
 
 static void
@@ -561,11 +570,12 @@ nvme_send_admin_command_create_io_submission_queue()
 }
 
 static void
-nvme_submit_io(uint8_t opcode, uint64_t lba, uint16_t nblocks, void* buf)
+nvme_submit_io(uint8_t opcode, uint64_t lba, uint16_t num_blocks, void* buf)
 {
-    if (nblocks == 0 || nblocks > 0x1000)
-        panic("nvme_submit_io: illegal block count %u\n", nblocks);
-    if (nvme_max_transfer_size_pages && nblocks > nvme_max_transfer_size_pages)
+    if (num_blocks == 0 || num_blocks > 0x1000)
+        panic("nvme_submit_io: illegal block count %u\n", num_blocks);
+    if (nvme_max_transfer_size_pages &&
+        num_blocks > nvme_max_transfer_size_pages)
         panic("nvme_submit_io: request exceeds MDTS\n");
 
     struct nvme_submission_queue_entry* sqe =
@@ -578,12 +588,29 @@ nvme_submit_io(uint8_t opcode, uint64_t lba, uint16_t nblocks, void* buf)
     sqe->command.prp_or_sgl_selection = 0;
     sqe->command.command_identifier = 0x1234;
     sqe->nsid = nsid;
-    uintptr_t phys = (uintptr_t)buf;
-    sqe->data_ptr[0] = phys;
-    sqe->data_ptr[1] = phys + 4096;
+    sqe->data_ptr[0] = (uintptr_t)buf;
+
+    uint32_t total_bytes = num_blocks * BLOCK_SIZE;
+
+    if (total_bytes <= PAGE_SIZE) {
+        sqe->data_ptr[1] = 0;
+    } else if (total_bytes <= 2 * PAGE_SIZE) {
+        uintptr_t second_prp = (uintptr_t)buf + PAGE_SIZE;
+        sqe->data_ptr[1] = second_prp;
+    } else {
+        uint64_t* prp_list = (uint64_t*)alloc_page();
+
+        int pages_needed = (total_bytes + PAGE_SIZE - 1) / PAGE_SIZE;
+        for (int i = 1; i < pages_needed; ++i) {
+            prp_list[i - 1] = (uintptr_t)buf + i * PAGE_SIZE;
+        }
+
+        sqe->data_ptr[1] = (uintptr_t)prp_list;
+    }
+
     sqe->command_specific[0] = (uint32_t)lba;
     sqe->command_specific[1] = (uint32_t)(lba >> 32);
-    sqe->command_specific[2] = nblocks - 1;
+    sqe->command_specific[2] = num_blocks - 1;
     sqe->command_specific[3] = 0;
     sqe->command_specific[4] = 0;
     sqe->command_specific[5] = 0;
@@ -601,15 +628,15 @@ nvme_submit_io(uint8_t opcode, uint64_t lba, uint16_t nblocks, void* buf)
 }
 
 void
-nvme_write(uint64_t lba, uint16_t nblocks, void* buf)
+nvme_write(uint64_t lba, uint16_t num_blocks, void* buf)
 {
-    nvme_submit_io(NVME_IO_COMMAND_OPCODE_WRITE, lba, nblocks, buf);
+    nvme_submit_io(NVME_IO_COMMAND_OPCODE_WRITE, lba, num_blocks, buf);
 }
 
 void
-nvme_read(uint64_t lba, uint16_t nblocks, void* buf)
+nvme_read(uint64_t lba, uint16_t num_blocks, void* buf)
 {
-    nvme_submit_io(NVME_IO_COMMAND_OPCODE_READ, lba, nblocks, buf);
+    nvme_submit_io(NVME_IO_COMMAND_OPCODE_READ, lba, num_blocks, buf);
 }
 
 __attribute__((interrupt)) static void

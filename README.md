@@ -2,13 +2,10 @@
 
 I started this project in the Fall term of my 2nd year of University because I was interested in Operating Systems development.
 
-This project is a simple Operating Systems kernel that:
+This project is a simple Operating Systems kernel that has a:
 
--   Boots from UEFI
--   Loads the Global Descriptor Table
--   Loads the Interrupt Descriptor Table
--   Has a simple console keyboard driver
--   Page frame allocator
+-   Console/keyboard driver
+-   Page frame allocator (buddy allocator)
 -   Heap (slab allocator)
 -   NVMe block driver
 -   ext2 filesystem

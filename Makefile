@@ -3,11 +3,11 @@ EFI_TARGET := kernel/BOOTX64.EFI
 EFI_IMG_TARGET := x86_64-efi-$(OS_NAME).img
 OVMF_PATH := OVMF.fd
 
-.PHONY: all dev clean kernel
+.PHONY: all dev clean kernel userspace
 
 all: kernel $(EFI_IMG_TARGET)
 
-$(EFI_IMG_TARGET): kernel
+$(EFI_IMG_TARGET): kernel userspace
 	truncate -s 1G $@
 	parted $@ --script mklabel gpt mkpart boot fat16 1MiB 100MiB mkpart root ext2 100MiB 100%
 
@@ -26,15 +26,20 @@ $(EFI_IMG_TARGET): kernel
 			[ -e "$$path" ] || continue; \
 			echo "copy-in $$path /"; \
 		done; \
+		echo "copy-in userspace/bin /"; \
 		echo "umount /dev/sda2"; \
 	} | guestfish --rw -a $@
 
 kernel:
 	$(MAKE) -C kernel .depend all
 
+userspace:
+	$(MAKE) -C userspace all
+
 clean:
 	rm -f $(EFI_IMG_TARGET)
 	$(MAKE) -C kernel clean
+	$(MAKE) -C userspace clean
 
 dev: $(EFI_IMG_TARGET)
 	qemu-system-x86_64 \

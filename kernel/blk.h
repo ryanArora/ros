@@ -25,3 +25,5 @@ void blk_read(struct blk_device* dev, uint64_t lba, uint16_t num_blocks,
               void* buf);
 void blk_write(struct blk_device* dev, uint64_t lba, uint16_t num_blocks,
                void* buf);
+
+extern struct blk_device* blk_root_device;

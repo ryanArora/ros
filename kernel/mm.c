@@ -63,6 +63,7 @@ mm_init(void)
 
     for (UINTN i = 0; i < MemoryMapSize / sizeof(EFI_MEMORY_DESCRIPTOR); i++) {
         EFI_MEMORY_DESCRIPTOR* desc = &MemoryMap[i];
+
         if (desc->Type != EfiConventionalMemory) continue;
         if (desc->PhysicalStart == 0) continue;
 

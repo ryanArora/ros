@@ -333,8 +333,6 @@ ext2_read(struct blk_device* dev, const char* path, void* buf, size_t count,
     size_t ext2_blocks_to_read =
         CEIL_DIV(block_offset + count, ext2->block_size);
 
-    kprintf("ext2_blocks_to_read: %lld\n", ext2_blocks_to_read);
-
     if (ext2_blocks_to_read > 12) {
         panic("indirect blocks not implemented\n");
     }

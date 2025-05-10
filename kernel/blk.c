@@ -90,7 +90,7 @@ blk_init()
     // Testing
     struct fs_stat stat;
     blk_root_device->fs->stat(blk_root_device, "/etc/fstab", &stat);
-    kprintf("stat: size=%d\n", stat.size);
+    kprintf("stat /etc/fstab: size=%d\n", stat.size);
 
     // TODO: read /etc/fstab and mount other filesystems
 }

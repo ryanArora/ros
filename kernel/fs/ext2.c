@@ -12,6 +12,7 @@
 
 #define EXT2_S_IFMT      0xF000 // format mask
 #define EXT2_S_IFDIR     0x4000 // directory
+#define EXT2_S_IFREG     0x8000 // regular file
 #define EXT2_ISDIR(mode) (((mode) & EXT2_S_IFMT) == EXT2_S_IFDIR)
 #define EXT2_ISREG(mode) (((mode) & EXT2_S_IFMT) == EXT2_S_IFREG)
 
@@ -158,6 +159,7 @@ fs_ext2_probe(struct blk_device* dev)
     bool is_ext2 = ext2_superblock->magic == EXT2_SUPERBLOCK_MAGIC;
 
     kfree(ext2_superblock);
+    ext2_superblock = NULL;
     return is_ext2;
 }
 
@@ -218,6 +220,7 @@ ext2_split_path(const char* path)
     }
 
     kfree(path_copy);
+    path_copy = NULL;
     return parts;
 }
 
@@ -231,28 +234,62 @@ ext2_stat(struct blk_device* dev, const char* path, struct fs_stat* st)
     (void)st;
     (void)sb;
 
-    struct ext2_inode* root_inode = kmalloc(sizeof(struct ext2_inode));
-    ext2_get_inode(dev, EXT2_ROOT_INO, root_inode);
-    if (!EXT2_ISDIR(root_inode->mode)) {
+    struct ext2_inode* inode = kmalloc(sizeof(struct ext2_inode));
+    ext2_get_inode(dev, EXT2_ROOT_INO, inode);
+    if (!EXT2_ISDIR(inode->mode)) {
         return FS_STAT_RESULT_NOT_OK;
     }
 
     char** parts = ext2_split_path(path);
     if (parts == NULL) {
-        return FS_STAT_RESULT_NOT_OK;
+        panic("invalid path\n");
     }
-
-    kprintf("path: %s\n", path);
 
     for (size_t i = 0; i < 1024; i++) {
-        if (parts[i] == NULL) {
-            break;
+        if (parts[i] == NULL) break;
+
+        uint32_t num_ext2_blocks = inode->blocks / (ext2->block_size / 512);
+        if (num_ext2_blocks > 12) {
+            panic("indirect blocks not implemented\n");
         }
 
-        kprintf("part %d: %s\n", i, parts[i]);
+        for (size_t blk = 0; blk < num_ext2_blocks; ++blk) {
+            uint8_t* block_data = kmalloc(ext2->block_size);
+            ext2_blk_read(dev, inode->direct_block[blk], 1, block_data);
+
+            size_t offset = 0;
+            while (offset < ext2->block_size) {
+                struct ext2_dir_entry* entry =
+                    (struct ext2_dir_entry*)&block_data[offset];
+                if (entry->inode == 0) continue;
+
+                if (strcmp(entry->name, parts[i]) == 0) {
+                    // Matched paths, so get the inode
+                    ext2_get_inode(dev, entry->inode, inode);
+
+                    // Check if we are the last part
+                    if (parts[i + 1] == NULL) {
+                        st->size = inode->size;
+                        return FS_STAT_RESULT_OK;
+                    }
+
+                    // If we matched and we are not done, then we are not ok
+                    if (!EXT2_ISDIR(inode->mode)) {
+                        return FS_STAT_RESULT_NOT_OK;
+                    }
+
+                    // Go again
+                }
+
+                offset += entry->rec_len;
+            }
+
+            kfree(block_data);
+            block_data = NULL;
+        }
     }
 
-    panic("not implemented\n");
+    return FS_STAT_RESULT_NOT_OK;
 }
 
 static size_t
@@ -344,10 +381,10 @@ ext2_get_inode(struct blk_device* dev, size_t ino, struct ext2_inode* inode)
     size_t block_offset = byte_offset / ext2->block_size;
     size_t offset_in_block = byte_offset % ext2->block_size;
 
-    void* buf = kmalloc(ext2->block_size);
+    void* buf = alloc_page();
     ext2_blk_read(dev, inode_table_block + block_offset, 1, buf);
     memcpy(inode, (uint8_t*)buf + offset_in_block, sb->inode_size);
-    kfree(buf);
+    free_page(buf);
 }
 
 static void

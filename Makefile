@@ -11,20 +11,23 @@ $(EFI_IMG_TARGET): kernel
 	truncate -s 1G $@
 	parted $@ --script mklabel gpt mkpart boot fat16 1MiB 100MiB mkpart root ext2 100MiB 100%
 
-	printf "%s\n" \
-		"run" \
-		"list-partitions" \
-		"mkfs fat /dev/sda1" \
-		"mkfs ext2 /dev/sda2" \
-		"mount /dev/sda1 /" \
-		"mkdir /EFI" \
-		"mkdir /EFI/BOOT" \
-		"copy-in kernel/BOOTX64.EFI /EFI/BOOT" \
-		"umount /dev/sda1" \
-		"mount /dev/sda2 /" \
-		"copy-in root /" \
-		"umount /dev/sda2" \
-	| guestfish --rw -a $@
+	{ \
+		echo "run"; \
+		echo "list-partitions"; \
+		echo "mkfs fat /dev/sda1"; \
+		echo "mkfs ext2 /dev/sda2"; \
+		echo "mount /dev/sda1 /"; \
+		echo "mkdir /EFI"; \
+		echo "mkdir /EFI/BOOT"; \
+		echo "copy-in kernel/BOOTX64.EFI /EFI/BOOT"; \
+		echo "umount /dev/sda1"; \
+		echo "mount /dev/sda2 /"; \
+		for path in root/*; do \
+			[ -e "$$path" ] || continue; \
+			echo "copy-in $$path /"; \
+		done; \
+		echo "umount /dev/sda2"; \
+	} | guestfish --rw -a $@
 
 kernel:
 	$(MAKE) -C kernel .depend all

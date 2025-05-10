@@ -11,6 +11,7 @@ This project is a simple Operating Systems kernel that:
 -   Page frame allocator
 -   Heap (slab allocator)
 -   NVMe block driver
+-   ext2 filesystem
 
 I took lots of inspiration from [osdev.org](https://wiki.osdev.org/).
 

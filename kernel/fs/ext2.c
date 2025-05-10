@@ -320,15 +320,19 @@ ext2_read(struct blk_device* dev, const char* path, void* buf, size_t count,
         return FS_STAT_RESULT_NOT_OK;
     }
 
-    if (offset != 0) {
-        panic("not implemented\n");
+    if (offset >= inode.size) {
+        return 0; // Offset is beyond the file size, nothing to read
     }
 
-    if (count > inode.size) {
-        count = inode.size;
+    if (count + offset > inode.size) {
+        count = inode.size - offset; // Adjust count to read only available data
     }
 
-    size_t ext2_blocks_to_read = CEIL_DIV(count, ext2->block_size);
+    size_t start_block = offset / ext2->block_size;
+    size_t block_offset = offset % ext2->block_size;
+    size_t ext2_blocks_to_read =
+        CEIL_DIV(block_offset + count, ext2->block_size);
+
     kprintf("ext2_blocks_to_read: %lld\n", ext2_blocks_to_read);
 
     if (ext2_blocks_to_read > 12) {
@@ -337,17 +341,17 @@ ext2_read(struct blk_device* dev, const char* path, void* buf, size_t count,
 
     size_t bytes_read = 0;
 
-    for (size_t i = 0; i < ext2_blocks_to_read; i++) {
+    for (size_t i = start_block; i < start_block + ext2_blocks_to_read; i++) {
         uint32_t ino = inode.direct_block[i];
         uint8_t* block_data = kmalloc(ext2->block_size);
         ext2_blk_read(dev, ino, 1, block_data);
 
-        size_t bytes_to_copy = MIN(ext2->block_size, count - bytes_read);
-
-        memcpy(buf + bytes_read, block_data, bytes_to_copy);
+        size_t bytes_to_copy =
+            MIN(ext2->block_size - block_offset, count - bytes_read);
+        memcpy(buf + bytes_read, block_data + block_offset, bytes_to_copy);
         bytes_read += bytes_to_copy;
 
-        buf += ext2->block_size;
+        block_offset = 0; // Only the first block might have an offset
         kfree(block_data);
     }
 

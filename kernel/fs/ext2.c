@@ -22,8 +22,6 @@ static enum fs_stat_result ext2_stat(struct blk_device* dev, const char* path,
                                      struct fs_stat* st);
 static size_t ext2_read(struct blk_device* dev, const char* path, void* buf,
                         size_t count, size_t offset);
-static size_t ext2_write(struct blk_device* dev, const char* path, void* buf,
-                         size_t count, size_t offset);
 
 struct fs fs_ext2 = {
     .name = "ext2",
@@ -31,7 +29,6 @@ struct fs fs_ext2 = {
     .umount = ext2_umount,
     .stat = ext2_stat,
     .read = ext2_read,
-    .write = ext2_write,
     ._internal = NULL,
 };
 
@@ -195,6 +192,7 @@ ext2_umount(struct blk_device* dev)
     ext2->bgdt = NULL;
 
     kfree(ext2);
+    ext2 = NULL;
     dev->fs->_internal = NULL;
 }
 
@@ -225,18 +223,15 @@ ext2_split_path(const char* path)
 }
 
 static enum fs_stat_result
-ext2_stat(struct blk_device* dev, const char* path, struct fs_stat* st)
+ext2_lookup(struct blk_device* dev, const char* path, struct ext2_inode* out)
 {
-
     struct ext2_internal* ext2 = dev->fs->_internal;
-    struct ext2_superblock* sb = ext2->sb;
-
-    (void)st;
-    (void)sb;
 
     struct ext2_inode* inode = kmalloc(sizeof(struct ext2_inode));
     ext2_get_inode(dev, EXT2_ROOT_INO, inode);
     if (!EXT2_ISDIR(inode->mode)) {
+        kfree(inode);
+        inode = NULL;
         return FS_STAT_RESULT_NOT_OK;
     }
 
@@ -269,12 +264,20 @@ ext2_stat(struct blk_device* dev, const char* path, struct fs_stat* st)
 
                     // Check if we are the last part
                     if (parts[i + 1] == NULL) {
-                        st->size = inode->size;
+                        *out = *inode;
+                        kfree(inode);
+                        inode = NULL;
+                        kfree(block_data);
+                        block_data = NULL;
                         return FS_STAT_RESULT_OK;
                     }
 
                     // If we matched and we are not done, then we are not ok
                     if (!EXT2_ISDIR(inode->mode)) {
+                        kfree(inode);
+                        inode = NULL;
+                        kfree(block_data);
+                        block_data = NULL;
                         return FS_STAT_RESULT_NOT_OK;
                     }
 
@@ -289,33 +292,66 @@ ext2_stat(struct blk_device* dev, const char* path, struct fs_stat* st)
         }
     }
 
+    kfree(inode);
+    inode = NULL;
     return FS_STAT_RESULT_NOT_OK;
+}
+
+static enum fs_stat_result
+ext2_stat(struct blk_device* dev, const char* path, struct fs_stat* st)
+{
+    struct ext2_inode inode;
+    if (ext2_lookup(dev, path, &inode) != FS_STAT_RESULT_OK) {
+        return FS_STAT_RESULT_NOT_OK;
+    }
+
+    st->size = inode.size;
+    return FS_STAT_RESULT_OK;
 }
 
 static size_t
 ext2_read(struct blk_device* dev, const char* path, void* buf, size_t count,
           size_t offset)
 {
-    (void)dev;
-    (void)path;
-    (void)buf;
-    (void)count;
-    (void)offset;
+    struct ext2_internal* ext2 = dev->fs->_internal;
 
-    panic("not implemented\n");
-}
+    struct ext2_inode inode;
+    if (ext2_lookup(dev, path, &inode) != FS_STAT_RESULT_OK) {
+        return FS_STAT_RESULT_NOT_OK;
+    }
 
-static size_t
-ext2_write(struct blk_device* dev, const char* path, void* buf, size_t count,
-           size_t offset)
-{
-    (void)dev;
-    (void)path;
-    (void)buf;
-    (void)count;
-    (void)offset;
+    if (offset != 0) {
+        panic("not implemented\n");
+    }
 
-    panic("not implemented\n");
+    if (count > inode.size) {
+        count = inode.size;
+    }
+
+    size_t ext2_blocks_to_read = CEIL_DIV(count, ext2->block_size);
+    kprintf("ext2_blocks_to_read: %lld\n", ext2_blocks_to_read);
+
+    if (ext2_blocks_to_read > 12) {
+        panic("indirect blocks not implemented\n");
+    }
+
+    size_t bytes_read = 0;
+
+    for (size_t i = 0; i < ext2_blocks_to_read; i++) {
+        uint32_t ino = inode.direct_block[i];
+        uint8_t* block_data = kmalloc(ext2->block_size);
+        ext2_blk_read(dev, ino, 1, block_data);
+
+        size_t bytes_to_copy = MIN(ext2->block_size, count - bytes_read);
+
+        memcpy(buf + bytes_read, block_data, bytes_to_copy);
+        bytes_read += bytes_to_copy;
+
+        buf += ext2->block_size;
+        kfree(block_data);
+    }
+
+    return bytes_read;
 }
 
 static void

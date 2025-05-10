@@ -22,8 +22,6 @@ struct fs {
                                 struct fs_stat* st);
     size_t (*read)(struct blk_device* dev, const char* path, void* buf,
                    size_t count, size_t offset);
-    size_t (*write)(struct blk_device* dev, const char* path, void* buf,
-                    size_t count, size_t offset);
     void* _internal;
 };
 

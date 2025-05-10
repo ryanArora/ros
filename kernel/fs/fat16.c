@@ -12,8 +12,6 @@ static enum fs_stat_result fat16_stat(struct blk_device* dev, const char* path,
                                       struct fs_stat* st);
 static size_t fat16_read(struct blk_device* dev, const char* path, void* buf,
                          size_t count, size_t offset);
-static size_t fat16_write(struct blk_device* dev, const char* path, void* buf,
-                          size_t count, size_t offset);
 
 struct fs fs_fat16 = {
     .name = "fat16",
@@ -21,7 +19,6 @@ struct fs fs_fat16 = {
     .umount = fat16_umount,
     .stat = fat16_stat,
     .read = fat16_read,
-    .write = fat16_write,
     ._internal = NULL,
 };
 
@@ -120,19 +117,6 @@ fat16_stat(struct blk_device* dev, const char* path, struct fs_stat* st)
 static size_t
 fat16_read(struct blk_device* dev, const char* path, void* buf, size_t count,
            size_t offset)
-{
-    (void)dev;
-    (void)path;
-    (void)buf;
-    (void)count;
-    (void)offset;
-
-    panic("not implemented\n");
-}
-
-static size_t
-fat16_write(struct blk_device* dev, const char* path, void* buf, size_t count,
-            size_t offset)
 {
     (void)dev;
     (void)path;

@@ -22,6 +22,6 @@ I took lots of inspiration from [osdev.org](https://wiki.osdev.org/).
 ## Development
 
 ```bash
-make                 # Compile kernel, create hard disk image.
+make                 # Compile kernel, compile userspace, create hard disk image.
 make dev             # Start QEMU Virtual Machine.
 ```

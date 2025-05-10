@@ -6,6 +6,15 @@
 #include "../lib/string.h"
 #include "../lib/math.h"
 
+#define EXT2_SUPERBLOCK_MAGIC 0xEF53
+#define EXT2_ROOT_INO         2
+#define EXT2_NAME_LEN         255
+
+#define EXT2_S_IFMT      0xF000 // format mask
+#define EXT2_S_IFDIR     0x4000 // directory
+#define EXT2_ISDIR(mode) (((mode) & EXT2_S_IFMT) == EXT2_S_IFDIR)
+#define EXT2_ISREG(mode) (((mode) & EXT2_S_IFMT) == EXT2_S_IFREG)
+
 static void ext2_mount(struct blk_device* dev);
 static void ext2_umount(struct blk_device* dev);
 static enum fs_stat_result ext2_stat(struct blk_device* dev, const char* path,
@@ -119,6 +128,14 @@ struct ext2_internal {
     uint32_t block_size;
 };
 
+struct ext2_dir_entry {
+    uint32_t inode;    /* inode number of entry */
+    uint16_t rec_len;  /* length of this record */
+    uint8_t name_len;  /* length of name */
+    uint8_t file_type; /* file type (EXT2_FT_*) */
+    char name[EXT2_NAME_LEN];
+};
+
 /*
     Forward declarations
 */
@@ -128,8 +145,8 @@ static void ext2_read_superblock(struct blk_device* dev,
                                  struct ext2_superblock* sb);
 static void ext2_read_bgdt(struct blk_device* dev,
                            struct ext2_group_desc* bgdt);
-
-#define EXT2_SUPERBLOCK_MAGIC 0xEF53
+static void ext2_get_inode(struct blk_device* dev, size_t ino,
+                           struct ext2_inode* inode);
 
 bool
 fs_ext2_probe(struct blk_device* dev)
@@ -207,9 +224,18 @@ ext2_split_path(const char* path)
 static enum fs_stat_result
 ext2_stat(struct blk_device* dev, const char* path, struct fs_stat* st)
 {
-    (void)dev;
-    (void)path;
+
+    struct ext2_internal* ext2 = dev->fs->_internal;
+    struct ext2_superblock* sb = ext2->sb;
+
     (void)st;
+    (void)sb;
+
+    struct ext2_inode* root_inode = kmalloc(sizeof(struct ext2_inode));
+    ext2_get_inode(dev, EXT2_ROOT_INO, root_inode);
+    if (!EXT2_ISDIR(root_inode->mode)) {
+        return FS_STAT_RESULT_NOT_OK;
+    }
 
     char** parts = ext2_split_path(path);
     if (parts == NULL) {
@@ -293,6 +319,35 @@ ext2_read_bgdt(struct blk_device* dev, struct ext2_group_desc* bgdt)
     ext2_blk_read(dev, bgdt_block_num, bgdt_num_blocks, tmp);
     memcpy(bgdt, tmp, bgdt_size_bytes);
     free_pages(tmp, order);
+}
+
+static void
+ext2_get_inode(struct blk_device* dev, size_t ino, struct ext2_inode* inode)
+{
+    struct ext2_internal* ext2 = dev->fs->_internal;
+    struct ext2_superblock* sb = ext2->sb;
+
+    if (ino == 0 || ino > sb->inodes_count) {
+        panic("invalid inode number");
+    }
+
+    size_t group = (ino - 1) / sb->inodes_per_group;
+    size_t index_in_group = (ino - 1) % sb->inodes_per_group;
+
+    struct ext2_group_desc* bgdt = ext2->bgdt;
+    uint32_t inode_table_block = bgdt[group].inode_table;
+
+    // Offset in bytes from start of inode table
+    size_t byte_offset = index_in_group * sb->inode_size;
+
+    // Compute block within inode table
+    size_t block_offset = byte_offset / ext2->block_size;
+    size_t offset_in_block = byte_offset % ext2->block_size;
+
+    void* buf = kmalloc(ext2->block_size);
+    ext2_blk_read(dev, inode_table_block + block_offset, 1, buf);
+    memcpy(inode, (uint8_t*)buf + offset_in_block, sb->inode_size);
+    kfree(buf);
 }
 
 static void

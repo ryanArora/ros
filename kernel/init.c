@@ -30,6 +30,4 @@ kmain(void)
     interrupts_enable();
 
     blk_init();
-
-    spin();
 }

@@ -42,14 +42,16 @@ static struct blk_device* blk_root_device = NULL;
 static void blk_print_device_table(void);
 
 struct blk_device*
-blk_register_device(const char* name, uint64_t start_lba, uint64_t end_lba,
+blk_register_device(const char* name, uint64_t starting_lba,
+                    uint64_t ending_lba, uint64_t block_size,
                     void (*read)(uint64_t lba, uint16_t num_blocks, void* buf),
                     void (*write)(uint64_t lba, uint16_t num_blocks, void* buf),
                     struct fs* fs)
 {
     blk_device_table[blk_device_table_size].name = name;
-    blk_device_table[blk_device_table_size].starting_lba = start_lba;
-    blk_device_table[blk_device_table_size].ending_lba = end_lba;
+    blk_device_table[blk_device_table_size].starting_lba = starting_lba;
+    blk_device_table[blk_device_table_size].ending_lba = ending_lba;
+    blk_device_table[blk_device_table_size].block_size = block_size;
     blk_device_table[blk_device_table_size]._internal_read = read;
     blk_device_table[blk_device_table_size]._internal_write = write;
     blk_device_table[blk_device_table_size].fs = fs;
@@ -84,6 +86,11 @@ blk_init()
     }
 
     blk_root_device->fs->mount(blk_root_device);
+
+    // Testing
+    struct fs_stat stat;
+    blk_root_device->fs->stat(blk_root_device, "/etc/fstab", &stat);
+    kprintf("stat: size=%d\n", stat.size);
 
     // TODO: read /etc/fstab and mount other filesystems
 }
@@ -130,7 +137,7 @@ blk_init_for_device(struct blk_device* dev)
 
         struct blk_device* partition_dev = blk_register_device(
             partition_name, entry->starting_lba, entry->ending_lba,
-            dev->_internal_read, dev->_internal_write, NULL);
+            dev->block_size, dev->_internal_read, dev->_internal_write, NULL);
 
         // probe
         struct fs* fs = fs_probe(partition_dev);

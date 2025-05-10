@@ -230,7 +230,8 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
 
     size_t end_lba = SIZE_MAX - 1000;
 
-    blk_register_device("nvme0n1", 0, end_lba, nvme_read, nvme_write, NULL);
+    blk_register_device("nvme0n1", 0, end_lba, 512, nvme_read, nvme_write,
+                        NULL);
 }
 
 static void
@@ -574,9 +575,14 @@ nvme_submit_io(uint8_t opcode, uint64_t lba, uint16_t num_blocks, void* buf)
 {
     if (num_blocks == 0 || num_blocks > 0x1000)
         panic("nvme_submit_io: illegal block count %u\n", num_blocks);
-    if (nvme_max_transfer_size_pages &&
-        num_blocks > nvme_max_transfer_size_pages)
-        panic("nvme_submit_io: request exceeds MDTS\n");
+
+    uint64_t blocks_per_page = CEIL_DIV(PAGE_SIZE, BLOCK_SIZE);
+    uint64_t num_pages = CEIL_DIV(num_blocks, blocks_per_page);
+
+    if (num_pages > nvme_max_transfer_size_pages)
+        panic("nvme_submit_io: request exceeds MDTS, num_pages=%d, "
+              "max_transfer_size_pages=%d\n",
+              num_pages, nvme_max_transfer_size_pages);
 
     struct nvme_submission_queue_entry* sqe =
         &io_submission_queue.addr[io_submission_queue_tail];

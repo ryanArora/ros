@@ -106,3 +106,48 @@ itoa(int value)
     str[i] = '\0';
     return str;
 }
+
+char*
+strchr(const char* str, int c)
+{
+    while (*str) {
+        if (*str == (char)c) return (char*)str;
+        str++;
+    }
+
+    // Check for null terminator if c is '\0'
+    if (c == '\0') return (char*)str;
+
+    return NULL;
+}
+
+char*
+strtok(char* str, const char* delim)
+{
+    static char* next = NULL;
+
+    if (str) next = str;
+    if (!next) return NULL;
+
+    // Skip leading delimiters
+    while (*next && strchr(delim, *next))
+        next++;
+
+    if (*next == '\0') return NULL;
+
+    // Start of the token
+    char* token_start = next;
+
+    // Find the end of the token
+    while (*next && !strchr(delim, *next))
+        next++;
+
+    if (*next) {
+        *next = '\0';
+        next++;
+    } else {
+        next = NULL;
+    }
+
+    return token_start;
+}

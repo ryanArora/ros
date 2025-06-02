@@ -1,9 +1,9 @@
-#include "blk.h"
-#include "lib/io.h"
-#include "lib/math.h"
-#include "mm.h"
-#include "lib/string.h"
-#include "lib/heap.h"
+#include <blk/blk.h>
+#include <libk/io.h>
+#include <libk/math.h>
+#include <mm/pfa.h>
+#include <mm/slab.h>
+#include <libk/string.h>
 
 struct gpt_partition_table_header {
     uint8_t signature[8];

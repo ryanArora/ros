@@ -1,9 +1,9 @@
-#include "heap.h"
+#include <mm/slab.h>
 #include <efi.h>
-#include "io.h"
-#include "string.h"
+#include <libk/io.h>
+#include <libk/string.h>
 #include <stdint.h>
-#include "../mm.h"
+#include <mm/pfa.h>
 #include <limits.h>
 
 #define SLAB_MAGIC        0x8BADF00D

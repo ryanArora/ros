@@ -1,5 +1,5 @@
-#include "exception.h"
-#include "lib/io.h"
+#include <cpu/exception.h>
+#include <libk/io.h>
 
 #define dump_exception_frame(frame)                                            \
     do {                                                                       \

@@ -1,8 +1,8 @@
 #include <efi.h>
 #include <efilib.h>
-#include "../drivers/gop.h"
+#include <drivers/gop.h>
 #include "../init.h"
-#include "../lib/io.h"
+#include <libk/io.h>
 
 UINTN MemoryMapSize;
 EFI_MEMORY_DESCRIPTOR* MemoryMap;

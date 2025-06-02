@@ -1,11 +1,11 @@
-#include "nvme.h"
-#include "../lib/io.h"
-#include "pci.h"
-#include "../mm.h"
-#include "../idt.h"
-#include "../lib/string.h"
-#include "../lib/math.h"
-#include "../blk.h"
+#include <drivers/nvme.h>
+#include <libk/io.h>
+#include <drivers/pci.h>
+#include <mm/pfa.h>
+#include <cpu/idt.h>
+#include <libk/string.h>
+#include <libk/math.h>
+#include <blk/blk.h>
 #include <limits.h>
 
 #define NVME_REGISTER_OFFSET_CAP   0x00

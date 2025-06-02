@@ -1,9 +1,9 @@
 #include "load.h"
 #include "fs/fs.h"
-#include "lib/io.h"
-#include "lib/string.h"
-#include "mm.h"
-#include "console.h"
+#include <libk/io.h>
+#include <libk/string.h>
+#include <mm/pfa.h>
+#include <libk/console.h>
 
 #define ELF_MAGIC                                                              \
     "\x7f"                                                                     \

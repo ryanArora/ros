@@ -1,5 +1,5 @@
-#include "string.h"
-#include "heap.h"
+#include <libk/string.h>
+#include <mm/slab.h>
 #include <stdint.h>
 
 void*

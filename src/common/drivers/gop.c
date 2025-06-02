@@ -1,7 +1,7 @@
-#include "gop.h"
+#include <drivers/gop.h>
 #include <efi.h>
 #include <efilib.h>
-#include "../lib/io.h"
+#include <libk/io.h>
 
 EFI_GRAPHICS_OUTPUT_PROTOCOL* Gop;
 

@@ -1,5 +1,5 @@
 #pragma once
-#include "fs.h"
+#include <fs/fs.h>
 
 bool fs_fat16_probe(struct blk_device* dev);
 

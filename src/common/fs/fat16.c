@@ -1,10 +1,9 @@
 #include "fat16.h"
-#include "../mm.h"
-#include "../blk.h"
-#include "../lib/string.h"
-#include "../lib/heap.h"
-#include "../blk.h"
-#include "../lib/io.h"
+#include <mm/pfa.h>
+#include <mm/slab.h>
+#include <blk/blk.h>
+#include <libk/string.h>
+#include <libk/io.h>
 
 static void fat16_mount(struct blk_device* dev);
 static void fat16_umount(struct blk_device* dev);

@@ -1,6 +1,6 @@
-#include "mm.h"
+#include <mm/pfa.h>
 #include <efi.h>
-#include "lib/io.h"
+#include <libk/io.h>
 
 extern EFI_MEMORY_DESCRIPTOR* MemoryMap;
 extern UINTN MemoryMapSize;

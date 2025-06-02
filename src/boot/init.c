@@ -1,16 +1,16 @@
 #include "init.h"
 #include "fs/fs.h"
-#include "console.h"
-#include "lib/io.h"
-#include "lib/heap.h"
-#include "drivers/pic.h"
-#include "drivers/pit.h"
+#include <libk/console.h>
+#include <libk/io.h>
+#include <mm/slab.h>
+#include <drivers/pic.h>
+#include <drivers/pit.h>
 #include "load.h"
-#include "mm.h"
-#include "gdt.h"
-#include "idt.h"
+#include <mm/pfa.h>
+#include <cpu/gdt.h>
+#include <cpu/idt.h>
 #include "drivers/pci.h"
-#include "blk.h"
+#include <blk/blk.h>
 
 void
 kmain(void)

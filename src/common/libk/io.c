@@ -1,5 +1,5 @@
-#include "io.h"
-#include "../console.h"
+#include <libk/io.h>
+#include <libk/console.h>
 #include <stdarg.h>
 
 _Noreturn void

@@ -1,10 +1,10 @@
 #include "ext2.h"
-#include "../lib/io.h"
-#include "../blk.h"
-#include "../mm.h"
-#include "../lib/heap.h"
-#include "../lib/string.h"
-#include "../lib/math.h"
+#include <libk/io.h>
+#include <blk/blk.h>
+#include <mm/pfa.h>
+#include <mm/slab.h>
+#include <libk/string.h>
+#include <libk/math.h>
 
 #define EXT2_SUPERBLOCK_MAGIC 0xEF53
 #define EXT2_ROOT_INO         2

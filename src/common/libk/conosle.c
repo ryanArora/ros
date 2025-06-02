@@ -1,8 +1,8 @@
-#include "console.h"
+#include <libk/console.h>
 
 #include <fonts/spleen-8x16.h>
 #include "./drivers/gop.h"
-#include "./lib/string.h"
+#include <libk/string.h>
 #include <stdint.h>
 
 uint32_t console_background;

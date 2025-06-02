@@ -65,9 +65,8 @@ load_elf(const char* path)
     struct elf_header64* elf_header =
         alloc_pages(get_order(sizeof(struct elf_header64)));
 
-    size_t bytes_read =
-        blk_root_device->fs->read(blk_root_device, "/bin/init", elf_header,
-                                  sizeof(struct elf_header64), 0);
+    size_t bytes_read = blk_root_device->fs->read(
+        blk_root_device, path, elf_header, sizeof(struct elf_header64), 0);
 
     if (bytes_read != sizeof(struct elf_header64)) {
         free_pages(elf_header, get_order(st.size));
@@ -123,7 +122,7 @@ load_elf(const char* path)
         get_order(elf_header->phnum * sizeof(struct elf_program_header64)));
 
     bytes_read = blk_root_device->fs->read(
-        blk_root_device, "/bin/init", program_headers,
+        blk_root_device, path, program_headers,
         elf_header->phnum * sizeof(struct elf_program_header64),
         elf_header->phoff);
 

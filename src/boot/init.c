@@ -31,6 +31,6 @@ kmain(void)
     interrupts_enable();
 
     blk_init();
-    load_elf("/bin/init");
+    load_elf("/vmros");
     kprintf("kmain: 0x%llX\n", &kmain);
 }

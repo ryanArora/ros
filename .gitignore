@@ -1,10 +1,9 @@
 *.o
 *.d
-*.so
-*.efi
-*.img
-*.a
-*.lib
+src/boot/bootx64.efi
+src/boot/bootx64.so
+src/kernel/vmros
+x86_64-ros.img
 
+.cache
 compile_commands.json
-.cache/

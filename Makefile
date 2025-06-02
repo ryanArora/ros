@@ -21,13 +21,13 @@ BOOT_OBJS := $(BOOT_COBJS) $(BOOT_ASOBJS)
 BOOT_TARGET_LIB := src/boot/bootx64.so
 BOOT_TARGET := src/boot/bootx64.efi
 
-# KERNEL_CSRCS := $(shell find src/kernel -name "*.c")
-# KERNEL_COBJS := $(KERNEL_CSRCS:.c=.o)
-# KERNEL_ASSRCS := $(shell find src/kernel -name "*.S")
-# KERNEL_ASOBJS := $(KERNEL_ASSRCS:.S=.S.o)
-# KERNEL_SRCS := $(KERNEL_CSRCS) $(KERNEL_ASSRCS)
-# KERNEL_OBJS := $(KERNEL_COBJS) $(KERNEL_ASOBJS)
-# KERNEL_TARGET := src/kernel/vmros
+KERNEL_CSRCS := $(shell find src/kernel -name "*.c")
+KERNEL_COBJS := $(KERNEL_CSRCS:.c=.o)
+KERNEL_ASSRCS := $(shell find src/kernel -name "*.S")
+KERNEL_ASOBJS := $(KERNEL_ASSRCS:.S=.S.o)
+KERNEL_SRCS := $(KERNEL_CSRCS) $(KERNEL_ASSRCS)
+KERNEL_OBJS := $(KERNEL_COBJS) $(KERNEL_ASOBJS)
+KERNEL_TARGET := src/kernel/vmros
 
 CSRCS := $(KERNEL_CSRCS) $(BOOT_CSRCS) $(COMMON_CSRCS)
 ASSRCS := $(KERNEL_ASSRCS) $(BOOT_ASSRCS) $(COMMON_ASSRCS)
@@ -56,8 +56,8 @@ $(BOOT_TARGET_LIB): $(BOOT_OBJS) $(COMMON_OBJS)
 $(BOOT_TARGET): $(BOOT_TARGET_LIB)
 	$(OBJCOPY) -j .text -j .sdata -j .data -j .rodata -j .dynamic -j .dynsym  -j .rel -j .rela -j .rel.* -j .rela.* -j .reloc --target efi-app-x86_64 --subsystem=10 $^ $@
 
-# $(KERNEL_TARGET): $(KERNEL_OBJS) $(COMMON_OBJS)
-# 	$(LD) -T src/kernel/linker.lds $^ -o $@
+$(KERNEL_TARGET): $(KERNEL_OBJS) $(COMMON_OBJS)
+	$(LD) -T src/kernel/linker.lds $^ -o $@
 
 $(TARGET): $(FS_DIR) $(BOOT_TARGET) $(KERNEL_TARGET)
 	truncate -s 1G $@
@@ -73,7 +73,7 @@ $(TARGET): $(FS_DIR) $(BOOT_TARGET) $(KERNEL_TARGET)
 		echo "mkdir /boot/EFI"; \
 		echo "mkdir /boot/EFI/BOOT"; \
 		echo "copy-in $(BOOT_TARGET) /boot/EFI/BOOT"; \
-		# echo "copy-in $(KERNEL_TARGET) /boot"; \
+		echo "copy-in $(KERNEL_TARGET) /"; \
 		for path in $(FS_DIR)/*; do \
 			[ -e "$$path" ] || continue; \
 			echo "copy-in $$path /"; \

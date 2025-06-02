@@ -1,5 +1,0 @@
-[submodule "lib/gnu-efi"]
-	path = lib/gnu-efi
-	url = https://github.com/ryanArora/gnu-efi.git
-	branch = master
-	

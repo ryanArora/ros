@@ -1,5 +1,4 @@
-#include "efi/efierr.h"
-#include "efi/efi.h"
+#include <efi.h>
 #include "../drivers/gop.h"
 #include "../init.h"
 #include "../lib/io.h"

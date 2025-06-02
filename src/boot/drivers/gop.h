@@ -1,6 +1,6 @@
 #pragma once
 
-#include <efi/efi.h>
+#include <efi.h>
 #include <stdint.h>
 
 #define GOP_WIDTH  1280

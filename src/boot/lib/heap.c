@@ -1,5 +1,5 @@
 #include "heap.h"
-#include "efi/efi.h"
+#include <efi.h>
 #include "io.h"
 #include "string.h"
 #include <stdint.h>

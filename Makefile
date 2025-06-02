@@ -92,6 +92,6 @@ compile_commands.json: clean
 	bear -- make
 
 clean:
-	rm -rf .cache/ compile_commands.json $(TARGET) $(BOOT_TARGET) $(BOOT_TARGET_LIB) $(KERNEL_TARGET) $(OBJS) $(DEPEND)
+	rm -rf $(TARGET) $(BOOT_TARGET) $(BOOT_TARGET_LIB) $(KERNEL_TARGET) $(OBJS) $(DEPEND)
 
 -include $(DEPEND)

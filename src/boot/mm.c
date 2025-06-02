@@ -1,5 +1,5 @@
 #include "mm.h"
-#include "efi/efi.h"
+#include <efi.h>
 #include "lib/io.h"
 
 extern EFI_MEMORY_DESCRIPTOR* MemoryMap;

@@ -1,4 +1,5 @@
 #include <efi.h>
+#include <efilib.h>
 #include "../drivers/gop.h"
 #include "../init.h"
 #include "../lib/io.h"
@@ -9,6 +10,7 @@ EFI_MEMORY_DESCRIPTOR* MemoryMap;
 _Noreturn EFI_STATUS
 efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
 {
+    InitializeLib(ImageHandle, SystemTable);
     gop_init(SystemTable);
 
     EFI_STATUS Status;
@@ -18,23 +20,24 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
 
     MemoryMapSize = 0;
     MemoryMap = NULL;
-    Status = SystemTable->BootServices->GetMemoryMap(&MemoryMapSize, MemoryMap,
-                                                     &MapKey, &DescriptorSize,
-                                                     &DescriptorVersion);
+    Status = uefi_call_wrapper(SystemTable->BootServices->GetMemoryMap, 5,
+                               &MemoryMapSize, MemoryMap, &MapKey,
+                               &DescriptorSize, &DescriptorVersion);
     assert(Status == EFI_BUFFER_TOO_SMALL);
 
-    Status = SystemTable->BootServices->AllocatePool(
-        EfiBootServicesData, MemoryMapSize + 2 * DescriptorSize,
-        (VOID**)&MemoryMap);
+    Status = uefi_call_wrapper(
+        SystemTable->BootServices->AllocatePool, 3, EfiBootServicesData,
+        MemoryMapSize + 2 * DescriptorSize, (VOID**)&MemoryMap);
     assert(!EFI_ERROR(Status));
 
-    Status = SystemTable->BootServices->GetMemoryMap(&MemoryMapSize, MemoryMap,
-                                                     &MapKey, &DescriptorSize,
-                                                     &DescriptorVersion);
+    Status = uefi_call_wrapper(SystemTable->BootServices->GetMemoryMap, 5,
+                               &MemoryMapSize, MemoryMap, &MapKey,
+                               &DescriptorSize, &DescriptorVersion);
     assert(!EFI_ERROR(Status));
 
     /* ExitBootServices */
-    Status = SystemTable->BootServices->ExitBootServices(ImageHandle, MapKey);
+    Status = uefi_call_wrapper(SystemTable->BootServices->ExitBootServices, 2,
+                               ImageHandle, MapKey);
     assert(!EFI_ERROR(Status));
 
     kmain();

@@ -1,4 +1,6 @@
 #include "gop.h"
+#include <efi.h>
+#include <efilib.h>
 #include "../lib/io.h"
 
 EFI_GRAPHICS_OUTPUT_PROTOCOL* Gop;
@@ -8,7 +10,8 @@ gop_init(EFI_SYSTEM_TABLE* SystemTable)
 {
     EFI_GUID GopGuid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
     EFI_STATUS Status =
-        SystemTable->BootServices->LocateProtocol(&GopGuid, NULL, (VOID**)&Gop);
+        uefi_call_wrapper(SystemTable->BootServices->LocateProtocol, 3,
+                          &GopGuid, NULL, (VOID**)&Gop);
     assert(!EFI_ERROR(Status));
 
     gop_set_resolution(GOP_WIDTH, GOP_HEIGHT);
@@ -23,7 +26,8 @@ gop_set_resolution(uint32_t width, uint32_t height)
     for (UINT32 i = 0; i < Gop->Mode->MaxMode; ++i) {
         EFI_GRAPHICS_OUTPUT_MODE_INFORMATION* Info;
         UINTN SizeOfInfo;
-        EFI_STATUS Status = Gop->QueryMode(Gop, i, &SizeOfInfo, &Info);
+        EFI_STATUS Status =
+            uefi_call_wrapper(Gop->QueryMode, 4, Gop, i, &SizeOfInfo, &Info);
         assert(!EFI_ERROR(Status));
 
         if (Info->HorizontalResolution == width &&
@@ -35,7 +39,7 @@ gop_set_resolution(uint32_t width, uint32_t height)
 
     assert(GopModeFound);
 
-    EFI_STATUS Status = Gop->SetMode(Gop, GopMode);
+    EFI_STATUS Status = uefi_call_wrapper(Gop->SetMode, 2, Gop, GopMode);
     assert(!EFI_ERROR(Status));
 }
 

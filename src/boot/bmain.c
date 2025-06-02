@@ -1,4 +1,5 @@
-#include "init.h"
+#include "bmain.h"
+#include "boot/header.h"
 #include "fs/fs.h"
 #include <libk/console.h>
 #include <libk/io.h>
@@ -13,7 +14,7 @@
 #include <blk/blk.h>
 
 void
-kmain(void)
+bmain(void)
 {
     console_init();
     kprintf("Starting kernel...\n");
@@ -32,5 +33,4 @@ kmain(void)
 
     blk_init();
     load_elf("/vmros");
-    kprintf("kmain: 0x%llX\n", &kmain);
 }

@@ -13,8 +13,6 @@ static uint32_t console_y;
 
 bool console_ready = false;
 
-extern EFI_GRAPHICS_OUTPUT_PROTOCOL* Gop;
-
 void
 console_init(void)
 {
@@ -40,9 +38,7 @@ console_putchar(char ch)
     }
 
     if (console_y + font.height > CONSOLE_HEIGHT) {
-        memmove((char*)Gop->Mode->FrameBufferBase,
-                (char*)Gop->Mode->FrameBufferBase +
-                    4 * CONSOLE_WIDTH * font.height,
+        memmove(gop_base_addr, gop_base_addr + 4 * CONSOLE_WIDTH * font.height,
                 4 * CONSOLE_WIDTH * (CONSOLE_HEIGHT - font.height));
 
         for (uint32_t x = 0; x < CONSOLE_WIDTH; ++x) {

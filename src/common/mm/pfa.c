@@ -1,9 +1,7 @@
 #include <mm/pfa.h>
 #include <efi.h>
 #include <libk/io.h>
-
-extern EFI_MEMORY_DESCRIPTOR* MemoryMap;
-extern UINTN MemoryMapSize;
+#include <boot/header.h>
 
 #define MAX_ORDER 10
 #define PAGE_SIZE 4096
@@ -61,8 +59,9 @@ mm_init(void)
     void* largest_region_start = NULL;
     size_t largest_region_pages = 0;
 
-    for (UINTN i = 0; i < MemoryMapSize / sizeof(EFI_MEMORY_DESCRIPTOR); i++) {
-        EFI_MEMORY_DESCRIPTOR* desc = &MemoryMap[i];
+    for (UINTN i = 0;
+         i < boot_header.MemoryMapSize / sizeof(EFI_MEMORY_DESCRIPTOR); i++) {
+        EFI_MEMORY_DESCRIPTOR* desc = &boot_header.MemoryMap[i];
 
         if (desc->Type != EfiConventionalMemory) continue;
         if (desc->PhysicalStart == 0) continue;

@@ -1,7 +1,10 @@
+#include <boot/header.h>
+#include <libk/io.h>
+
+struct boot_header boot_header;
+
 [[noreturn]] void
 kmain(void)
 {
-    while (1)
-        __asm__("cli\n"
-                "hlt");
+    panic("not implemented");
 }

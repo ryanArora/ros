@@ -32,5 +32,5 @@ bmain(void)
     interrupts_enable();
 
     blk_init();
-    load_elf("/vmros");
+    load_elf("/kernel");
 }

@@ -4,14 +4,13 @@
 #include "./drivers/gop.h"
 #include <libk/string.h>
 #include <stdint.h>
+#include <boot/header.h>
 
 uint32_t console_background;
 uint32_t console_foreground;
 
 static uint32_t console_x;
 static uint32_t console_y;
-
-bool console_ready = false;
 
 void
 console_init(void)
@@ -20,7 +19,6 @@ console_init(void)
     console_foreground = 0xFFFFFF;
 
     console_clear();
-    console_ready = true;
 }
 
 void
@@ -38,7 +36,9 @@ console_putchar(char ch)
     }
 
     if (console_y + font.height > CONSOLE_HEIGHT) {
-        memmove(gop_base_addr, gop_base_addr + 4 * CONSOLE_WIDTH * font.height,
+        memmove((char*)boot_header->FrameBufferBase,
+                (char*)boot_header->FrameBufferBase +
+                    4 * CONSOLE_WIDTH * font.height,
                 4 * CONSOLE_WIDTH * (CONSOLE_HEIGHT - font.height));
 
         for (uint32_t x = 0; x < CONSOLE_WIDTH; ++x) {

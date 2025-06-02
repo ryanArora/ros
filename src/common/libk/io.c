@@ -95,13 +95,12 @@ inl(uint16_t port)
 void
 kputchar(char ch)
 {
-    if (console_ready) {
-        if (ch == '\b') {
-            console_backspace();
-            return;
-        }
-        console_putchar(ch);
+    if (ch == '\b') {
+        console_backspace();
+        return;
     }
+
+    console_putchar(ch);
 }
 
 static void

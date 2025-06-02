@@ -60,8 +60,8 @@ mm_init(void)
     size_t largest_region_pages = 0;
 
     for (UINTN i = 0;
-         i < boot_header.MemoryMapSize / sizeof(EFI_MEMORY_DESCRIPTOR); i++) {
-        EFI_MEMORY_DESCRIPTOR* desc = &boot_header.MemoryMap[i];
+         i < boot_header->MemoryMapSize / sizeof(EFI_MEMORY_DESCRIPTOR); i++) {
+        EFI_MEMORY_DESCRIPTOR* desc = &boot_header->MemoryMap[i];
 
         if (desc->Type != EfiConventionalMemory) continue;
         if (desc->PhysicalStart == 0) continue;

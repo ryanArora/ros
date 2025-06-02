@@ -69,47 +69,38 @@ load_elf(const char* path)
         blk_root_device, path, elf_header, sizeof(struct elf_header64), 0);
 
     if (bytes_read != sizeof(struct elf_header64)) {
-        free_pages(elf_header, get_order(st.size));
         panic("failed to read ELF header\n");
     }
 
     if (memcmp(elf_header->magic, ELF_MAGIC, 4) != 0) {
-        free_pages(elf_header, get_order(st.size));
         panic("invalid ELF magic number\n");
     }
 
     if (elf_header->class != ELFCLASS64) {
-        free_pages(elf_header, get_order(st.size));
         panic("invalid ELF class\n");
     }
 
     if (elf_header->version != ELF_VERSION_CURRENT) {
-        free_pages(elf_header, get_order(st.size));
         panic("invalid ELF version\n");
     }
 
     if (elf_header->os_abi != ELF_OS_ABI_SYSV) {
-        free_pages(elf_header, get_order(st.size));
         panic("invalid ELF OS/ABI %d\n", elf_header->os_abi);
     }
 
     if (elf_header->abi_version != ELF_ABI_VERSION_CURRENT) {
-        free_pages(elf_header, get_order(st.size));
         panic("invalid ELF ABI version\n");
     }
 
     if (elf_header->type != ELF_TYPE_STATIC_EXECUTABLE) {
-        free_pages(elf_header, get_order(st.size));
         panic("invalid ELF type\n");
     }
 
     if (elf_header->machine != ELF_MACHINE_X86_64) {
-        free_pages(elf_header, get_order(st.size));
         panic("invalid ELF machine\n");
     }
 
     if (elf_header->version2 != ELF_VERSION_CURRENT) {
-        free_pages(elf_header, get_order(st.size));
         panic("invalid ELF version2\n");
     }
 
@@ -142,5 +133,7 @@ load_elf(const char* path)
                 program_header->memsz, program_header->align);
     }
 
+    free_pages(program_headers, get_order(elf_header->phnum *
+                                          sizeof(struct elf_program_header64)));
     free_pages(elf_header, get_order(sizeof(struct elf_header64)));
 }

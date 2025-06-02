@@ -1,10 +1,13 @@
 #include <boot/header.h>
 #include <libk/io.h>
+#include <drivers/gop.h>
+#include <libk/console.h>
 
-struct boot_header boot_header;
+struct boot_header* boot_header = (struct boot_header*)NULL;
 
 [[noreturn]] void
 kmain(void)
 {
-    panic("not implemented");
+    console_init();
+    abort();
 }

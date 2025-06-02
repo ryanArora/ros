@@ -145,6 +145,12 @@ static void ext2_read_bgdt(struct blk_device* dev,
                            struct ext2_group_desc* bgdt);
 static void ext2_get_inode(struct blk_device* dev, size_t ino,
                            struct ext2_inode* inode);
+static uint32_t ext2_get_block_number(struct blk_device* dev,
+                                      struct ext2_inode* inode,
+                                      uint32_t logical_block);
+static uint32_t ext2_read_indirect_block(struct blk_device* dev,
+                                         uint32_t indirect_block,
+                                         uint32_t index);
 
 bool
 fs_ext2_probe(struct blk_device* dev)
@@ -244,13 +250,15 @@ ext2_lookup(struct blk_device* dev, const char* path, struct ext2_inode* out)
         if (parts[i] == NULL) break;
 
         uint32_t num_ext2_blocks = inode->blocks / (ext2->block_size / 512);
-        if (num_ext2_blocks > 12) {
-            panic("indirect blocks not implemented\n");
-        }
 
         for (size_t blk = 0; blk < num_ext2_blocks; ++blk) {
+            uint32_t block_num = ext2_get_block_number(dev, inode, blk);
+            if (block_num == 0) {
+                continue; // Sparse block
+            }
+
             uint8_t* block_data = kmalloc(ext2->block_size);
-            ext2_blk_read(dev, inode->direct_block[blk], 1, block_data);
+            ext2_blk_read(dev, block_num, 1, block_data);
 
             size_t offset = 0;
             while (offset < ext2->block_size) {
@@ -333,16 +341,22 @@ ext2_read(struct blk_device* dev, const char* path, void* buf, size_t count,
     size_t ext2_blocks_to_read =
         CEIL_DIV(block_offset + count, ext2->block_size);
 
-    if (ext2_blocks_to_read > 12) {
-        panic("indirect blocks not implemented\n");
-    }
-
     size_t bytes_read = 0;
 
     for (size_t i = start_block; i < start_block + ext2_blocks_to_read; i++) {
-        uint32_t ino = inode.direct_block[i];
+        uint32_t block_num = ext2_get_block_number(dev, &inode, i);
+        if (block_num == 0) {
+            // Sparse block - fill with zeros
+            size_t bytes_to_copy =
+                MIN(ext2->block_size - block_offset, count - bytes_read);
+            memset(buf + bytes_read, 0, bytes_to_copy);
+            bytes_read += bytes_to_copy;
+            block_offset = 0;
+            continue;
+        }
+
         uint8_t* block_data = kmalloc(ext2->block_size);
-        ext2_blk_read(dev, ino, 1, block_data);
+        ext2_blk_read(dev, block_num, 1, block_data);
 
         size_t bytes_to_copy =
             MIN(ext2->block_size - block_offset, count - bytes_read);
@@ -450,4 +464,86 @@ ext2_blk_read(struct blk_device* dev, uint32_t ext2_block,
     blk_read(dev, lba, total_dev_blocks, tmp);
     memcpy(buf, tmp, num_ext2_blocks * ext2_block_size);
     free_pages(tmp, order);
+}
+
+static uint32_t
+ext2_read_indirect_block(struct blk_device* dev, uint32_t indirect_block,
+                         uint32_t index)
+{
+    struct ext2_internal* ext2 = dev->fs->_internal;
+    uint32_t* block_data = kmalloc(ext2->block_size);
+    ext2_blk_read(dev, indirect_block, 1, block_data);
+
+    uint32_t result = block_data[index];
+    kfree(block_data);
+    return result;
+}
+
+static uint32_t
+ext2_get_block_number(struct blk_device* dev, struct ext2_inode* inode,
+                      uint32_t logical_block)
+{
+    struct ext2_internal* ext2 = dev->fs->_internal;
+    uint32_t ptrs_per_block = ext2->block_size / sizeof(uint32_t);
+
+    // Direct blocks (0-11)
+    if (logical_block < 12) {
+        return inode->direct_block[logical_block];
+    }
+
+    // Singly indirect blocks (12 to 12 + ptrs_per_block - 1)
+    logical_block -= 12;
+    if (logical_block < ptrs_per_block) {
+        if (inode->singly_indirect_block == 0) {
+            return 0;
+        }
+        return ext2_read_indirect_block(dev, inode->singly_indirect_block,
+                                        logical_block);
+    }
+
+    // Doubly indirect blocks
+    logical_block -= ptrs_per_block;
+    if (logical_block < ptrs_per_block * ptrs_per_block) {
+        if (inode->doubly_indirect_block == 0) {
+            return 0;
+        }
+        uint32_t first_level_index = logical_block / ptrs_per_block;
+        uint32_t second_level_index = logical_block % ptrs_per_block;
+
+        uint32_t first_level_block = ext2_read_indirect_block(
+            dev, inode->doubly_indirect_block, first_level_index);
+        if (first_level_block == 0) {
+            return 0;
+        }
+        return ext2_read_indirect_block(dev, first_level_block,
+                                        second_level_index);
+    }
+
+    // Triply indirect blocks
+    logical_block -= ptrs_per_block * ptrs_per_block;
+    if (logical_block < ptrs_per_block * ptrs_per_block * ptrs_per_block) {
+        if (inode->triply_indirect_block == 0) {
+            return 0;
+        }
+        uint32_t first_level_index =
+            logical_block / (ptrs_per_block * ptrs_per_block);
+        uint32_t second_level_index =
+            (logical_block / ptrs_per_block) % ptrs_per_block;
+        uint32_t third_level_index = logical_block % ptrs_per_block;
+
+        uint32_t first_level_block = ext2_read_indirect_block(
+            dev, inode->triply_indirect_block, first_level_index);
+        if (first_level_block == 0) {
+            return 0;
+        }
+        uint32_t second_level_block = ext2_read_indirect_block(
+            dev, first_level_block, second_level_index);
+        if (second_level_block == 0) {
+            return 0;
+        }
+        return ext2_read_indirect_block(dev, second_level_block,
+                                        third_level_index);
+    }
+
+    panic("file too large for ext2\n");
 }

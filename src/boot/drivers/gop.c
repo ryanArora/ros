@@ -2,13 +2,11 @@
 #include <efi.h>
 #include <efilib.h>
 #include <libk/io.h>
+#include <boot/header.h>
 #include "../efi_main.h"
 
 static void gop_set_resolution(EFI_GRAPHICS_OUTPUT_PROTOCOL* Gop,
                                uint32_t width, uint32_t height);
-
-char* gop_base_addr;
-uint32_t gop_pixels_per_scanline;
 
 void
 gop_init(void)
@@ -21,8 +19,8 @@ gop_init(void)
     assert(!EFI_ERROR(Status));
 
     gop_set_resolution(Gop, GOP_WIDTH, GOP_HEIGHT);
-    gop_base_addr = (char*)Gop->Mode->FrameBufferBase;
-    gop_pixels_per_scanline = Gop->Mode->Info->PixelsPerScanLine;
+    boot_header->FrameBufferBase = Gop->Mode->FrameBufferBase;
+    boot_header->PixelsPerScanLine = Gop->Mode->Info->PixelsPerScanLine;
 }
 
 static void

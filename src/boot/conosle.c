@@ -4,7 +4,6 @@
 #include "./drivers/gop.h"
 #include "./lib/string.h"
 #include <stdint.h>
-#include <stdbool.h>
 
 uint32_t console_background;
 uint32_t console_foreground;

@@ -3,6 +3,7 @@
 #include "lib/io.h"
 #include "drivers/keyboard.h"
 #include "drivers/pit.h"
+#include <stddef.h>
 
 #define IDT_ENTRIES 256
 

@@ -37,7 +37,7 @@ static struct gpt_partition_entry* gpt_partition_table_entries = NULL;
 static struct blk_device* blk_device_table;
 static size_t blk_device_table_size = 0;
 
-static struct blk_device* blk_root_device = NULL;
+struct blk_device* blk_root_device = NULL;
 
 static void blk_print_device_table(void);
 

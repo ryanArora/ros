@@ -6,6 +6,7 @@
 #include "../lib/string.h"
 #include "../lib/math.h"
 #include "../blk.h"
+#include <limits.h>
 
 #define NVME_REGISTER_OFFSET_CAP   0x00
 #define NVME_REGISTER_OFFSET_VS    0x08

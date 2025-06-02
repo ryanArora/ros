@@ -3,8 +3,8 @@
 #include "io.h"
 #include "string.h"
 #include <stdint.h>
-#include <stdbool.h>
 #include "../mm.h"
+#include <limits.h>
 
 #define SLAB_MAGIC        0x8BADF00D
 #define SLAB_SIZE_CLASSES 10

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "drivers/gop.h"
-#include <stdbool.h>
 
 #define CONSOLE_WIDTH  GOP_WIDTH
 #define CONSOLE_HEIGHT GOP_HEIGHT

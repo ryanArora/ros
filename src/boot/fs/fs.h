@@ -1,6 +1,6 @@
 #pragma once
-#include <stdbool.h>
 #include "../blk.h"
+#include <stddef.h>
 
 struct blk_device;
 

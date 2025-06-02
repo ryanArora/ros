@@ -1,6 +1,5 @@
 #include "keyboard.h"
 #include "../lib/io.h"
-#include <stdbool.h>
 #include <stdint.h>
 
 static bool lshift;

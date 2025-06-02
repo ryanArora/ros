@@ -2,6 +2,7 @@
 #include "../lib/io.h"
 #include <stdint.h>
 #include "nvme.h"
+#include <stddef.h>
 
 #define PCI_CONFIG_VENDOR_ID_OFFSET           0x00
 #define PCI_CONFIG_DEVICE_ID_OFFSET           0x02

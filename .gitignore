@@ -1,9 +1,10 @@
 *.o
-*.EFI
+*.d
+*.so
+*.efi
 *.img
 *.a
 *.lib
 
 compile_commands.json
 .cache/
-.depend

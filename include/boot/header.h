@@ -3,8 +3,10 @@
 
 struct boot_header {
     UINTN MemoryMapSize;
+    UINTN MemoryMapDescriptorSize;
     EFI_MEMORY_DESCRIPTOR* MemoryMap;
     EFI_PHYSICAL_ADDRESS FrameBufferBase;
+    UINTN FrameBufferSize;
     UINT32 PixelsPerScanLine;
 };
 

@@ -95,7 +95,7 @@ blk_init()
     char* buf =
         kmalloc(stat.size + 1); // Allocate extra byte for null terminator
     size_t bytes_read = blk_root_device->fs->read(blk_root_device, "/etc/fstab",
-                                                  buf, stat.size, 10);
+                                                  buf, stat.size, 0);
     buf[bytes_read] = '\0'; // Add null terminator
     kprintf("read /etc/fstab: bytes_read=%d, buf=%s\n", bytes_read, buf);
 

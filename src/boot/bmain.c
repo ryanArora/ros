@@ -12,6 +12,7 @@
 #include <cpu/idt.h>
 #include "drivers/pci.h"
 #include <blk/blk.h>
+#include <cpu/paging.h>
 
 void
 bmain(void)
@@ -21,8 +22,8 @@ bmain(void)
 
     gdt_init();
     idt_init();
-
     mm_init();
+    paging_init();
     heap_init();
 
     pci_init();

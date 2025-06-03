@@ -7,6 +7,7 @@
 #include <libk/math.h>
 #include <blk/blk.h>
 #include <limits.h>
+#include <cpu/paging.h>
 
 #define NVME_REGISTER_OFFSET_CAP   0x00
 #define NVME_REGISTER_OFFSET_VS    0x08
@@ -123,9 +124,6 @@ uint32_t nvme_max_transfer_size_pages = 0;
 void
 nvme_init(uint8_t bus, uint8_t device, uint8_t function)
 {
-    (void)nvme_write_reg_dword;
-    (void)nvme_read_reg_qword;
-    (void)nvme_write_reg_qword;
     kprintf("Initializing NVMe controller...\n");
 
     // Enable interrupts, bus mastering DMA, and memory space access in the
@@ -142,8 +140,8 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
     uint32_t bar1 = pci_config_get_bar1(bus, device, function);
     nvme_base_addr = ((uint64_t)bar1 << 32) | (bar0 & ~0xF);
 
-    uint64_t cap = nvme_read_reg_qword(NVME_REGISTER_OFFSET_CAP);
-    nvme_doorbell_stride = (cap >> 32) & 0xF;
+    assert(nvme_base_addr % PAGE_SIZE == 0);
+    map_pages((void*)nvme_base_addr, (void*)nvme_base_addr, 4);
 
     // Check the controller version is supported.
     uint32_t nvme_version = nvme_read_reg_dword(NVME_REGISTER_OFFSET_VS);
@@ -159,8 +157,10 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
               nvme_major_version, nvme_minor_version, nvme_tertiary_version);
     }
 
-    // Check the capabilities register for support of the NVMe command set
     uint64_t capabilities = nvme_read_reg_qword(NVME_REGISTER_OFFSET_CAP);
+    nvme_doorbell_stride = (capabilities >> 32) & 0xF;
+
+    // Check the capabilities register for support of the NVMe command set
     uint8_t css = (capabilities >> 37) & 0xF;
     if (css & 0x1) {
         kprintf("Detected NVMe Controller supports the NVMe command set\n");

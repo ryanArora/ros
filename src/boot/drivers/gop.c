@@ -20,6 +20,7 @@ gop_init(void)
 
     gop_set_resolution(Gop, GOP_WIDTH, GOP_HEIGHT);
     boot_header->FrameBufferBase = Gop->Mode->FrameBufferBase;
+    boot_header->FrameBufferSize = Gop->Mode->FrameBufferSize;
     boot_header->PixelsPerScanLine = Gop->Mode->Info->PixelsPerScanLine;
 }
 

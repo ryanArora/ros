@@ -3,6 +3,7 @@
 src/k/boot/bootx64.efi
 src/k/boot/bootx64.so
 src/k/kernel/kernel
+src/u/init/init
 x86_64-ros.img
 
 .cache

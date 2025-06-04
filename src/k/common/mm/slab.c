@@ -5,51 +5,31 @@
 #include <stdint.h>
 #include <mm/pfa.h>
 #include <limits.h>
-
-#define SLAB_MAGIC        0x8BADF00D
-#define SLAB_SIZE_CLASSES 10
-#define SLAB_MIN_SIZE     16
-#define SLAB_MAX_OBJECTS  256
-
-typedef struct slab_header {
-    uint32_t magic;
-    size_t object_size;
-    size_t capacity;
-    size_t used;
-    void* free_list;
-    struct slab_header* next;
-    struct slab_header* prev;
-} slab_header_t;
-
-typedef struct {
-    size_t size;
-    slab_header_t* slabs;
-} slab_cache_t;
-
-static slab_cache_t slab_caches[SLAB_SIZE_CLASSES];
+#include <boot/header.h>
+#include <cpu/paging.h>
 
 void
-heap_init(void)
+slab_init(void)
 {
     size_t current_size = SLAB_MIN_SIZE;
 
     for (int i = 0; i < SLAB_SIZE_CLASSES; ++i) {
-        slab_caches[i].size = current_size;
-        slab_caches[i].slabs = NULL;
+        boot_header->mm.slab.slab_caches[i].size = current_size;
+        boot_header->mm.slab.slab_caches[i].slabs = NULL;
         current_size *= 2;
     }
 
     kprintf("Heap initialized\n");
 }
 
-static slab_header_t*
+static struct slab_header*
 create_slab(size_t object_size)
 {
     size_t total_size =
-        sizeof(slab_header_t) + (object_size * SLAB_MAX_OBJECTS);
+        sizeof(struct slab_header) + (object_size * SLAB_MAX_OBJECTS);
     size_t order = get_order(total_size);
 
-    slab_header_t* slab = alloc_pages(order);
+    struct slab_header* slab = alloc_pages(order);
     slab->magic = SLAB_MAGIC;
     slab->object_size = object_size;
     slab->capacity = SLAB_MAX_OBJECTS;
@@ -113,8 +93,8 @@ kmalloc(size_t size)
         return (void*)((char*)ptr + sizeof(size_t));
     }
 
-    slab_cache_t* cache = &slab_caches[cache_index];
-    slab_header_t* slab = cache->slabs;
+    struct slab_cache* cache = &boot_header->mm.slab.slab_caches[cache_index];
+    struct slab_header* slab = cache->slabs;
 
     while (slab && slab->used >= slab->capacity) {
         slab = slab->next;
@@ -146,9 +126,9 @@ kfree(void* ptr)
 {
     if (!ptr) return;
 
-    uintptr_t page_addr = (uintptr_t)ptr & ~(4096 - 1);
+    uintptr_t page_addr = (uintptr_t)ptr & ~(PAGE_SIZE - 1);
     if (page_addr != (uintptr_t)ptr - sizeof(size_t)) {
-        slab_header_t* slab = (slab_header_t*)(page_addr);
+        struct slab_header* slab = (struct slab_header*)(page_addr);
 
         if (slab->magic != SLAB_MAGIC) {
             panic("invalid slab magic number");
@@ -164,8 +144,8 @@ kfree(void* ptr)
                 slab->prev->next = slab->next;
             } else {
                 for (int i = 0; i < SLAB_SIZE_CLASSES; ++i) {
-                    if (slab_caches[i].slabs == slab) {
-                        slab_caches[i].slabs = slab->next;
+                    if (boot_header->mm.slab.slab_caches[i].slabs == slab) {
+                        boot_header->mm.slab.slab_caches[i].slabs = slab->next;
                         break;
                     }
                 }
@@ -175,8 +155,8 @@ kfree(void* ptr)
                 slab->next->prev = slab->prev;
             }
 
-            size_t total_size =
-                sizeof(slab_header_t) + (slab->object_size * SLAB_MAX_OBJECTS);
+            size_t total_size = sizeof(struct slab_header) +
+                                (slab->object_size * SLAB_MAX_OBJECTS);
             size_t order = get_order(total_size);
             free_pages(slab, order);
         }

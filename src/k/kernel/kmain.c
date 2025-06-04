@@ -21,6 +21,7 @@ kmain(void)
 
     gdt_init();
     idt_init();
+    mm_init();
 
     spin();
 }

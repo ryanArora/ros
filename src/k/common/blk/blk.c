@@ -4,6 +4,7 @@
 #include <mm/pfa.h>
 #include <mm/slab.h>
 #include <libk/string.h>
+#include <cpu/paging.h>
 
 struct gpt_partition_table_header {
     uint8_t signature[8];
@@ -22,7 +23,7 @@ struct gpt_partition_table_header {
     uint32_t partition_entry_array_crc32;
 };
 static struct gpt_partition_table_header gpt_partition_table_header
-    __attribute__((aligned(4096)));
+    __attribute__((aligned(PAGE_SIZE)));
 
 struct gpt_partition_entry {
     uint8_t partition_type_guid[16];
@@ -161,7 +162,7 @@ blk_read(struct blk_device* dev, uint64_t lba, uint16_t num_blocks, void* buf)
         panic("buf is NULL\n");
     }
 
-    if ((uintptr_t)buf % 4096 != 0) {
+    if ((uintptr_t)buf % PAGE_SIZE != 0) {
         panic("buf is not page aligned\n");
     }
 
@@ -181,7 +182,7 @@ blk_write(struct blk_device* dev, uint64_t lba, uint16_t num_blocks, void* buf)
         panic("buf is NULL\n");
     }
 
-    if ((uintptr_t)buf % 4096 != 0) {
+    if ((uintptr_t)buf % PAGE_SIZE != 0) {
         panic("buf is not page aligned\n");
     }
 

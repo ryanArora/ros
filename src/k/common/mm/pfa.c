@@ -2,25 +2,17 @@
 #include <efi.h>
 #include <libk/io.h>
 #include <boot/header.h>
-
-#define MAX_ORDER 10
-#define PAGE_SIZE 4096
-
-typedef struct free_area {
-    void* free_list;
-    size_t nr_free;
-} free_area_t;
-
-static free_area_t free_areas[MAX_ORDER + 1];
-static void* memory_start;
-static size_t total_pages;
+#include <cpu/paging.h>
 
 static void*
 get_buddy(void* page, size_t order)
 {
-    size_t page_idx = ((uintptr_t)page - (uintptr_t)memory_start) / PAGE_SIZE;
+    size_t page_idx =
+        ((uintptr_t)page - (uintptr_t)boot_header->mm.pfa.memory_start) /
+        PAGE_SIZE;
     size_t buddy_idx = page_idx ^ (1 << order);
-    return (void*)((uintptr_t)memory_start + (buddy_idx * PAGE_SIZE));
+    return (void*)((uintptr_t)boot_header->mm.pfa.memory_start +
+                   (buddy_idx * PAGE_SIZE));
 }
 
 static bool
@@ -32,28 +24,28 @@ is_page_aligned(void* addr)
 static void
 add_to_free_list(void* page, size_t order)
 {
-    *(void**)page = free_areas[order].free_list;
-    free_areas[order].free_list = page;
-    free_areas[order].nr_free++;
+    *(void**)page = boot_header->mm.pfa.free_areas[order].free_list;
+    boot_header->mm.pfa.free_areas[order].free_list = page;
+    boot_header->mm.pfa.free_areas[order].nr_free++;
 }
 
 static void*
 remove_from_free_list(size_t order)
 {
-    void* page = free_areas[order].free_list;
+    void* page = boot_header->mm.pfa.free_areas[order].free_list;
     if (page) {
-        free_areas[order].free_list = *(void**)page;
-        free_areas[order].nr_free--;
+        boot_header->mm.pfa.free_areas[order].free_list = *(void**)page;
+        boot_header->mm.pfa.free_areas[order].nr_free--;
     }
     return page;
 }
 
 void
-mm_init(void)
+pfa_init(void)
 {
     for (size_t i = 0; i <= MAX_ORDER; i++) {
-        free_areas[i].free_list = NULL;
-        free_areas[i].nr_free = 0;
+        boot_header->mm.pfa.free_areas[i].free_list = NULL;
+        boot_header->mm.pfa.free_areas[i].nr_free = 0;
     }
 
     void* largest_region_start = NULL;
@@ -76,12 +68,12 @@ mm_init(void)
     }
 
     if (largest_region_start != NULL) {
-        memory_start = largest_region_start;
-        total_pages = largest_region_pages;
+        boot_header->mm.pfa.memory_start = largest_region_start;
+        boot_header->mm.pfa.total_pages = largest_region_pages;
 
-        for (size_t page_idx = 0; page_idx < total_pages;) {
+        for (size_t page_idx = 0; page_idx < boot_header->mm.pfa.total_pages;) {
             size_t max_order = 0;
-            size_t pages_left = total_pages - page_idx;
+            size_t pages_left = boot_header->mm.pfa.total_pages - page_idx;
 
             for (size_t order = MAX_ORDER; order > 0; order--) {
                 if ((page_idx & ((1 << order) - 1)) == 0 &&
@@ -91,18 +83,19 @@ mm_init(void)
                 }
             }
 
-            void* page =
-                (void*)((uintptr_t)memory_start + page_idx * PAGE_SIZE);
+            void* page = (void*)((uintptr_t)boot_header->mm.pfa.memory_start +
+                                 page_idx * PAGE_SIZE);
             add_to_free_list(page, max_order);
             page_idx += (1 << max_order);
         }
     }
 
-    if (memory_start == NULL) {
+    if (boot_header->mm.pfa.memory_start == NULL) {
         panic("no usable memory found");
     }
 
-    kprintf("Memory manager initialized\n", total_pages);
+    kprintf("Page frame allocator initialized\n",
+            boot_header->mm.pfa.total_pages);
 }
 
 void*
@@ -168,14 +161,15 @@ free_pages(void* ptr, size_t order)
         return;
     }
 
-    if (ptr < memory_start ||
-        ptr >= (void*)((uintptr_t)memory_start + total_pages * PAGE_SIZE)) {
+    if (ptr < boot_header->mm.pfa.memory_start ||
+        ptr >= (void*)((uintptr_t)boot_header->mm.pfa.memory_start +
+                       boot_header->mm.pfa.total_pages * PAGE_SIZE)) {
         return;
     }
 
     while (order < MAX_ORDER) {
         void* buddy = get_buddy(ptr, order);
-        void* current = free_areas[order].free_list;
+        void* current = boot_header->mm.pfa.free_areas[order].free_list;
         void* prev = NULL;
         bool found = false;
 
@@ -184,9 +178,10 @@ free_pages(void* ptr, size_t order)
                 if (prev) {
                     *(void**)prev = *(void**)current;
                 } else {
-                    free_areas[order].free_list = *(void**)current;
+                    boot_header->mm.pfa.free_areas[order].free_list =
+                        *(void**)current;
                 }
-                free_areas[order].nr_free--;
+                boot_header->mm.pfa.free_areas[order].nr_free--;
                 found = true;
                 break;
             }

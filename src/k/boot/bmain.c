@@ -25,7 +25,6 @@ bmain(void)
     idt_init();
     mm_init();
     paging_init();
-    heap_init();
 
     pci_init();
 

@@ -1,7 +1,20 @@
 #pragma once
 #include <stddef.h>
 
-void mm_init(void);
+#define MAX_ORDER 10
+
+struct free_area {
+    void* free_list;
+    size_t nr_free;
+};
+
+struct pfa {
+    struct free_area free_areas[MAX_ORDER + 1];
+    void* memory_start;
+    size_t total_pages;
+};
+
+void pfa_init(void);
 
 void* alloc_page(void);
 void free_page(void* ptr);

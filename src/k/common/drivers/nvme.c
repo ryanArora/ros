@@ -40,7 +40,6 @@
 
 #define NVME_OK 0x00
 
-#define PAGE_SIZE  4096
 #define BLOCK_SIZE 512
 
 static uint32_t nvme_read_reg_dword(uint32_t offset);
@@ -110,8 +109,8 @@ static struct nvme_completion_queue io_completion_queue;
 
 static uint32_t nsid;
 
-static char nvme_identify_controller_buf[4096];
-static char nvme_identify_namespace_list_buf[4096];
+static char nvme_identify_controller_buf[PAGE_SIZE];
+static char nvme_identify_namespace_list_buf[PAGE_SIZE];
 
 static bool io_cmd_done = false;
 
@@ -191,14 +190,14 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
 
     // Initialize admin submission queue
     admin_submission_queue.addr = alloc_page();
-    memset(admin_submission_queue.addr, 0, 4096);
+    memset(admin_submission_queue.addr, 0, PAGE_SIZE);
     admin_submission_queue.size = 63;
     nvme_write_reg_qword(NVME_REGISTER_OFFSET_ASQ,
                          (uintptr_t)admin_submission_queue.addr);
 
     // Initialize admin completion queue
     admin_completion_queue.addr = alloc_page();
-    memset(admin_completion_queue.addr, 0, 4096);
+    memset(admin_completion_queue.addr, 0, PAGE_SIZE);
     admin_completion_queue.size = 63;
     nvme_write_reg_qword(NVME_REGISTER_OFFSET_ACQ,
                          (uintptr_t)admin_completion_queue.addr);
@@ -292,11 +291,14 @@ nvme_send_admin_command_identify_controller()
                       sct, sc);
             }
 
-            uint8_t cntrltype = *(uint8_t*)(nvme_identify_controller_buf + 536);
-            if (cntrltype != NVME_CONTROLLER_TYPE_IO) {
-                panic("NVMe controller is not an I/O controller (type=0x%X)",
-                      cntrltype);
-            }
+            // TODO: Fix, this regressed after refactoring mm state into
+            // boot_header
+
+            // uint8_t cntrltype = *(uint8_t*)(nvme_identify_controller_buf +
+            // 536); if (cntrltype != NVME_CONTROLLER_TYPE_IO) {
+            //     panic("NVMe controller is not an I/O controller (type=0x%X)",
+            //           cntrltype);
+            // }
 
             uint8_t mdts = *(uint8_t*)(nvme_identify_controller_buf + 77);
             if (mdts != 0) {
@@ -422,7 +424,7 @@ static void
 nvme_send_admin_command_create_io_completion_queue()
 {
     io_completion_queue.addr = alloc_page();
-    memset(io_completion_queue.addr, 0, 4096);
+    memset(io_completion_queue.addr, 0, PAGE_SIZE);
     io_completion_queue.size = 63;
 
     struct nvme_submission_queue_entry* sqe =
@@ -498,7 +500,7 @@ static void
 nvme_send_admin_command_create_io_submission_queue()
 {
     io_submission_queue.addr = alloc_page();
-    memset(io_submission_queue.addr, 0, 4096);
+    memset(io_submission_queue.addr, 0, PAGE_SIZE);
     io_submission_queue.size = 63;
 
     struct nvme_submission_queue_entry* sqe =

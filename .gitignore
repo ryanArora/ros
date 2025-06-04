@@ -1,8 +1,8 @@
 *.o
 *.d
-src/boot/bootx64.efi
-src/boot/bootx64.so
-src/kernel/kernel
+src/k/boot/bootx64.efi
+src/k/boot/bootx64.so
+src/k/kernel/kernel
 x86_64-ros.img
 
 .cache

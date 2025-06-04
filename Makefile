@@ -1,5 +1,7 @@
 KCC := clang
 KCFLAGS := -D_GNU_SOURCE -std=gnu23 -Wall -Wextra -Werror -MMD -MP -Ilib/gnu-efi/inc -Iinclude -fpic -ffreestanding -nostdlib -nostdinc -fno-stack-protector -fno-stack-check -fshort-wchar -mno-red-zone -mgeneral-regs-only
+UCC := clang
+UCFLAGS := -D_GNU_SOURCE -std=gnu23 -Wall -Wextra -Werror -MMD -MP -fpic -ffreestanding -nostdlib -nostdinc -fno-stack-protector -fno-stack-check -fshort-wchar -mno-red-zone -mgeneral-regs-only
 AS := as
 LD := ld
 OBJCOPY := objcopy
@@ -10,9 +12,9 @@ TARGET := x86_64-ros.img
 .PHONY: all clean
 all: $(TARGET)
 
-include src/common/Makefile.inc
-include src/boot/Makefile.inc
-include src/kernel/Makefile.inc
+include src/k/common/Makefile.inc
+include src/k/boot/Makefile.inc
+include src/k/kernel/Makefile.inc
 DEPENDS := $(OBJS:.o=.d)
 
 $(TARGET): $(FS_DIR) $(BOOT_TARGET) $(KERNEL_TARGET)

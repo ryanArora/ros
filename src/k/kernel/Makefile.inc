@@ -1,19 +1,19 @@
-KERNEL_CSRCS := $(shell find src/kernel -name "*.c")
+KERNEL_CSRCS := $(shell find src/k/kernel -name "*.c")
 KERNEL_COBJS := $(KERNEL_CSRCS:.c=.o)
-KERNEL_ASSRCS := $(shell find src/kernel -name "*.S")
+KERNEL_ASSRCS := $(shell find src/k/kernel -name "*.S")
 KERNEL_ASOBJS := $(KERNEL_ASSRCS:.S=.S.o)
 KERNEL_SRCS := $(KERNEL_CSRCS) $(KERNEL_ASSRCS)
 KERNEL_OBJS := $(KERNEL_COBJS) $(KERNEL_ASOBJS)
 OBJS += $(KERNEL_OBJS)
-KERNEL_TARGET := src/kernel/kernel
+KERNEL_TARGET := src/k/kernel/kernel
 
 .SECONDEXPANSION:
 
 $(KERNEL_TARGET): $(KERNEL_OBJS) $(COMMON_OBJS)
-	$(LD) -T src/kernel/linker.lds $^ -o $@
+	$(LD) -T src/k/kernel/linker.lds $^ -o $@
 
-src/kernel/%.o: src/kernel/%.c
+src/k/kernel/%.o: src/k/kernel/%.c
 	$(KCC) $(KCFLAGS) -c $< -o $@
 
-src/kernel/%.S.o: src/kernel/%.S
+src/k/kernel/%.S.o: src/k/kernel/%.S
 	$(AS) -c $< -o $@

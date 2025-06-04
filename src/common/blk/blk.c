@@ -63,7 +63,7 @@ blk_register_device(const char* name, uint64_t starting_lba,
 static void blk_init_for_device(struct blk_device* dev);
 
 void
-blk_init()
+blk_init(void)
 {
     kprintf("Initializing the block layer...\n");
 
@@ -86,20 +86,6 @@ blk_init()
     }
 
     blk_root_device->fs->mount(blk_root_device);
-
-    // Testing
-    struct fs_stat stat;
-    blk_root_device->fs->stat(blk_root_device, "/etc/fstab", &stat);
-    kprintf("stat /etc/fstab: size=%d\n", stat.size);
-
-    char* buf =
-        kmalloc(stat.size + 1); // Allocate extra byte for null terminator
-    size_t bytes_read = blk_root_device->fs->read(blk_root_device, "/etc/fstab",
-                                                  buf, stat.size, 0);
-    buf[bytes_read] = '\0'; // Add null terminator
-    kprintf("read /etc/fstab: bytes_read=%d, buf=%s\n", bytes_read, buf);
-
-    // TODO: read /etc/fstab and mount other filesystems
 }
 
 static void

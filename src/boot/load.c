@@ -4,6 +4,8 @@
 #include <libk/string.h>
 #include <mm/pfa.h>
 #include <libk/console.h>
+#include <cpu/paging.h>
+#include <libk/math.h>
 
 #define ELF_MAGIC                                                              \
     "\x7f"                                                                     \
@@ -15,6 +17,8 @@
 #define ELF_ABI_VERSION_CURRENT    0
 #define ELF_TYPE_STATIC_EXECUTABLE 2
 #define ELF_MACHINE_X86_64         62
+
+#define PT_LOAD 1
 
 struct elf_header64 {
     uint8_t magic[4];
@@ -50,20 +54,16 @@ struct elf_program_header64 {
     uint64_t align;  // Alignment
 };
 
-void
-load_elf(const char* path)
+void (*load_elf(const char* path))(void)
 {
-    console_clear();
     struct fs_stat st;
     if (blk_root_device->fs->stat(blk_root_device, path, &st) ==
         FS_STAT_RESULT_NOT_OK) {
         panic("failed to stat %s\n");
     }
 
-    kprintf("init size: %d\n", st.size);
-
-    struct elf_header64* elf_header =
-        alloc_pages(get_order(sizeof(struct elf_header64)));
+    size_t elf_header_order = get_order(sizeof(struct elf_header64));
+    struct elf_header64* elf_header = alloc_pages(elf_header_order);
 
     size_t bytes_read = blk_root_device->fs->read(
         blk_root_device, path, elf_header, sizeof(struct elf_header64), 0);
@@ -104,13 +104,10 @@ load_elf(const char* path)
         panic("invalid ELF version2\n");
     }
 
-    kprintf("entry point: 0x%X\n", elf_header->entry);
-    kprintf("phoff: 0x%X\n", elf_header->phoff);
-    kprintf("phnum: %d\n", elf_header->phnum);
-    kprintf("phentsize: %d\n", elf_header->phentsize);
-
-    struct elf_program_header64* program_headers = alloc_pages(
-        get_order(elf_header->phnum * sizeof(struct elf_program_header64)));
+    size_t program_headers_order =
+        get_order(elf_header->phnum * sizeof(struct elf_program_header64));
+    struct elf_program_header64* program_headers =
+        alloc_pages(program_headers_order);
 
     bytes_read = blk_root_device->fs->read(
         blk_root_device, path, program_headers,
@@ -122,18 +119,31 @@ load_elf(const char* path)
         panic("failed to read program header\n");
     }
 
-    for (size_t i = 0; i < elf_header->phnum; i++) {
+    for (size_t i = 0; i < elf_header->phnum; ++i) {
         struct elf_program_header64* program_header = &program_headers[i];
-        kprintf("ph 0x%llX: type 0x%X, flags 0x%X, off 0x%llX, "
-                "vaddr 0x%llX, "
-                "paddr 0x%llX, filesz 0x%llX, memsz 0x%llX, align 0x%llX\n",
-                i, program_header->type, program_header->flags,
-                program_header->offset, program_header->vaddr,
-                program_header->paddr, program_header->filesz,
-                program_header->memsz, program_header->align);
+        if (program_header->type != PT_LOAD) continue;
+
+        assert(program_header->memsz >= program_header->filesz);
+
+        uint64_t buf_order = get_order(program_header->memsz);
+        uint64_t buf_pages = 2 << buf_order;
+        uint64_t buf_size = buf_pages * PAGE_SIZE;
+        void* buf = alloc_pages(buf_order);
+        memset(buf, 0, buf_size);
+
+        size_t buf_bytes_read = blk_root_device->fs->read(
+            blk_root_device, path, buf, program_header->filesz,
+            program_header->offset);
+
+        if (buf_bytes_read != program_header->filesz)
+            panic("failed to read PT_LOAD segment data\n");
+
+        map_pages(buf, (void*)program_header->vaddr,
+                  CEIL_DIV(program_header->memsz, PAGE_SIZE));
     }
 
-    free_pages(program_headers, get_order(elf_header->phnum *
-                                          sizeof(struct elf_program_header64)));
-    free_pages(elf_header, get_order(sizeof(struct elf_header64)));
+    void (*entry)(void) = (void (*)(void))elf_header->entry;
+    free_pages(elf_header, elf_header_order);
+    free_pages(program_headers, program_headers_order);
+    return entry;
 }

@@ -102,7 +102,7 @@ map_page(void* paddr, void* vaddr)
         init_pt_entry(pt_entry, paddr, 1, 0, 1, 1, 0);
         asm volatile("invlpg (%0)" ::"r"(vaddr) : "memory");
     } else {
-        panic("page is already mapped\n");
+        panic("page is already mapped, vaddr=0x%llX\n", vaddr);
     }
 }
 

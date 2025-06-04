@@ -8,12 +8,15 @@
 EFI_HANDLE ImageHandle;
 EFI_SYSTEM_TABLE* SystemTable;
 
-static struct boot_header _boot_header = {.MemoryMapSize = 0,
-                                          .MemoryMapDescriptorSize = 0,
-                                          .MemoryMap = NULL,
-                                          .FrameBufferBase = 0,
-                                          .FrameBufferSize = 0,
-                                          .PixelsPerScanLine = 0};
+static struct boot_header _boot_header = {
+    .MemoryMapSize = 0,
+    .MemoryMapDescriptorSize = 0,
+    .MemoryMap = NULL,
+    .FrameBufferBase = 0,
+    .FrameBufferSize = 0,
+    .PixelsPerScanLine = 0,
+    .mm = {0},
+};
 
 struct boot_header* boot_header = &_boot_header;
 

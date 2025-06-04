@@ -25,8 +25,14 @@ kmain(void)
 
     gdt_init();
     idt_init();
-    mm_init();
-    paging_init();
+
+    pci_init();
+
+    pic_init();
+    pit_init();
+    interrupts_enable();
+
+    blk_init();
 
     spin();
 }

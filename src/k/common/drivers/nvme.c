@@ -244,8 +244,7 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
 void
 nvme_deinit(void)
 {
-    kprintf("nvme_deinit: unmapping pages. nvme_base_addr=0x%lX\n",
-            nvme_base_addr);
+    kprintf("Deinitializing NVMe controller...\n");
     unmap_pages((void*)nvme_base_addr, 4);
 }
 

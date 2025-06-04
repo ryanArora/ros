@@ -1,10 +1,10 @@
-COMMON_CSRCS := $(shell find src/k/common -name "*.c")
-COMMON_COBJS := $(COMMON_CSRCS:.c=.o)
-COMMON_ASSRCS := $(shell find src/k/common -name "*.S")
-COMMON_ASOBJS := $(COMMON_ASSRCS:.S=.S.o)
-COMMON_SRCS := $(COMMON_CSRCS) $(COMMON_ASSRCS)
-COMMON_OBJS := $(COMMON_COBJS) $(COMMON_ASOBJS)
-OBJS += $(COMMON_OBJS)
+KCOMMON_CSRCS := $(shell find src/k/common -name "*.c")
+KCOMMON_COBJS := $(KCOMMON_CSRCS:.c=.o)
+KCOMMON_ASSRCS := $(shell find src/k/common -name "*.S")
+KCOMMON_ASOBJS := $(KCOMMON_ASSRCS:.S=.S.o)
+KCOMMON_SRCS := $(KCOMMON_CSRCS) $(KCOMMON_ASSRCS)
+KCOMMON_OBJS := $(KCOMMON_COBJS) $(KCOMMON_ASOBJS)
+OBJS += $(KCOMMON_OBJS)
 
 .SECONDEXPANSION:
 

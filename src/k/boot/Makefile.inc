@@ -13,7 +13,7 @@ BOOT_TARGET := src/k/boot/bootx64.efi
 $(BOOT_TARGET): $(BOOT_TARGET_LIB)
 	$(OBJCOPY) -j .text -j .sdata -j .data -j .rodata -j .dynamic -j .dynsym  -j .rel -j .rela -j .rel.* -j .rela.* -j .reloc --target efi-app-x86_64 --subsystem=10 $^ $@
 
-$(BOOT_TARGET_LIB): $(BOOT_OBJS) $(COMMON_OBJS)
+$(BOOT_TARGET_LIB): $(BOOT_OBJS) $(KCOMMON_OBJS)
 	$(LD) -shared -Bsymbolic --no-undefined -z noexecstack -Llib/gnu-efi/x86_64/lib -Llib/gnu-efi/x86_64/gnuefi -Tlib/gnu-efi/gnuefi/elf_x86_64_efi.lds lib/gnu-efi/x86_64/gnuefi/crt0-efi-x86_64.o $^ -o $@ -lgnuefi -lefi
 
 src/k/boot/%.o: src/k/boot/%.c

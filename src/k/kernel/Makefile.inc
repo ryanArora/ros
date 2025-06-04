@@ -9,7 +9,7 @@ KERNEL_TARGET := src/k/kernel/kernel
 
 .SECONDEXPANSION:
 
-$(KERNEL_TARGET): $(KERNEL_OBJS) $(COMMON_OBJS)
+$(KERNEL_TARGET): $(KERNEL_OBJS) $(KCOMMON_OBJS)
 	$(LD) -T src/k/kernel/linker.lds $^ -o $@
 
 src/k/kernel/%.o: src/k/kernel/%.c

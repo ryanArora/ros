@@ -7,6 +7,10 @@
 #include <cpu/idt.h>
 #include <drivers/pic.h>
 #include <drivers/pit.h>
+#include <load/elf.h>
+#include <drivers/pci.h>
+#include <blk/blk.h>
+#include <cpu/paging.h>
 
 struct boot_header* boot_header;
 
@@ -22,6 +26,7 @@ kmain(void)
     gdt_init();
     idt_init();
     mm_init();
+    paging_init();
 
     spin();
 }

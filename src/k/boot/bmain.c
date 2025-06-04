@@ -19,7 +19,7 @@
 bmain(void)
 {
     console_init();
-    kprintf("Starting kernel...\n");
+    kprintf("Starting bootloader...\n");
 
     gdt_init();
     idt_init();
@@ -41,6 +41,7 @@ load_kernel(void)
 {
     kprintf("Loading kernel...\n");
     void (*kmain)(void) = load_elf("/kernel");
+    interrupts_disable();
     // Handoff boot_header to kernel in rax register
     asm volatile("mov %0, %%rax" ::"r"(boot_header));
     kmain();

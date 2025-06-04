@@ -109,8 +109,9 @@ static struct nvme_completion_queue io_completion_queue;
 
 static uint32_t nsid;
 
-static char nvme_identify_controller_buf[PAGE_SIZE];
-static char nvme_identify_namespace_list_buf[PAGE_SIZE];
+[[gnu::aligned(PAGE_SIZE)]] static char nvme_identify_controller_buf[PAGE_SIZE];
+[[gnu::aligned(
+    PAGE_SIZE)]] static char nvme_identify_namespace_list_buf[PAGE_SIZE];
 
 static bool io_cmd_done = false;
 
@@ -184,8 +185,11 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
 
     // Disable the controller
     nvme_write_reg_dword(NVME_REGISTER_OFFSET_CC, 0);
-    while (nvme_read_reg_dword(NVME_REGISTER_OFFSET_CSTS) & 0x1)
-        ;
+    uint64_t timeout = 100'000'000;
+    while (nvme_read_reg_dword(NVME_REGISTER_OFFSET_CSTS) & 0x1) {
+        if (timeout == 0) panic("nvme_init: timeout");
+        timeout--;
+    }
     kprintf("NVMe controller is disabled\n");
 
     // Initialize admin submission queue
@@ -215,8 +219,11 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
     cc |= (4 << 20); // IOCQES = 4 → 2^4 = 16 bytes per CQ entry
     cc |= (1 << 0);  // EN = 1 → enable controller
     nvme_write_reg_dword(NVME_REGISTER_OFFSET_CC, cc);
-    while ((nvme_read_reg_dword(NVME_REGISTER_OFFSET_CSTS) & 0x1) == 0)
-        ;
+    timeout = 100'000'000;
+    while ((nvme_read_reg_dword(NVME_REGISTER_OFFSET_CSTS) & 0x1) == 0) {
+        if (timeout == 0) panic("nvme_init: timeout");
+        timeout--;
+    }
 
     kprintf("NVMe controller is enabled\n");
 
@@ -274,7 +281,12 @@ nvme_send_admin_command_identify_controller()
         admin_submission_queue_tail);
 
     // Poll
+    uint64_t timeout = 100'000'000;
     while (true) {
+        if (timeout == 0)
+            panic("nvme_send_admin_command_identify_controller: timeout");
+        timeout--;
+
         struct nvme_completion_queue_entry* cqe =
             &admin_completion_queue.addr[admin_completion_queue_head];
 
@@ -291,14 +303,11 @@ nvme_send_admin_command_identify_controller()
                       sct, sc);
             }
 
-            // TODO: Fix, this regressed after refactoring mm state into
-            // boot_header
-
-            // uint8_t cntrltype = *(uint8_t*)(nvme_identify_controller_buf +
-            // 536); if (cntrltype != NVME_CONTROLLER_TYPE_IO) {
-            //     panic("NVMe controller is not an I/O controller (type=0x%X)",
-            //           cntrltype);
-            // }
+            uint8_t cntrltype = *(uint8_t*)(nvme_identify_controller_buf + 536);
+            if (cntrltype != NVME_CONTROLLER_TYPE_IO) {
+                panic("NVMe controller is not an I/O controller (type=0x%X)",
+                      cntrltype);
+            }
 
             uint8_t mdts = *(uint8_t*)(nvme_identify_controller_buf + 77);
             if (mdts != 0) {
@@ -366,7 +375,12 @@ nvme_send_admin_command_identify_namespace_list()
         admin_submission_queue_tail);
 
     // Poll
+    uint64_t timeout = 100'000'000;
     while (true) {
+        if (timeout == 0)
+            panic("nvme_send_admin_command_identify_namespace_list: timeout");
+        timeout--;
+
         struct nvme_completion_queue_entry* cqe =
             &admin_completion_queue.addr[admin_completion_queue_head];
 
@@ -459,7 +473,13 @@ nvme_send_admin_command_create_io_completion_queue()
         admin_submission_queue_tail);
 
     // Poll
+    uint64_t timeout = 100'000'000;
     while (true) {
+        if (timeout == 0)
+            panic(
+                "nvme_send_admin_command_create_io_completion_queue: timeout");
+        timeout--;
+
         struct nvme_completion_queue_entry* cqe =
             &admin_completion_queue.addr[admin_completion_queue_head];
 
@@ -631,9 +651,15 @@ nvme_submit_io(uint8_t opcode, uint64_t lba, uint16_t num_blocks, void* buf)
         nvme_submission_queue_tail_doorbell(NVME_SUBMISSION_QID_IO),
         io_submission_queue_tail);
 
+    uint64_t timeout = 100'000'000;
     io_cmd_done = false;
-    while (!io_cmd_done)
-        ;
+    while (!io_cmd_done) {
+        if (timeout == 0) {
+            panic("nvme_submit_io timeout\n");
+        }
+
+        --timeout;
+    }
 }
 
 void
@@ -653,7 +679,12 @@ nvme_interrupt_handler(void* frame)
 {
     (void)frame;
 
+    uint64_t timeout = 100'000'000;
+
     while (true) {
+        if (timeout == 0) panic("nvme_interrupt_handler: timeout");
+        timeout--;
+
         struct nvme_completion_queue_entry* cqe =
             &io_completion_queue.addr[io_completion_queue_head];
 

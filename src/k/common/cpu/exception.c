@@ -130,6 +130,9 @@ exception_handler_page_fault(struct exception_frame* frame, uint64_t code)
 {
     kprintf("page fault exception (code: 0x%llX)\n", code);
     dump_exception_frame(frame);
+    void* faulting_address;
+    asm volatile("mov %%cr2, %0" : "=r"(faulting_address));
+    kprintf("faulting address: 0x%llX\n", faulting_address);
     panic();
 }
 

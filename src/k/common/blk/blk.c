@@ -6,6 +6,8 @@
 #include <libk/string.h>
 #include <cpu/paging.h>
 
+#define BLK_DEVICES_MAX 16
+
 struct gpt_partition_table_header {
     uint8_t signature[8];
     uint32_t revision;
@@ -35,7 +37,7 @@ struct gpt_partition_entry {
 };
 static struct gpt_partition_entry* gpt_partition_table_entries = NULL;
 
-static struct blk_device* blk_device_table;
+static struct blk_device blk_device_table[BLK_DEVICES_MAX];
 static size_t blk_device_table_size = 0;
 
 struct blk_device* blk_root_device = NULL;
@@ -49,6 +51,10 @@ blk_register_device(const char* name, uint64_t starting_lba,
                     void (*write)(uint64_t lba, uint16_t num_blocks, void* buf),
                     struct fs* fs)
 {
+    if (blk_device_table_size >= BLK_DEVICES_MAX) {
+        panic("blk_device_table is full\n");
+    }
+
     blk_device_table[blk_device_table_size].name = name;
     blk_device_table[blk_device_table_size].starting_lba = starting_lba;
     blk_device_table[blk_device_table_size].ending_lba = ending_lba;
@@ -92,7 +98,6 @@ blk_init(void)
 static void
 blk_init_for_device(struct blk_device* dev)
 {
-    blk_read(dev, 1, 1, &gpt_partition_table_header);
     blk_read(dev, 1, 1, &gpt_partition_table_header);
 
     if (memcmp(gpt_partition_table_header.signature, "EFI PART", 8) == 0) {

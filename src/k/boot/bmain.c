@@ -5,13 +5,13 @@
 #include <mm/slab.h>
 #include <drivers/pic.h>
 #include <drivers/pit.h>
-#include "load.h"
 #include <mm/pfa.h>
 #include <cpu/gdt.h>
 #include <cpu/idt.h>
 #include "drivers/pci.h"
 #include <blk/blk.h>
 #include <cpu/paging.h>
+#include <load/elf.h>
 
 [[noreturn]] static void load_kernel(void);
 

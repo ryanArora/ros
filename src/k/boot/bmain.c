@@ -8,7 +8,8 @@
 #include <mm/pfa.h>
 #include <cpu/gdt.h>
 #include <cpu/idt.h>
-#include "drivers/pci.h"
+#include <drivers/nvme.h>
+#include <drivers/pci.h>
 #include <blk/blk.h>
 #include <cpu/paging.h>
 #include <load/elf.h>
@@ -41,7 +42,10 @@ load_kernel(void)
 {
     kprintf("Loading kernel...\n");
     void (*kmain)(void) = load_elf("/kernel");
+
     interrupts_disable();
+    nvme_deinit();
+
     // Handoff boot_header to kernel in rax register
     asm volatile("mov %0, %%rax" ::"r"(boot_header));
     kmain();

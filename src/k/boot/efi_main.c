@@ -16,6 +16,7 @@ static struct boot_header _boot_header = {
     .FrameBufferSize = 0,
     .PixelsPerScanLine = 0,
     .mm = {0},
+    .pml4 = {0},
 };
 
 struct boot_header* boot_header = &_boot_header;

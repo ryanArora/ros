@@ -5,40 +5,6 @@
 #include <libk/string.h>
 #include <libk/math.h>
 
-#define PML4_ENTRIES 512
-#define PDPT_ENTRIES 512
-#define PD_ENTRIES   512
-#define PT_ENTRIES   512
-
-struct [[gnu::packed]] pt_entry {
-    uint64_t present : 1;
-    uint64_t read_write : 1;
-    uint64_t user_supervisor : 1;
-    uint64_t page_write_through : 1;
-    uint64_t page_cache_disabled : 1;
-    uint64_t accessed : 1;
-    uint64_t available_1 : 1;
-    uint64_t zero_1 : 1;
-    uint64_t available_2 : 4;
-    uint64_t address : 40;
-    uint64_t available_3 : 11;
-    uint64_t execute_disable : 1;
-};
-
-union [[gnu::packed]] vaddr {
-    uint64_t raw;
-    struct {
-        uint64_t offset : 12;
-        uint64_t pt_index : 9;
-        uint64_t pd_index : 9;
-        uint64_t pdpt_index : 9;
-        uint64_t pml4_index : 9;
-        uint64_t sign_extension : 16;
-    };
-};
-
-[[gnu::aligned(PAGE_SIZE)]] static struct pt_entry pml4[PML4_ENTRIES] = {0};
-
 void
 init_pt_entry(struct pt_entry* pt, void* paddr, bool read_write,
               bool user_supervisor, bool page_write_through,
@@ -69,7 +35,7 @@ map_page(void* paddr, void* vaddr)
 
     union vaddr v = {.raw = (uintptr_t)vaddr};
 
-    struct pt_entry* pml4_entry = &pml4[v.pml4_index];
+    struct pt_entry* pml4_entry = &boot_header->pml4[v.pml4_index];
     if (!pml4_entry->present) {
         void* pml4_page = alloc_page();
         memset(pml4_page, 0, PAGE_SIZE);
@@ -113,22 +79,25 @@ unmap_page(void* vaddr)
 
     union vaddr v = {.raw = (uintptr_t)vaddr};
 
-    struct pt_entry* pml4_entry = &pml4[v.pml4_index];
+    struct pt_entry* pml4_entry = &boot_header->pml4[v.pml4_index];
     if (!pml4_entry->present)
         panic("page is already unmapped because pml4_entry is not present\n");
 
-    struct pt_entry* pdpt_entry =
+    struct pt_entry* pdpt =
         (void*)(uintptr_t)(pml4_entry->address << PAGE_SIZE_BITS);
+    struct pt_entry* pdpt_entry = &pdpt[v.pdpt_index];
     if (!pdpt_entry->present)
         panic("page is already unmapped because pdpt_entry is not present\n");
 
-    struct pt_entry* pd_entry =
+    struct pt_entry* pd =
         (void*)(uintptr_t)(pdpt_entry->address << PAGE_SIZE_BITS);
+    struct pt_entry* pd_entry = &pd[v.pd_index];
     if (!pd_entry->present)
         panic("page is already unmapped because pd_entry is not present\n");
 
-    struct pt_entry* pt_entry =
+    struct pt_entry* pt =
         (void*)(uintptr_t)(pd_entry->address << PAGE_SIZE_BITS);
+    struct pt_entry* pt_entry = &pt[v.pt_index];
     if (!pt_entry->present)
         panic("page is already unmapped because pt_entry is not present\n");
 
@@ -156,20 +125,31 @@ vaddr_to_paddr(void* vaddr)
 {
     union vaddr v = {.raw = (uintptr_t)vaddr};
 
-    struct pt_entry* pml4_entry = &pml4[v.pml4_index];
-    if (!pml4_entry->present) panic("pml4_entry is not present\n");
+    struct pt_entry* pml4_entry = &boot_header->pml4[v.pml4_index];
+    if (!pml4_entry->present) {
+        panic("pml4_entry is not present\n");
+    }
 
-    struct pt_entry* pdpt_entry =
+    struct pt_entry* pdpt =
         (void*)(uintptr_t)(pml4_entry->address << PAGE_SIZE_BITS);
-    if (!pdpt_entry->present) panic("pdpt_entry is not present\n");
+    struct pt_entry* pdpt_entry = &pdpt[v.pdpt_index];
+    if (!pdpt_entry->present) {
+        panic("pdpt_entry is not present\n");
+    }
 
-    struct pt_entry* pd_entry =
+    struct pt_entry* pd =
         (void*)(uintptr_t)(pdpt_entry->address << PAGE_SIZE_BITS);
-    if (!pd_entry->present) panic("pd_entry is not present\n");
+    struct pt_entry* pd_entry = &pd[v.pd_index];
+    if (!pd_entry->present) {
+        panic("pd_entry is not present\n");
+    }
 
-    struct pt_entry* pt_entry =
+    struct pt_entry* pt =
         (void*)(uintptr_t)(pd_entry->address << PAGE_SIZE_BITS);
-    if (!pt_entry->present) panic("pt_entry is not present\n");
+    struct pt_entry* pt_entry = &pt[v.pt_index];
+    if (!pt_entry->present) {
+        panic("pt_entry is not present\n");
+    }
 
     uintptr_t paddr =
         ((uintptr_t)(pt_entry->address << PAGE_SIZE_BITS)) | v.offset;
@@ -180,6 +160,8 @@ void
 paging_init(void)
 {
     kprintf("Identity mapping pages...\n");
+
+    memset(boot_header->pml4, 0, sizeof(boot_header->pml4));
 
     for (UINTN i = 0;
          i < boot_header->MemoryMapSize / boot_header->MemoryMapDescriptorSize;
@@ -203,5 +185,7 @@ paging_init(void)
               PAGE_ALIGN_DOWN(boot_header->FrameBufferBase),
               CEIL_DIV(boot_header->FrameBufferSize, PAGE_SIZE));
 
-    asm volatile("mov %0, %%cr3" ::"r"(pml4) : "memory");
+    unmap_page(NULL);
+
+    asm volatile("mov %0, %%cr3" ::"r"(boot_header->pml4) : "memory");
 }

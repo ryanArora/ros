@@ -46,14 +46,7 @@ paging_init(void)
     }
 
     size_t fb_num_pages = CEIL_DIV(boot_header->fb_size, PAGE_SIZE);
-
-    kprintf("fb_paddr: 0x%llX\n", boot_header->fb_paddr);
-    kprintf("fb_vaddr: 0x%llX\n", boot_header->fb_vaddr);
-    kprintf("fb_num_pages: %d\n", fb_num_pages);
     map_pages(boot_header->fb_paddr, boot_header->fb_vaddr, fb_num_pages);
-
-    kprintf("pml4: 0x%llX\n", pml4_vaddr);
-    kprintf("pml4: 0x%llX\n", vaddr_to_paddr(pml4_vaddr));
 
     for (size_t i = 0; i < boot_header->you_num_entries; ++i) {
         struct you_entry* entry = &boot_header->you[i];

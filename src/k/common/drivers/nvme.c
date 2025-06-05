@@ -1,7 +1,7 @@
 #include <drivers/nvme.h>
 #include <libk/io.h>
 #include <drivers/pci.h>
-#include <mm/pfa.h>
+#include <mm/mm.h>
 #include <cpu/idt.h>
 #include <libk/string.h>
 #include <libk/math.h>
@@ -75,7 +75,7 @@ struct nvme_submission_queue_entry {
 };
 
 struct nvme_submission_queue {
-    struct nvme_submission_queue_entry* addr;
+    struct nvme_submission_queue_entry* vaddr;
     size_t size;
 };
 
@@ -90,11 +90,11 @@ struct nvme_completion_queue_entry {
 };
 
 struct nvme_completion_queue {
-    struct nvme_completion_queue_entry* addr;
+    struct nvme_completion_queue_entry* vaddr;
     size_t size;
 };
 
-static uint64_t nvme_base_addr;
+static uint64_t nvme_base_vaddr;
 static uint64_t nvme_doorbell_stride;
 
 struct nvme_submission_queue admin_submission_queue;
@@ -109,17 +109,13 @@ static struct nvme_completion_queue io_completion_queue;
 
 static uint32_t nsid;
 
-[[gnu::aligned(PAGE_SIZE)]] static char nvme_identify_controller_buf[PAGE_SIZE];
-[[gnu::aligned(
-    PAGE_SIZE)]] static char nvme_identify_namespace_list_buf[PAGE_SIZE];
-
 static bool io_cmd_done = false;
 
 static uint16_t io_submission_queue_tail = 0;
 static uint16_t io_completion_queue_head = 0;
 static uint8_t io_completion_queue_phase = 1;
 
-uint32_t nvme_max_transfer_size_pages = 0;
+uint32_t nvme_max_transfer_size_pages = 1024;
 
 void
 nvme_init(uint8_t bus, uint8_t device, uint8_t function)
@@ -138,10 +134,11 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
     // registers
     uint32_t bar0 = pci_config_get_bar0(bus, device, function);
     uint32_t bar1 = pci_config_get_bar1(bus, device, function);
-    nvme_base_addr = ((uint64_t)bar1 << 32) | (bar0 & ~0xF);
 
-    assert(nvme_base_addr % PAGE_SIZE == 0);
-    map_pages((void*)nvme_base_addr, (void*)nvme_base_addr, 4);
+    uint64_t nvme_base_paddr = ((uint64_t)bar1 << 32) | (bar0 & ~0xF);
+    assert(PAGE_ALIGNED(nvme_base_paddr));
+    nvme_base_vaddr = (uintptr_t)paddr_to_vaddr((void*)nvme_base_paddr);
+    map_pages((void*)nvme_base_paddr, (void*)nvme_base_vaddr, 4);
 
     // Check the controller version is supported.
     uint32_t nvme_version = nvme_read_reg_dword(NVME_REGISTER_OFFSET_VS);
@@ -193,18 +190,18 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
     kprintf("NVMe controller is disabled\n");
 
     // Initialize admin submission queue
-    admin_submission_queue.addr = alloc_page();
-    memset(admin_submission_queue.addr, 0, PAGE_SIZE);
+    admin_submission_queue.vaddr = alloc_pagez(1);
     admin_submission_queue.size = 63;
-    nvme_write_reg_qword(NVME_REGISTER_OFFSET_ASQ,
-                         (uintptr_t)admin_submission_queue.addr);
+    nvme_write_reg_qword(
+        NVME_REGISTER_OFFSET_ASQ,
+        (uintptr_t)vaddr_to_paddr(admin_submission_queue.vaddr));
 
     // Initialize admin completion queue
-    admin_completion_queue.addr = alloc_page();
-    memset(admin_completion_queue.addr, 0, PAGE_SIZE);
+    admin_completion_queue.vaddr = alloc_pagez(1);
     admin_completion_queue.size = 63;
-    nvme_write_reg_qword(NVME_REGISTER_OFFSET_ACQ,
-                         (uintptr_t)admin_completion_queue.addr);
+    nvme_write_reg_qword(
+        NVME_REGISTER_OFFSET_ACQ,
+        (uintptr_t)vaddr_to_paddr(admin_completion_queue.vaddr));
 
     // Set AQA sizes
     nvme_write_reg_dword(NVME_REGISTER_OFFSET_AQA,
@@ -245,14 +242,16 @@ void
 nvme_deinit(void)
 {
     kprintf("Deinitializing NVMe controller...\n");
-    unmap_pages((void*)nvme_base_addr, 4);
+    unmap_pages((void*)nvme_base_vaddr, 4);
 }
 
 static void
 nvme_send_admin_command_identify_controller()
 {
+    char* nvme_identify_controller_buf = alloc_pagez(1);
+
     struct nvme_submission_queue_entry* sqe =
-        &admin_submission_queue.addr[admin_submission_queue_tail];
+        &admin_submission_queue.vaddr[admin_submission_queue_tail];
 
     // Zero the submission queue entry
     memset(sqe, 0, sizeof(struct nvme_submission_queue_entry));
@@ -278,10 +277,6 @@ nvme_send_admin_command_identify_controller()
     admin_submission_queue_tail =
         (admin_submission_queue_tail + 1) % admin_submission_queue.size;
 
-    // Zero the identify data buffer
-    memset(nvme_identify_controller_buf, 0,
-           sizeof(nvme_identify_controller_buf));
-
     // Ring doorbell
     nvme_write_reg_dword(
         nvme_submission_queue_tail_doorbell(NVME_SUBMISSION_QID_ADMIN),
@@ -295,7 +290,7 @@ nvme_send_admin_command_identify_controller()
         timeout--;
 
         struct nvme_completion_queue_entry* cqe =
-            &admin_completion_queue.addr[admin_completion_queue_head];
+            &admin_completion_queue.vaddr[admin_completion_queue_head];
 
         if (cqe->phase != admin_completion_queue_phase) continue;
 
@@ -345,8 +340,10 @@ nvme_send_admin_command_identify_controller()
 static void
 nvme_send_admin_command_identify_namespace_list()
 {
+    char* nvme_identify_namespace_list_buf = alloc_pagez(1);
+
     struct nvme_submission_queue_entry* sqe =
-        &admin_submission_queue.addr[admin_submission_queue_tail];
+        &admin_submission_queue.vaddr[admin_submission_queue_tail];
 
     // Zero the submission queue entry
     memset(sqe, 0, sizeof(struct nvme_submission_queue_entry));
@@ -373,10 +370,6 @@ nvme_send_admin_command_identify_namespace_list()
     admin_submission_queue_tail =
         (admin_submission_queue_tail + 1) % admin_submission_queue.size;
 
-    // Zero the identify data buffer
-    memset(nvme_identify_namespace_list_buf, 0,
-           sizeof(nvme_identify_namespace_list_buf));
-
     // Ring doorbell
     nvme_write_reg_dword(
         nvme_submission_queue_tail_doorbell(NVME_SUBMISSION_QID_ADMIN),
@@ -390,7 +383,7 @@ nvme_send_admin_command_identify_namespace_list()
         timeout--;
 
         struct nvme_completion_queue_entry* cqe =
-            &admin_completion_queue.addr[admin_completion_queue_head];
+            &admin_completion_queue.vaddr[admin_completion_queue_head];
 
         if (cqe->phase != admin_completion_queue_phase) continue;
 
@@ -445,12 +438,11 @@ nvme_send_admin_command_identify_namespace_list()
 static void
 nvme_send_admin_command_create_io_completion_queue()
 {
-    io_completion_queue.addr = alloc_page();
-    memset(io_completion_queue.addr, 0, PAGE_SIZE);
+    io_completion_queue.vaddr = alloc_pagez(1);
     io_completion_queue.size = 63;
 
     struct nvme_submission_queue_entry* sqe =
-        &admin_submission_queue.addr[admin_submission_queue_tail];
+        &admin_submission_queue.vaddr[admin_submission_queue_tail];
 
     // Zero the submission queue entry
     memset(sqe, 0, sizeof(struct nvme_submission_queue_entry));
@@ -462,7 +454,7 @@ nvme_send_admin_command_create_io_completion_queue()
         NVME_COMMAND_IDENTIFIER_CREATE_IO_COMPLETION_QUEUE;
     sqe->nsid = 0;
     sqe->metadata_ptr = 0;
-    sqe->data_ptr[0] = (uintptr_t)vaddr_to_paddr(io_completion_queue.addr);
+    sqe->data_ptr[0] = (uintptr_t)vaddr_to_paddr(io_completion_queue.vaddr);
     sqe->data_ptr[1] = 0;
     sqe->command_specific[0] = 1 | (io_completion_queue.size << 16);
     sqe->command_specific[1] = (1 << 1) | 1;
@@ -489,7 +481,7 @@ nvme_send_admin_command_create_io_completion_queue()
         timeout--;
 
         struct nvme_completion_queue_entry* cqe =
-            &admin_completion_queue.addr[admin_completion_queue_head];
+            &admin_completion_queue.vaddr[admin_completion_queue_head];
 
         if (cqe->phase != admin_completion_queue_phase) continue;
 
@@ -527,12 +519,11 @@ nvme_send_admin_command_create_io_completion_queue()
 static void
 nvme_send_admin_command_create_io_submission_queue()
 {
-    io_submission_queue.addr = alloc_page();
-    memset(io_submission_queue.addr, 0, PAGE_SIZE);
+    io_submission_queue.vaddr = alloc_pagez(1);
     io_submission_queue.size = 63;
 
     struct nvme_submission_queue_entry* sqe =
-        &admin_submission_queue.addr[admin_submission_queue_tail];
+        &admin_submission_queue.vaddr[admin_submission_queue_tail];
 
     // Zero the submission queue entry
     memset(sqe, 0, sizeof(struct nvme_submission_queue_entry));
@@ -545,7 +536,7 @@ nvme_send_admin_command_create_io_submission_queue()
         NVME_COMMAND_IDENTIFIER_CREATE_IO_SUBMISSION_QUEUE;
     sqe->nsid = 0;
     sqe->metadata_ptr = 0;
-    sqe->data_ptr[0] = (uintptr_t)vaddr_to_paddr(io_submission_queue.addr);
+    sqe->data_ptr[0] = (uintptr_t)vaddr_to_paddr(io_submission_queue.vaddr);
     sqe->data_ptr[1] = 0;
     sqe->command_specific[0] = 1 | (io_submission_queue.size << 16);
     sqe->command_specific[1] = 1 | (1 << 16);
@@ -566,7 +557,7 @@ nvme_send_admin_command_create_io_submission_queue()
     // Poll
     while (true) {
         struct nvme_completion_queue_entry* cqe =
-            &admin_completion_queue.addr[admin_completion_queue_head];
+            &admin_completion_queue.vaddr[admin_completion_queue_head];
 
         if (cqe->phase != admin_completion_queue_phase) continue;
 
@@ -616,7 +607,7 @@ nvme_submit_io(uint8_t opcode, uint64_t lba, uint16_t num_blocks, void* buf)
               num_pages, nvme_max_transfer_size_pages);
 
     struct nvme_submission_queue_entry* sqe =
-        &io_submission_queue.addr[io_submission_queue_tail];
+        &io_submission_queue.vaddr[io_submission_queue_tail];
 
     memset(sqe, 0, sizeof *sqe);
 
@@ -636,7 +627,7 @@ nvme_submit_io(uint8_t opcode, uint64_t lba, uint16_t num_blocks, void* buf)
         uintptr_t second_prp = (uintptr_t)vaddr_to_paddr(buf) + PAGE_SIZE;
         sqe->data_ptr[1] = second_prp;
     } else {
-        uint64_t* prp_list = (uint64_t*)alloc_page();
+        uint64_t* prp_list = (uint64_t*)alloc_pagez(1);
 
         int pages_needed = (total_bytes + PAGE_SIZE - 1) / PAGE_SIZE;
         for (int i = 1; i < pages_needed; ++i) {
@@ -696,7 +687,7 @@ nvme_interrupt_handler(void* frame)
         timeout--;
 
         struct nvme_completion_queue_entry* cqe =
-            &io_completion_queue.addr[io_completion_queue_head];
+            &io_completion_queue.vaddr[io_completion_queue_head];
 
         if (cqe->phase != io_completion_queue_phase) break;
 
@@ -734,28 +725,32 @@ nvme_interrupt_handler(void* frame)
 static uint32_t
 nvme_read_reg_dword(uint32_t offset)
 {
-    volatile uint32_t* nvme_reg = (volatile uint32_t*)(nvme_base_addr + offset);
+    volatile uint32_t* nvme_reg =
+        (volatile uint32_t*)(nvme_base_vaddr + offset);
     return *nvme_reg;
 }
 
 static void
 nvme_write_reg_dword(uint32_t offset, uint32_t value)
 {
-    volatile uint32_t* nvme_reg = (volatile uint32_t*)(nvme_base_addr + offset);
+    volatile uint32_t* nvme_reg =
+        (volatile uint32_t*)(nvme_base_vaddr + offset);
     *nvme_reg = value;
 }
 
 static int64_t
 nvme_read_reg_qword(uint32_t offset)
 {
-    volatile uint64_t* nvme_reg = (volatile uint64_t*)(nvme_base_addr + offset);
+    volatile uint64_t* nvme_reg =
+        (volatile uint64_t*)(nvme_base_vaddr + offset);
     return *nvme_reg;
 }
 
 static void
 nvme_write_reg_qword(uint32_t offset, uint64_t value)
 {
-    volatile uint64_t* nvme_reg = (volatile uint64_t*)(nvme_base_addr + offset);
+    volatile uint64_t* nvme_reg =
+        (volatile uint64_t*)(nvme_base_vaddr + offset);
     *nvme_reg = value;
 }
 

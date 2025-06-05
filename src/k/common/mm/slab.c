@@ -3,97 +3,52 @@
 #include <libk/io.h>
 #include <libk/string.h>
 #include <stdint.h>
-#include <mm/pfa.h>
+#include <mm/mm.h>
 #include <limits.h>
 #include <boot/header.h>
 #include <cpu/paging.h>
+#include <mm/pfa.h>
+#include <libk/math.h>
+
+// Forward declarations
+static struct slab_header* slab_create(size_t object_size);
+static size_t slab_get_cache_index(size_t size);
 
 void
-slab_init(void)
+slab_init(struct slab_state* state)
 {
     size_t current_size = SLAB_MIN_SIZE;
 
     for (int i = 0; i < SLAB_SIZE_CLASSES; ++i) {
-        boot_header->mm.slab.slab_caches[i].size = current_size;
-        boot_header->mm.slab.slab_caches[i].slabs = NULL;
+        state->slab_caches[i].size = current_size;
+        state->slab_caches[i].slabs = NULL;
         current_size *= 2;
     }
-
-    kprintf("Heap initialized\n");
-}
-
-static struct slab_header*
-create_slab(size_t object_size)
-{
-    size_t total_size =
-        sizeof(struct slab_header) + (object_size * SLAB_MAX_OBJECTS);
-    size_t order = get_order(total_size);
-
-    struct slab_header* slab = alloc_pages(order);
-    slab->magic = SLAB_MAGIC;
-    slab->object_size = object_size;
-    slab->capacity = SLAB_MAX_OBJECTS;
-    slab->used = 0;
-    slab->next = NULL;
-    slab->prev = NULL;
-
-    char* data = (char*)(slab + 1);
-    slab->free_list = data;
-
-    for (size_t i = 0; i < SLAB_MAX_OBJECTS - 1; ++i) {
-        void** obj = (void**)(data + (i * object_size));
-        *obj = data + ((i + 1) * object_size);
-    }
-
-    void** last_obj = (void**)(data + ((SLAB_MAX_OBJECTS - 1) * object_size));
-    *last_obj = NULL;
-
-    return slab;
-}
-
-static size_t
-get_cache_index(size_t size)
-{
-    size_t current_size = SLAB_MIN_SIZE;
-
-    for (size_t i = 0; i < SLAB_SIZE_CLASSES; i++) {
-        if (size <= current_size) {
-            return i;
-        }
-        current_size *= 2;
-    }
-
-    return SIZE_MAX;
 }
 
 void*
-kmalloc(size_t size)
+slab_kmalloc(struct slab_state* state, size_t size)
 {
-    if (size == 0) {
-        return NULL;
-    }
+    if (size == 0) panic("size must not be 0");
 
     if (size < sizeof(void*)) {
         size = sizeof(void*);
     }
 
-    size_t cache_index = get_cache_index(size);
+    size_t cache_index = slab_get_cache_index(size);
 
     if (cache_index == SIZE_MAX) {
         size_t total_size = size + sizeof(size_t);
-        size_t order = get_order(total_size);
+        size_t total_num_pages = CEIL_DIV(total_size, PAGE_SIZE);
+        void* ptr = alloc_pagez(total_num_pages);
+        if (!ptr) panic("out of memory");
 
-        void* ptr = alloc_pages(order);
-        if (!ptr) {
-            return NULL;
-        }
-
-        *(size_t*)ptr = order;
+        *(size_t*)ptr = total_num_pages;
 
         return (void*)((char*)ptr + sizeof(size_t));
     }
 
-    struct slab_cache* cache = &boot_header->mm.slab.slab_caches[cache_index];
+    struct slab_cache* cache = &state->slab_caches[cache_index];
     struct slab_header* slab = cache->slabs;
 
     while (slab && slab->used >= slab->capacity) {
@@ -101,10 +56,8 @@ kmalloc(size_t size)
     }
 
     if (!slab) {
-        slab = create_slab(cache->size);
-        if (!slab) {
-            return NULL;
-        }
+        slab = slab_create(cache->size);
+        if (!slab) panic("out of memory");
 
         if (cache->slabs) {
             cache->slabs->prev = slab;
@@ -122,18 +75,14 @@ kmalloc(size_t size)
 }
 
 void
-kfree(void* ptr)
+slab_kfree(struct slab_state* state, void* ptr)
 {
-    if (!ptr) return;
+    if (!ptr) panic("ptr must not be NULL");
 
     uintptr_t page_addr = (uintptr_t)ptr & ~(PAGE_SIZE - 1);
     if (page_addr != (uintptr_t)ptr - sizeof(size_t)) {
         struct slab_header* slab = (struct slab_header*)(page_addr);
-
-        if (slab->magic != SLAB_MAGIC) {
-            panic("invalid slab magic number");
-            return;
-        }
+        if (slab->magic != SLAB_MAGIC) panic("invalid slab magic number");
 
         *(void**)ptr = slab->free_list;
         slab->free_list = ptr;
@@ -144,8 +93,8 @@ kfree(void* ptr)
                 slab->prev->next = slab->next;
             } else {
                 for (int i = 0; i < SLAB_SIZE_CLASSES; ++i) {
-                    if (boot_header->mm.slab.slab_caches[i].slabs == slab) {
-                        boot_header->mm.slab.slab_caches[i].slabs = slab->next;
+                    if (state->slab_caches[i].slabs == slab) {
+                        state->slab_caches[i].slabs = slab->next;
                         break;
                     }
                 }
@@ -157,12 +106,54 @@ kfree(void* ptr)
 
             size_t total_size = sizeof(struct slab_header) +
                                 (slab->object_size * SLAB_MAX_OBJECTS);
-            size_t order = get_order(total_size);
-            free_pages(slab, order);
+            size_t total_num_pages = CEIL_DIV(total_size, PAGE_SIZE);
+            free_pages(slab, total_num_pages);
         }
     } else {
         void* page_ptr = (void*)(page_addr);
-        size_t order = *(size_t*)page_ptr;
-        free_pages(page_ptr, order);
+        size_t total_num_pages = *(size_t*)page_ptr;
+        free_pages(page_ptr, total_num_pages);
     }
+}
+
+static struct slab_header*
+slab_create(size_t size)
+{
+    size_t total_size = sizeof(struct slab_header) + (size * SLAB_MAX_OBJECTS);
+    size_t total_num_pages = CEIL_DIV(total_size, PAGE_SIZE);
+    struct slab_header* slab = alloc_pagez(total_num_pages);
+    slab->magic = SLAB_MAGIC;
+    slab->object_size = size;
+    slab->capacity = SLAB_MAX_OBJECTS;
+    slab->used = 0;
+    slab->next = NULL;
+    slab->prev = NULL;
+
+    char* data = (char*)(slab + 1);
+    slab->free_list = data;
+
+    for (size_t i = 0; i < SLAB_MAX_OBJECTS - 1; ++i) {
+        void** obj = (void**)(data + (i * size));
+        *obj = data + ((i + 1) * size);
+    }
+
+    void** last_obj = (void**)(data + ((SLAB_MAX_OBJECTS - 1) * size));
+    *last_obj = NULL;
+
+    return slab;
+}
+
+static size_t
+slab_get_cache_index(size_t size)
+{
+    size_t current_size = SLAB_MIN_SIZE;
+
+    for (size_t i = 0; i < SLAB_SIZE_CLASSES; i++) {
+        if (size <= current_size) {
+            return i;
+        }
+        current_size *= 2;
+    }
+
+    return SIZE_MAX;
 }

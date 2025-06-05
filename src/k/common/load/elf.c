@@ -2,10 +2,12 @@
 #include "fs/fs.h"
 #include <libk/io.h>
 #include <libk/string.h>
-#include <mm/pfa.h>
+#include <mm/mm.h>
 #include <libk/console.h>
 #include <cpu/paging.h>
 #include <libk/math.h>
+#include <boot/header.h>
+#include <drivers/nvme.h>
 
 #define ELF_MAGIC                                                              \
     "\x7f"                                                                     \
@@ -54,16 +56,20 @@ struct elf_program_header64 {
     uint64_t align;  // Alignment
 };
 
-void (*load_elf(const char* path))(void)
+[[noreturn]] void
+load_kernel(const char* path)
 {
+    kprintf("Loading kernel...\n");
+
     struct fs_stat st;
     if (blk_root_device->fs->stat(blk_root_device, path, &st) ==
         FS_STAT_RESULT_NOT_OK) {
         panic("failed to stat %s\n");
     }
 
-    size_t elf_header_order = get_order(sizeof(struct elf_header64));
-    struct elf_header64* elf_header = alloc_pages(elf_header_order);
+    size_t elf_header_num_pages =
+        CEIL_DIV(sizeof(struct elf_header64), PAGE_SIZE);
+    struct elf_header64* elf_header = alloc_pagez(elf_header_num_pages);
 
     size_t bytes_read = blk_root_device->fs->read(
         blk_root_device, path, elf_header, sizeof(struct elf_header64), 0);
@@ -104,10 +110,10 @@ void (*load_elf(const char* path))(void)
         panic("invalid ELF version2\n");
     }
 
-    size_t program_headers_order =
-        get_order(elf_header->phnum * sizeof(struct elf_program_header64));
+    size_t program_headers_num_pages = CEIL_DIV(
+        elf_header->phnum * sizeof(struct elf_program_header64), PAGE_SIZE);
     struct elf_program_header64* program_headers =
-        alloc_pages(program_headers_order);
+        alloc_pagez(program_headers_num_pages);
 
     bytes_read = blk_root_device->fs->read(
         blk_root_device, path, program_headers,
@@ -115,7 +121,7 @@ void (*load_elf(const char* path))(void)
         elf_header->phoff);
 
     if (bytes_read != elf_header->phnum * sizeof(struct elf_program_header64)) {
-        free_pages(elf_header, get_order(st.size));
+        free_pages(elf_header, elf_header_num_pages);
         panic("failed to read program header\n");
     }
 
@@ -125,11 +131,8 @@ void (*load_elf(const char* path))(void)
 
         assert(program_header->memsz >= program_header->filesz);
 
-        uint64_t buf_order = get_order(program_header->memsz);
-        uint64_t buf_pages = 2 << buf_order;
-        uint64_t buf_size = buf_pages * PAGE_SIZE;
-        void* buf = alloc_pages(buf_order);
-        memset(buf, 0, buf_size);
+        size_t buf_num_pages = CEIL_DIV(program_header->memsz, PAGE_SIZE);
+        void* buf = alloc_pagez(buf_num_pages);
 
         size_t buf_bytes_read = blk_root_device->fs->read(
             blk_root_device, path, buf, program_header->filesz,
@@ -138,12 +141,35 @@ void (*load_elf(const char* path))(void)
         if (buf_bytes_read != program_header->filesz)
             panic("failed to read PT_LOAD segment data\n");
 
-        map_pages(buf, (void*)program_header->vaddr,
-                  CEIL_DIV(program_header->memsz, PAGE_SIZE));
+        map_pages(buf, (void*)program_header->vaddr, buf_num_pages);
+
+        // The kernel needs to know where it is to map its code.
+        if (boot_header->you_num_entries >= YOU_ENTRIES_MAX)
+            panic("too many you entries\n");
+        boot_header->you[boot_header->you_num_entries].vaddr =
+            program_header->vaddr;
+        boot_header->you[boot_header->you_num_entries].paddr = (uintptr_t)buf;
+        boot_header->you[boot_header->you_num_entries].num_pages =
+            buf_num_pages;
+        ++boot_header->you_num_entries;
     }
 
-    void (*entry)(void) = (void (*)(void))elf_header->entry;
-    free_pages(elf_header, elf_header_order);
-    free_pages(program_headers, program_headers_order);
-    return entry;
+    free_pages(elf_header, elf_header_num_pages);
+    free_pages(program_headers, program_headers_num_pages);
+
+    void* stack_paddr = alloc_pagez(16);
+    void* stack_vaddr = PHYSMAP_BASE + stack_paddr;
+
+    interrupts_disable();
+    nvme_deinit();
+    // Handoff boot_header to kernel in rax register
+    asm volatile("mov %0, %%rax\n"
+                 "mov %1, %%rsp\n"
+                 "mov %%rsp, %%rbp\n"
+                 "call *%2"
+                 :
+                 : "r"(PHYSMAP_BASE + (uintptr_t)boot_header), "r"(stack_vaddr),
+                   "r"(elf_header->entry)
+                 : "memory");
+    panic("why are you here?\n");
 }

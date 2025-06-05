@@ -1,9 +1,8 @@
 #include <blk/blk.h>
 #include <libk/io.h>
 #include <libk/math.h>
-#include <mm/pfa.h>
-#include <mm/slab.h>
 #include <libk/string.h>
+#include <mm/mm.h>
 #include <cpu/paging.h>
 
 #define BLK_DEVICES_MAX 16
@@ -24,8 +23,6 @@ struct gpt_partition_table_header {
     uint32_t size_of_partition_entry;
     uint32_t partition_entry_array_crc32;
 };
-static struct gpt_partition_table_header gpt_partition_table_header
-    __attribute__((aligned(PAGE_SIZE)));
 
 struct gpt_partition_entry {
     uint8_t partition_type_guid[16];
@@ -98,28 +95,35 @@ blk_init(void)
 static void
 blk_init_for_device(struct blk_device* dev)
 {
-    blk_read(dev, 1, 1, &gpt_partition_table_header);
+    struct gpt_partition_table_header* gpt_partition_table_header =
+        alloc_pagez(1);
+    blk_read(dev, 1, 1, gpt_partition_table_header);
 
-    if (memcmp(gpt_partition_table_header.signature, "EFI PART", 8) == 0) {
+    if (memcmp(gpt_partition_table_header->signature, "EFI PART", 8) == 0) {
         kprintf("GPT signature is valid\n");
     } else {
         panic("GPT signature is invalid\n");
     }
 
-    gpt_partition_table_entries = alloc_pages(
-        get_order(sizeof(struct gpt_partition_entry) *
-                  gpt_partition_table_header.number_of_partition_entries));
+    size_t gpt_partition_table_entries_size =
+        sizeof(struct gpt_partition_entry) *
+        gpt_partition_table_header->number_of_partition_entries;
 
-    // Load the partition entries from disk into memory
-    size_t num_blocks =
-        CEIL_DIV(gpt_partition_table_header.number_of_partition_entries *
-                     sizeof(struct gpt_partition_entry),
-                 512);
-    blk_read(dev, gpt_partition_table_header.partition_entry_lba, num_blocks,
+    size_t gpt_partition_table_entries_num_pages =
+        CEIL_DIV(gpt_partition_table_entries_size, PAGE_SIZE);
+
+    size_t gpt_partition_table_entries_num_blocks =
+        CEIL_DIV(gpt_partition_table_entries_size, BLOCK_SIZE);
+
+    gpt_partition_table_entries =
+        alloc_pagez(gpt_partition_table_entries_num_pages);
+
+    blk_read(dev, gpt_partition_table_header->partition_entry_lba,
+             gpt_partition_table_entries_num_blocks,
              gpt_partition_table_entries);
 
     for (size_t i = 0;
-         i < gpt_partition_table_header.number_of_partition_entries; ++i) {
+         i < gpt_partition_table_header->number_of_partition_entries; ++i) {
         struct gpt_partition_entry* entry = &gpt_partition_table_entries[i];
 
         if (memcmp(entry->partition_type_guid,
@@ -167,7 +171,7 @@ blk_read(struct blk_device* dev, uint64_t lba, uint16_t num_blocks, void* buf)
         panic("buf is NULL\n");
     }
 
-    if ((uintptr_t)buf % PAGE_SIZE != 0) {
+    if (!PAGE_ALIGNED(buf)) {
         panic("buf is not page aligned\n");
     }
 
@@ -187,7 +191,7 @@ blk_write(struct blk_device* dev, uint64_t lba, uint16_t num_blocks, void* buf)
         panic("buf is NULL\n");
     }
 
-    if ((uintptr_t)buf % PAGE_SIZE != 0) {
+    if (!PAGE_ALIGNED(buf)) {
         panic("buf is not page aligned\n");
     }
 

@@ -36,9 +36,8 @@ console_putchar(char ch)
     }
 
     if (console_y + font.height > CONSOLE_HEIGHT) {
-        memmove((char*)boot_header->FrameBufferBase,
-                (char*)boot_header->FrameBufferBase +
-                    4 * CONSOLE_WIDTH * font.height,
+        memmove((char*)boot_header->fb_vaddr,
+                (char*)boot_header->fb_vaddr + 4 * CONSOLE_WIDTH * font.height,
                 4 * CONSOLE_WIDTH * (CONSOLE_HEIGHT - font.height));
 
         for (uint32_t x = 0; x < CONSOLE_WIDTH; ++x) {

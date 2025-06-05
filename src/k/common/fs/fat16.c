@@ -1,9 +1,8 @@
 #include "fat16.h"
-#include <mm/pfa.h>
-#include <mm/slab.h>
 #include <blk/blk.h>
 #include <libk/string.h>
 #include <libk/io.h>
+#include <mm/mm.h>
 
 static void fat16_mount(struct blk_device* dev);
 static void fat16_umount(struct blk_device* dev);
@@ -53,7 +52,7 @@ struct fat16_bpb {
 bool
 fs_fat16_probe(struct blk_device* dev)
 {
-    struct fat16_bpb* bpb = alloc_page();
+    struct fat16_bpb* bpb = alloc_pagez(1);
     blk_read(dev, 0, 1, bpb);
 
     uint16_t root_dir_sectors =
@@ -77,7 +76,7 @@ fs_fat16_probe(struct blk_device* dev)
         (bpb->fat_count >= 1 && bpb->fat_count <= 2) &&
         total_clusters >= 4085 && total_clusters < 65525;
 
-    free_page(bpb);
+    free_pages(bpb, 1);
     return is_fat16;
 }
 
@@ -87,7 +86,7 @@ fat16_mount(struct blk_device* dev)
     dev->fs->_internal = kmalloc(sizeof(struct fat16_internal));
     struct fat16_internal* fat16 = dev->fs->_internal;
 
-    fat16->bpb = alloc_page();
+    fat16->bpb = alloc_pagez(1);
     blk_read(dev, 0, 1, fat16->bpb);
 }
 
@@ -96,7 +95,7 @@ fat16_umount(struct blk_device* dev)
 {
     struct fat16_internal* fat16 = dev->fs->_internal;
 
-    free_page(fat16->bpb);
+    free_pages(fat16->bpb, 1);
     fat16->bpb = NULL;
 
     kfree(fat16);

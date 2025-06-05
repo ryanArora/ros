@@ -1,3 +1,3 @@
 #pragma once
 
-void (*load_elf(const char* path))(void);
+[[noreturn]] void load_kernel(const char* path);

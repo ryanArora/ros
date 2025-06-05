@@ -13,8 +13,7 @@
 #include <blk/blk.h>
 #include <cpu/paging.h>
 #include <load/elf.h>
-
-[[noreturn]] static void load_kernel(void);
+#include <mm/mm.h>
 
 [[noreturn]] void
 bmain(void)
@@ -34,20 +33,5 @@ bmain(void)
     interrupts_enable();
 
     blk_init();
-    load_kernel();
-}
-
-[[noreturn]] static void
-load_kernel(void)
-{
-    kprintf("Loading kernel...\n");
-    void (*kmain)(void) = load_elf("/kernel");
-
-    interrupts_disable();
-    nvme_deinit();
-
-    // Handoff boot_header to kernel in rax register
-    asm volatile("mov %0, %%rax" ::"r"(boot_header));
-    kmain();
-    abort();
+    load_kernel("/kernel");
 }

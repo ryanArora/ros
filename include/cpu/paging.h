@@ -3,13 +3,17 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define KERNEL_BASE  0xffffffff80000000
+#define PHYSMAP_BASE 0xffff888000000000
+
 #define PAGE_SIZE      4096
 #define PAGE_SIZE_BITS 12
 #define PADDR_BITS     40
 
 #define PAGE_MASK             (~((uintptr_t)0xFFF))
-#define PAGE_ALIGN_DOWN(addr) (void*)(((uintptr_t)(addr) & PAGE_MASK))
-#define PAGE_ALIGN_UP(addr)   (void*)((((uintptr_t)(addr) + 0xFFF) & PAGE_MASK))
+#define PAGE_ALIGN_DOWN(addr) ((void*)((uintptr_t)(addr) & PAGE_MASK))
+#define PAGE_ALIGN_UP(addr)   ((void*)(((uintptr_t)(addr) + 0xFFF) & PAGE_MASK))
+#define PAGE_ALIGNED(addr)    (((uintptr_t)(addr) & ~PAGE_MASK) == 0)
 
 #define PML4_ENTRIES 512
 #define PDPT_ENTRIES 512
@@ -43,6 +47,8 @@ union [[gnu::packed]] vaddr {
     };
 };
 
+extern struct pt_entry* pml4_vaddr;
+
 void paging_init(void);
 
 void map_page(void* paddr, void* vaddr);
@@ -51,4 +57,6 @@ void unmap_page(void* vaddr);
 void map_pages(void* paddr, void* vaddr, size_t num_pages);
 void unmap_pages(void* vaddr, size_t num_pages);
 
+void* paddr_to_vaddr(void* paddr);
+void* any_vaddr_to_paddr(void* vaddr);
 void* vaddr_to_paddr(void* vaddr);

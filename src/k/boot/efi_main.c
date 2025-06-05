@@ -12,11 +12,14 @@ static struct boot_header _boot_header = {
     .MemoryMapSize = 0,
     .MemoryMapDescriptorSize = 0,
     .MemoryMap = NULL,
-    .FrameBufferBase = 0,
-    .FrameBufferSize = 0,
-    .PixelsPerScanLine = 0,
-    .mm = {0},
-    .pml4 = {0},
+
+    .fb_paddr = 0,
+    .fb_vaddr = 0,
+    .fb_size = 0,
+    .fb_pixels_per_scan_line = 0,
+
+    .you_num_entries = 0,
+    .you = {0},
 };
 
 struct boot_header* boot_header = &_boot_header;

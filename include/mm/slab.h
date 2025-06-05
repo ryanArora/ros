@@ -22,11 +22,11 @@ struct slab_cache {
     struct slab_header* slabs;
 };
 
-struct slab {
+struct slab_state {
     struct slab_cache slab_caches[SLAB_SIZE_CLASSES];
 };
 
-void slab_init(void);
+void slab_init(struct slab_state* state);
 
-void* kmalloc(size_t size);
-void kfree(void* ptr);
+void* slab_kmalloc(struct slab_state* state, size_t size);
+void slab_kfree(struct slab_state* state, void* ptr);

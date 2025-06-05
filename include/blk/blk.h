@@ -2,6 +2,8 @@
 #include <stdint.h>
 #include "fs/fs.h"
 
+#define BLOCK_SIZE 512
+
 struct blk_device {
     const char* name;
     uint64_t starting_lba;

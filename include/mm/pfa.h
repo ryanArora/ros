@@ -1,4 +1,5 @@
 #pragma once
+
 #include <stddef.h>
 
 #define MAX_ORDER 10
@@ -8,18 +9,13 @@ struct free_area {
     size_t nr_free;
 };
 
-struct pfa {
+struct pfa_state {
     struct free_area free_areas[MAX_ORDER + 1];
-    void* memory_start;
-    size_t total_pages;
+    void* start;
+    size_t num_pages;
 };
 
-void pfa_init(void);
+void pfa_init(struct pfa_state* state, void* start, size_t num_pages);
 
-void* alloc_page(void);
-void free_page(void* ptr);
-
-void* alloc_pages(size_t order);
-void free_pages(void* ptr, size_t order);
-
-size_t get_order(size_t size);
+void* pfa_alloc_pages(struct pfa_state* state, size_t num_pages);
+void pfa_free_pages(struct pfa_state* state, void* ptr, size_t num_pages);

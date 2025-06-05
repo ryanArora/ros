@@ -1,10 +1,10 @@
 #include "ext2.h"
 #include <libk/io.h>
 #include <blk/blk.h>
-#include <mm/pfa.h>
-#include <mm/slab.h>
 #include <libk/string.h>
 #include <libk/math.h>
+#include <mm/mm.h>
+#include <cpu/paging.h>
 
 #define EXT2_SUPERBLOCK_MAGIC 0xEF53
 #define EXT2_ROOT_INO         2
@@ -378,16 +378,16 @@ ext2_read_superblock(struct blk_device* dev, struct ext2_superblock* sb)
 
     uint64_t lba = sb_offset / dev->block_size;
     uint32_t num_lbas = CEIL_DIV(sb_size, dev->block_size);
-    uint32_t total_bytes = num_lbas * dev->block_size;
-    uint32_t order = get_order(total_bytes);
+    size_t total_bytes = num_lbas * dev->block_size;
+    size_t num_pages = CEIL_DIV(total_bytes, PAGE_SIZE);
 
-    void* tmp = alloc_pages(order);
+    void* tmp = alloc_pagez(num_pages);
     blk_read(dev, lba, num_lbas, tmp);
 
     uint32_t offset = sb_offset % dev->block_size;
     memcpy(sb, tmp + offset, sb_size);
 
-    free_pages(tmp, order);
+    free_pages(tmp, num_pages);
 }
 
 static void
@@ -402,12 +402,12 @@ ext2_read_bgdt(struct blk_device* dev, struct ext2_group_desc* bgdt)
     uint32_t bgdt_num_blocks = CEIL_DIV(bgdt_size_bytes, ext2->block_size);
 
     uint32_t total_bytes = bgdt_num_blocks * ext2->block_size;
-    uint32_t order = get_order(total_bytes);
-    void* tmp = alloc_pages(order);
+    size_t num_pages = CEIL_DIV(total_bytes, PAGE_SIZE);
+    void* tmp = alloc_pagez(num_pages);
 
     ext2_blk_read(dev, bgdt_block_num, bgdt_num_blocks, tmp);
     memcpy(bgdt, tmp, bgdt_size_bytes);
-    free_pages(tmp, order);
+    free_pages(tmp, num_pages);
 }
 
 static void
@@ -433,10 +433,10 @@ ext2_get_inode(struct blk_device* dev, size_t ino, struct ext2_inode* inode)
     size_t block_offset = byte_offset / ext2->block_size;
     size_t offset_in_block = byte_offset % ext2->block_size;
 
-    void* buf = alloc_page();
+    void* buf = alloc_pagez(1);
     ext2_blk_read(dev, inode_table_block + block_offset, 1, buf);
     memcpy(inode, (uint8_t*)buf + offset_in_block, sb->inode_size);
-    free_page(buf);
+    free_pages(buf, 1);
 }
 
 static void
@@ -458,12 +458,12 @@ ext2_blk_read(struct blk_device* dev, uint32_t ext2_block,
     uint64_t lba = ((uint64_t)ext2_block) * dev_blocks_per_ext2_block;
 
     uint32_t total_bytes = total_dev_blocks * dev_block_size;
-    uint32_t order = get_order(total_bytes);
-    void* tmp = alloc_pages(order);
+    size_t num_pages = CEIL_DIV(total_bytes, PAGE_SIZE);
+    void* tmp = alloc_pagez(num_pages);
 
     blk_read(dev, lba, total_dev_blocks, tmp);
     memcpy(buf, tmp, num_ext2_blocks * ext2_block_size);
-    free_pages(tmp, order);
+    free_pages(tmp, num_pages);
 }
 
 static uint32_t

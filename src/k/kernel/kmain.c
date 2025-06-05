@@ -11,6 +11,7 @@
 #include <drivers/pci.h>
 #include <blk/blk.h>
 #include <cpu/paging.h>
+#include <mm/mm.h>
 
 struct boot_header* boot_header;
 
@@ -25,14 +26,14 @@ kmain(void)
 
     gdt_init();
     idt_init();
+    mm_init();
+    paging_init();
 
     pci_init();
-
     pic_init();
     pit_init();
     interrupts_enable();
 
     blk_init();
-
     spin();
 }

@@ -64,6 +64,8 @@ pci_init(void)
             }
         }
     }
+
+    kprintf("Initialized PCI devices\n");
 }
 
 static void

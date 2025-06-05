@@ -24,7 +24,6 @@ paging_init(void)
     kprintf("Initializing paging...\n");
 
     pml4_vaddr = alloc_pagez(1);
-    kprintf("pml4 = 0x%llX\n", pml4_vaddr);
 
     // Map the kernel's memory to the physical address space.
     for (UINTN i = 0;

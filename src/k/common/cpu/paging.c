@@ -9,7 +9,7 @@ init_pt_entry(struct pt_entry* pt, void* paddr, bool read_write,
               bool page_cache_disabled, bool execute_disable)
 {
     if ((uintptr_t)paddr >> PADDR_BITS != 0)
-        kprintf("warn: paddr takes more than 40 bits, paddr=0x%llX\n", paddr);
+        panic("paddr takes more than 40 bits, paddr=0x%llX\n", paddr);
 
     pt->present = 1;
     pt->read_write = read_write;

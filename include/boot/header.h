@@ -10,6 +10,12 @@ struct you_entry {
     size_t num_pages;
 };
 
+struct you {
+    struct you_entry stack;
+    size_t num_entries;
+    struct you_entry* entries;
+};
+
 struct boot_header {
     UINTN MemoryMapSize;
     UINTN MemoryMapDescriptorSize;
@@ -20,8 +26,7 @@ struct boot_header {
     size_t fb_size;
     uint32_t fb_pixels_per_scan_line;
 
-    size_t you_num_entries;
-    struct you_entry you[YOU_ENTRIES_MAX];
+    struct you you;
 };
 
 extern struct boot_header* boot_header;

@@ -12,7 +12,7 @@ static struct slab_state slab_state;
 void
 mm_init(void)
 {
-    kprintf("Initializing memory manager...\n");
+    kprintf("[START] Initialize Memory Manager\n");
 
     void* start_paddr = NULL;
     size_t num_pages = 0;
@@ -36,10 +36,11 @@ mm_init(void)
     }
 
     if (!start_paddr) panic("no usable memory found");
-    kprintf("Found %d pages of usable memory\n", num_pages);
     void* kernel_start_vaddr = paddr_to_vaddr(start_paddr);
     pfa_init(&pfa_state, kernel_start_vaddr, num_pages);
     slab_init(&slab_state);
+
+    kprintf("[DONE ] Initialize Memory Manager\n");
 }
 
 void*

@@ -14,6 +14,8 @@ static size_t get_order(size_t num_pages);
 void
 pfa_init(struct pfa_state* state, void* start, size_t num_pages)
 {
+    kprintf("[START] Initialize Page Frame Allocator\n");
+
     state->start = start;
     state->num_pages = num_pages;
 
@@ -38,6 +40,8 @@ pfa_init(struct pfa_state* state, void* start, size_t num_pages)
         free_list_add(state, page, max_order);
         page_idx += (1 << max_order);
     }
+
+    kprintf("[DONE ] Initialize Page Frame Allocator\n");
 }
 
 void*

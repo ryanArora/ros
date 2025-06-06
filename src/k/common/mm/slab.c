@@ -17,6 +17,8 @@ static size_t slab_get_cache_index(size_t size);
 void
 slab_init(struct slab_state* state)
 {
+    kprintf("[START] Initialize Slab Allocator\n");
+
     size_t current_size = SLAB_MIN_SIZE;
 
     for (int i = 0; i < SLAB_SIZE_CLASSES; ++i) {
@@ -24,6 +26,8 @@ slab_init(struct slab_state* state)
         state->slab_caches[i].slabs = NULL;
         current_size *= 2;
     }
+
+    kprintf("[DONE ] Initialize Slab Allocator\n");
 }
 
 void*

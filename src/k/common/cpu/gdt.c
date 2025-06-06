@@ -37,6 +37,8 @@ gdt_init_entry(struct gdt_entry* gdt_entry, uint32_t base, uint32_t limit,
 void
 gdt_init(void)
 {
+    kprintf("[START] Initialize the Global Descriptor Table\n");
+
     gdt_init_entry(&gdt[0], 0, 0x00000, 0x00, 0x0); // Null
     gdt_init_entry(&gdt[1], 0, 0xFFFFF, 0x9A, 0xA); // Kernel CS
     gdt_init_entry(&gdt[2], 0, 0xFFFFF, 0x92, 0xC); // Kernel Data
@@ -50,5 +52,5 @@ gdt_init(void)
     asm volatile("lgdt %0" : : "m"(gdtr) : "memory");
     gdt_reload_segments();
 
-    kprintf("Loaded the Global Descriptor Table\n");
+    kprintf("[DONE ] Initialize the Global Descriptor Table\n");
 };

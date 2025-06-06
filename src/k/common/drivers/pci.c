@@ -47,6 +47,10 @@
 #define PCI_CONFIG_HEADER_TYPE_PCI_BRIDGE     0x01
 #define PCI_CONFIG_HEADER_TYPE_CARDBUS_BRIDGE 0x02
 
+#define PCI_CLASS_CODE_MASS_STORAGE_CONTROLLER      0x01
+#define PCI_SUBCLASS_NON_VOLATILE_MEMORY_CONTROLLER 0x08
+#define PCI_PROG_IF_NVM_EXPRESS                     0x02
+
 static void pci_enumerate_device_or_bridge(uint8_t bus, uint8_t device,
                                            uint8_t function);
 static void pci_enumerate_device(uint8_t bus, uint8_t device, uint8_t function);
@@ -54,7 +58,7 @@ static void pci_enumerate_device(uint8_t bus, uint8_t device, uint8_t function);
 void
 pci_init(void)
 {
-    kprintf("Initializing PCI devices...\n");
+    kprintf("[START] Initialize PCI devices\n");
 
     // Enumerate all PCI devices
     for (size_t bus = 0; bus < 256; bus++) {
@@ -65,7 +69,7 @@ pci_init(void)
         }
     }
 
-    kprintf("Initialized PCI devices\n");
+    kprintf("[DONE ] Initialize PCI devices\n");
 }
 
 static void
@@ -94,22 +98,13 @@ pci_enumerate_device_or_bridge(uint8_t bus, uint8_t device, uint8_t function)
 static void
 pci_enumerate_device(uint8_t bus, uint8_t device, uint8_t function)
 {
-    uint16_t vendor_id = pci_config_get_vendor_id(bus, device, function);
-    uint16_t device_id = pci_config_get_device_id(bus, device, function);
-
-    kprintf(
-        "PCI device found at %X:%X:%X with Vendor ID: 0x%X, Device ID: 0x%X \n",
-        bus, device, function, vendor_id, device_id);
-
     uint8_t class_code = pci_config_get_class_code(bus, device, function);
     uint8_t subclass = pci_config_get_subclass(bus, device, function);
     uint8_t prog_if = pci_config_get_prog_if(bus, device, function);
 
-    kprintf("Class code: 0x%X, Subclass: 0x%X, Prog IF: 0x%X\n", class_code,
-            subclass, prog_if);
-
-    if (class_code == 0x01 && subclass == 0x08 && prog_if == 0x02) {
-        kprintf("NVMe controller found\n");
+    if (class_code == PCI_CLASS_CODE_MASS_STORAGE_CONTROLLER &&
+        subclass == PCI_SUBCLASS_NON_VOLATILE_MEMORY_CONTROLLER &&
+        prog_if == PCI_PROG_IF_NVM_EXPRESS) {
         nvme_init(bus, device, function);
     }
 }

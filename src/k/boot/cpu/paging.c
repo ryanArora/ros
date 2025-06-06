@@ -26,7 +26,7 @@ vaddr_to_paddr(void* vaddr)
 void
 paging_init(void)
 {
-    kprintf("Initializing paging...\n");
+    kprintf("[START] Initialize paging\n");
 
     pml4_vaddr = alloc_pagez(1);
 
@@ -56,4 +56,6 @@ paging_init(void)
     boot_header->fb_vaddr = fb_vaddr;
 
     asm volatile("mov %0, %%cr3" ::"r"(vaddr_to_paddr(pml4_vaddr)) : "memory");
+
+    kprintf("[DONE ] Initialize paging\n");
 }

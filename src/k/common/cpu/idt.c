@@ -49,6 +49,8 @@ default_interrupt_handler(void* frame)
 void
 idt_init(void)
 {
+    kprintf("[START] Initialize the Interrupt Descriptor Table\n");
+
     // clang-format off
     idt_set_descriptor(0x00, exception_handler_division_error,               0x8E);
     idt_set_descriptor(0x01, exception_handler_debug,                        0x8E);
@@ -88,5 +90,5 @@ idt_init(void)
 
     asm volatile("lidt %0" : : "m"(idtr) : "memory");
 
-    kprintf("Loaded the Interrupt Descriptor Table\n");
+    kprintf("[DONE ] Initialize the Interrupt Descriptor Table\n");
 }

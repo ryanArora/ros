@@ -120,7 +120,7 @@ uint32_t nvme_max_transfer_size_pages = 1024;
 void
 nvme_init(uint8_t bus, uint8_t device, uint8_t function)
 {
-    kprintf("Initializing NVMe controller...\n");
+    kprintf("[START] Initialize NVMe Controller\n");
 
     // Enable interrupts, bus mastering DMA, and memory space access in the
     // PCI configuration space
@@ -146,10 +146,7 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
     uint16_t nvme_minor_version = (nvme_version >> 8) & 0xFF;
     uint16_t nvme_tertiary_version = nvme_version & 0xFF;
 
-    if (nvme_major_version == 1 && nvme_minor_version == 4) {
-        kprintf("Detected NVMe version %d.%d.%d is supported\n",
-                nvme_major_version, nvme_minor_version, nvme_tertiary_version);
-    } else {
+    if (nvme_major_version != 1 || nvme_minor_version != 4) {
         panic("Detected NVMe version %d.%d.%d is unsupported\n",
               nvme_major_version, nvme_minor_version, nvme_tertiary_version);
     }
@@ -159,9 +156,7 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
 
     // Check the capabilities register for support of the NVMe command set
     uint8_t css = (capabilities >> 37) & 0xF;
-    if (css & 0x1) {
-        kprintf("Detected NVMe Controller supports the NVMe command set\n");
-    } else {
+    if (!(css & 0x1)) {
         panic("Detected NVMe Controller does not support the NVMe command set");
     }
 
@@ -169,16 +164,12 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
     uint8_t mpsmin = (capabilities >> 48) & 0xF;
     uint8_t mpsmax = (capabilities >> 52) & 0xF;
     uint8_t desired_mps = 0; // for 4096 byte pages
-    if (desired_mps >= mpsmin && desired_mps <= mpsmax) {
-        kprintf("Detected NVMe Controller page size range includes our page "
-                "size\n");
-    } else {
+    if (!(desired_mps >= mpsmin && desired_mps <= mpsmax)) {
         panic("Detected NVMe Controller page size range does not include our "
               "page size");
     }
 
     // Reset the controller
-    kprintf("Resetting NVMe controller...\n");
 
     // Disable the controller
     nvme_write_reg_dword(NVME_REGISTER_OFFSET_CC, 0);
@@ -187,7 +178,6 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
         if (timeout == 0) panic("nvme_init: timeout");
         timeout--;
     }
-    kprintf("NVMe controller is disabled\n");
 
     // Initialize admin submission queue
     admin_submission_queue.vaddr = alloc_pagez(1);
@@ -222,8 +212,6 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
         timeout--;
     }
 
-    kprintf("NVMe controller is enabled\n");
-
     nvme_send_admin_command_identify_controller();
     nvme_send_admin_command_identify_namespace_list();
     nvme_send_admin_command_create_io_completion_queue();
@@ -236,13 +224,16 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
 
     blk_register_device("nvme0n1", 0, end_lba, 512, nvme_read, nvme_write,
                         NULL);
+
+    kprintf("[DONE ] Initialize NVMe Controller\n");
 }
 
 void
 nvme_deinit(void)
 {
-    kprintf("Deinitializing NVMe controller...\n");
+    kprintf("[START] Deinitialize NVMe Controller\n");
     unmap_pages((void*)nvme_base_vaddr, 4);
+    kprintf("[DONE ] Deinitialize NVMe Controller\n");
 }
 
 static void
@@ -333,8 +324,6 @@ nvme_send_admin_command_identify_controller()
             break;
         }
     }
-
-    kprintf("Identified NVMe controller\n");
 }
 
 static void
@@ -431,8 +420,6 @@ nvme_send_admin_command_identify_namespace_list()
             break;
         }
     }
-
-    kprintf("Identified NVMe namespace list\n");
 }
 
 static void
@@ -512,8 +499,6 @@ nvme_send_admin_command_create_io_completion_queue()
             break;
         }
     }
-
-    kprintf("Created IO completion queue\n");
 }
 
 static void
@@ -588,8 +573,6 @@ nvme_send_admin_command_create_io_submission_queue()
             break;
         }
     }
-
-    kprintf("Created IO submission queue\n");
 }
 
 static void

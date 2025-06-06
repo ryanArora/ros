@@ -39,8 +39,6 @@ static size_t blk_device_table_size = 0;
 
 struct blk_device* blk_root_device = NULL;
 
-static void blk_print_device_table(void);
-
 struct blk_device*
 blk_register_device(const char* name, uint64_t starting_lba,
                     uint64_t ending_lba, uint64_t block_size,
@@ -69,7 +67,7 @@ static void blk_init_for_device(struct blk_device* dev);
 void
 blk_init(void)
 {
-    kprintf("Initializing the block layer...\n");
+    kprintf("[START] Initialize the block layer\n");
 
     size_t table_size = blk_device_table_size; // Fix size because we add to the
                                                // table while in this loop
@@ -77,9 +75,6 @@ blk_init(void)
         struct blk_device* dev = &blk_device_table[i];
         blk_init_for_device(dev);
     }
-
-    kprintf("Found root device: %s\n", blk_root_device->name);
-    blk_print_device_table();
 
     if (blk_root_device == NULL) {
         panic("no root device found\n");
@@ -90,6 +85,8 @@ blk_init(void)
     }
 
     blk_root_device->fs->mount(blk_root_device);
+
+    kprintf("[DONE ] Initialize the block layer\n");
 }
 
 static void
@@ -99,9 +96,7 @@ blk_init_for_device(struct blk_device* dev)
         alloc_pagez(1);
     blk_read(dev, 1, 1, gpt_partition_table_header);
 
-    if (memcmp(gpt_partition_table_header->signature, "EFI PART", 8) == 0) {
-        kprintf("GPT signature is valid\n");
-    } else {
+    if (memcmp(gpt_partition_table_header->signature, "EFI PART", 8) != 0) {
         panic("GPT signature is invalid\n");
     }
 
@@ -135,8 +130,6 @@ blk_init_for_device(struct blk_device* dev)
         strcpy(partition_name, dev->name);
         strcat(partition_name, "p");
         strcat(partition_name, itoa(i));
-
-        kprintf("Initializing partition %s\n", partition_name);
 
         struct blk_device* partition_dev = blk_register_device(
             partition_name, entry->starting_lba, entry->ending_lba,
@@ -202,21 +195,4 @@ blk_write(struct blk_device* dev, uint64_t lba, uint16_t num_blocks, void* buf)
     }
 
     dev->_internal_write(lba, num_blocks, buf);
-}
-
-static void
-blk_print_device_table(void)
-{
-    kprintf("Block device table:\n");
-    if (blk_device_table_size == 0) {
-        kprintf("(no entries)\n");
-        return;
-    }
-
-    for (size_t i = 0; i < blk_device_table_size; i++) {
-        kprintf("name=%s, start=%lld, end=%lld, fs=%s\n",
-                blk_device_table[i].name, blk_device_table[i].starting_lba,
-                blk_device_table[i].ending_lba,
-                blk_device_table[i].fs ? blk_device_table[i].fs->name : "NULL");
-    }
 }

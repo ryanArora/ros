@@ -21,7 +21,7 @@ vaddr_to_paddr(void* vaddr)
 void
 paging_init(void)
 {
-    kprintf("Initializing paging...\n");
+    kprintf("[START] Initialize paging\n");
 
     pml4_vaddr = alloc_pagez(1);
 
@@ -53,10 +53,9 @@ paging_init(void)
     }
 
     // Guard page for the kernel stack
-    kprintf("unmapping the bottom of the stack: 0x%llX\n",
-            boot_header->you.stack.vaddr);
     unmap_pages((void*)boot_header->you.stack.vaddr, 1);
 
     asm volatile("mov %0, %%cr3" ::"r"(vaddr_to_paddr(pml4_vaddr)) : "memory");
-    kprintf("Paging initialized\n");
+
+    kprintf("[DONE ] Initialize paging\n");
 }

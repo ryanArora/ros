@@ -8,6 +8,9 @@
 #include <drivers/serial.h>
 #include <drivers/gop.h>
 
+// Forward declarations
+static void console_scroll_down(void);
+
 void
 console_init(void)
 {
@@ -23,25 +26,19 @@ console_putchar(char ch)
     if (ch == '\n') {
         boot_header->console.x = 0;
         boot_header->console.y += font.height;
+
+        if (boot_header->console.y + font.height > FB_HEIGHT)
+            console_scroll_down();
+
         return;
     }
 
     if (boot_header->console.x + font.width > FB_WIDTH) {
         boot_header->console.x = 0;
         boot_header->console.y += font.height;
-    }
 
-    if (boot_header->console.y + font.height > FB_HEIGHT) {
-        memmove((char*)boot_header->fb_vaddr,
-                (char*)boot_header->fb_vaddr + 4 * FB_WIDTH * font.height,
-                4 * FB_WIDTH * (FB_HEIGHT - font.height));
-
-        for (uint32_t x = 0; x < FB_WIDTH; ++x) {
-            for (uint32_t y = FB_HEIGHT - font.height; y < FB_HEIGHT; ++y) {
-                gop_draw_pixel(boot_header->console.background, x, y);
-            }
-        }
-        boot_header->console.y -= font.height;
+        if (boot_header->console.y + font.height > FB_HEIGHT)
+            console_scroll_down();
     }
 
     int mask[8] = {1, 2, 4, 8, 16, 32, 64, 128};
@@ -79,4 +76,19 @@ console_clear(void)
 
     boot_header->console.x = 0;
     boot_header->console.y = 0;
+}
+
+static void
+console_scroll_down(void)
+{
+    memmove((char*)boot_header->fb_vaddr,
+            (char*)boot_header->fb_vaddr + 4 * FB_WIDTH * font.height,
+            4 * FB_WIDTH * (FB_HEIGHT - font.height));
+
+    for (uint32_t x = 0; x < FB_WIDTH; ++x) {
+        for (uint32_t y = FB_HEIGHT - font.height; y < FB_HEIGHT; ++y) {
+            gop_draw_pixel(boot_header->console.background, x, y);
+        }
+    }
+    boot_header->console.y -= font.height;
 }

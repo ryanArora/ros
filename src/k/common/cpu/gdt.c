@@ -6,7 +6,7 @@
 
 extern void gdt_reload_segments(void);
 
-struct __attribute__((packed)) gdt_entry {
+struct [[gnu::packed]] gdt_entry {
     uint16_t limit_1;
     uint16_t base_1;
     uint8_t base_2;
@@ -15,7 +15,7 @@ struct __attribute__((packed)) gdt_entry {
     uint8_t base_3;
 };
 
-struct __attribute__((packed)) gdtr {
+struct [[gnu::packed]] gdtr {
     uint16_t limit;
     uint64_t offset;
 };

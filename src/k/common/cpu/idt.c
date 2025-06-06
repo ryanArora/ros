@@ -7,7 +7,7 @@
 
 #define IDT_ENTRIES 256
 
-struct __attribute__((packed)) idt_entry {
+struct [[gnu::packed]] idt_entry {
     uint16_t offset_1;
     uint16_t selector;
     uint8_t ist;
@@ -17,7 +17,7 @@ struct __attribute__((packed)) idt_entry {
     uint32_t zero;
 };
 
-struct __attribute__((packed)) idtr {
+struct [[gnu::packed]] idtr {
     uint16_t limit;
     uint64_t base;
 };
@@ -38,7 +38,7 @@ idt_set_descriptor(uint8_t vector, void* isr, uint8_t flags)
     descriptor->zero = 0;
 }
 
-__attribute__((interrupt)) void
+[[gnu::interrupt]] void
 default_interrupt_handler(void* frame)
 {
     (void)(frame);

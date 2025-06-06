@@ -55,7 +55,7 @@ static void nvme_submit_io(uint8_t opcode, uint64_t lba, uint16_t num_blocks,
 static uint32_t nvme_submission_queue_tail_doorbell(uint16_t qid);
 static uint32_t nvme_completion_queue_head_doorbell(uint16_t qid);
 
-__attribute__((interrupt)) static void nvme_interrupt_handler(void* frame);
+[[gnu::interrupt]] static void nvme_interrupt_handler(void* frame);
 
 struct nvme_submission_queue_entry_command {
     uint8_t opcode;
@@ -675,7 +675,7 @@ nvme_read(uint64_t lba, uint16_t num_blocks, void* buf)
     nvme_submit_io(NVME_IO_COMMAND_OPCODE_READ, lba, num_blocks, buf);
 }
 
-__attribute__((interrupt)) static void
+[[gnu::interrupt]] static void
 nvme_interrupt_handler(void* frame)
 {
     (void)frame;

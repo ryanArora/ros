@@ -6,7 +6,7 @@ static bool lshift;
 static bool rshift;
 static bool caps_lock;
 
-__attribute__((interrupt)) void
+[[gnu::interrupt]] void
 keyboard_interrupt_handler(void* frame)
 {
     (void)(frame);

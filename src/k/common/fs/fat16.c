@@ -24,7 +24,7 @@ struct fat16_internal {
     struct fat16_bpb* bpb;
 };
 
-struct fat16_bpb {
+struct [[gnu::packed]] fat16_bpb {
     uint8_t jmp_boot[3];
     char oem_name[8];
     uint16_t bytes_per_sector;
@@ -47,7 +47,7 @@ struct fat16_bpb {
     char fs_type[8];
     uint8_t boot_code[448];
     uint16_t boot_sector_sig;
-} __attribute__((packed));
+};
 
 bool
 fs_fat16_probe(struct blk_device* dev)

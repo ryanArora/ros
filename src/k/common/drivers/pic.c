@@ -21,7 +21,7 @@ pic_init(void)
     outb(PIC2_DATA, 0x01);
 }
 
-__attribute__((interrupt)) void
+[[gnu::interrupt]] void
 timer_interrupt_handler(void* frame)
 {
     (void)(frame);

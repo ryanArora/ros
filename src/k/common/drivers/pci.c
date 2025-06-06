@@ -90,7 +90,7 @@ pci_enumerate_device_or_bridge(uint8_t bus, uint8_t device, uint8_t function)
         kprintf("warn: PCI-to-CardBus bridge found, but not implemented\n");
         break;
     default:
-        kprintf("warn: unknown PCI header type found: %d\n", header_type);
+        kprintf("warn: unknown PCI header type found: 0x%X\n", header_type);
         break;
     }
 }

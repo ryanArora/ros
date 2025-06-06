@@ -18,3 +18,9 @@ gdt_reload_segments:
     pushq $0x08
     pushq %rax
     iretq
+
+.global gdt_flush_tss
+gdt_flush_tss:
+    movw $((5 * 8) | 0), %ax   # Load segment selector (TSS descriptor) into AX
+    ltr %ax                    # Load Task Register
+    ret

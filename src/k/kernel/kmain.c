@@ -23,10 +23,10 @@ kmain(void)
 
     kprintf("Starting kernel...\n");
 
-    gdt_init();
     idt_init();
     mm_init();
     paging_init();
+    gdt_init();
 
     pci_init();
     pic_init();
@@ -34,5 +34,6 @@ kmain(void)
     interrupts_enable();
 
     blk_init();
+    load_init_process("/bin/init");
     spin();
 }

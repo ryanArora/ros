@@ -14,3 +14,6 @@ void free_pages_dma(void* page, size_t num_pages);
 void* kmalloc(size_t size);
 void* kzmalloc(size_t size);
 void kfree(void* ptr);
+
+void* alloc_stack(void); // Returns a pointer to the top of the stack
+void free_stack(void* stack_top);

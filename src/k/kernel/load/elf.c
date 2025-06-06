@@ -1,65 +1,14 @@
 #include <load/elf.h>
-#include "fs/fs.h"
 #include <libk/io.h>
-#include <libk/string.h>
-#include <mm/mm.h>
-#include <libk/console.h>
-#include <cpu/paging.h>
+#include <blk/blk.h>
 #include <libk/math.h>
-#include <boot/header.h>
-#include <drivers/nvme.h>
-
-#define ELF_MAGIC                                                              \
-    "\x7f"                                                                     \
-    "ELF"
-#define ELFCLASS32                 1
-#define ELFCLASS64                 2
-#define ELF_VERSION_CURRENT        1
-#define ELF_OS_ABI_SYSV            0
-#define ELF_ABI_VERSION_CURRENT    0
-#define ELF_TYPE_STATIC_EXECUTABLE 2
-#define ELF_MACHINE_X86_64         62
-
-#define PT_LOAD 1
-
-struct elf_header64 {
-    uint8_t magic[4];
-    uint8_t class;
-    uint8_t data;
-    uint8_t version;
-    uint8_t os_abi;
-    uint8_t abi_version;
-    uint8_t pad[7];
-    uint16_t type;
-    uint16_t machine;
-    uint32_t version2;
-    uint64_t entry;
-    uint64_t phoff;
-    uint64_t shoff;
-    uint32_t flags;
-    uint16_t ehsize;
-    uint16_t phentsize;
-    uint16_t phnum;
-    uint16_t shentsize;
-    uint16_t shnum;
-    uint16_t shstrndx;
-};
-
-struct elf_program_header64 {
-    uint32_t type;   // Segment type
-    uint32_t flags;  // Segment flags
-    uint64_t offset; // Offset in file
-    uint64_t vaddr;  // Virtual address in memory
-    uint64_t paddr;  // Physical address (if relevant)
-    uint64_t filesz; // Size of segment in file
-    uint64_t memsz;  // Size of segment in memory
-    uint64_t align;  // Alignment
-};
+#include <mm/mm.h>
+#include <libk/string.h>
 
 [[noreturn]] void
-load_kernel(const char* path)
+load_init_process(const char* path)
 {
-    kprintf("Loading kernel...\n");
+    kprintf("Loading %s process...\n", path);
 
     struct fs_stat st;
     if (blk_root_device->fs->stat(blk_root_device, path, &st) ==
@@ -143,44 +92,34 @@ load_kernel(const char* path)
 
         map_pages(vaddr_to_paddr(buf), (void*)program_header->vaddr,
                   buf_num_pages);
-
-        // The kernel needs to know where it is to map its code.
-        if (boot_header->you.num_entries >= YOU_ENTRIES_MAX)
-            panic("too many you entries\n");
-        boot_header->you.entries[boot_header->you.num_entries].vaddr =
-            program_header->vaddr;
-        boot_header->you.entries[boot_header->you.num_entries].paddr =
-            (uintptr_t)buf;
-        boot_header->you.entries[boot_header->you.num_entries].num_pages =
-            buf_num_pages;
-        ++boot_header->you.num_entries;
     }
 
     uintptr_t entry = elf_header->entry;
     free_pages(elf_header, elf_header_num_pages);
     free_pages(program_headers, program_headers_num_pages);
 
-    size_t stack_num_pages = 16;
-    void* stack_paddr = alloc_pagez(stack_num_pages);
-    void* stack_vaddr = PHYSMAP_BASE + stack_paddr;
-    void* stack_vaddr_top = stack_vaddr + PAGE_SIZE * stack_num_pages;
-    unmap_pages(stack_vaddr, 1); // Guard page
+    asm volatile(
+        // Enable SYSCALL/SYSRET
+        "mov $0xc0000082, %%rcx\n"
+        "wrmsr\n"
+        "mov $0xc0000080, %%rcx\n"
+        "rdmsr\n"
+        "orb $1, %%al\n"
+        "wrmsr\n"
+        "mov $0xc0000081, %%rcx\n"
+        "rdmsr\n"
+        "mov $0x00180008, %%edx\n"
+        "wrmsr\n"
 
-    boot_header->you.stack.paddr = (uintptr_t)stack_paddr;
-    boot_header->you.stack.vaddr = (uintptr_t)stack_vaddr;
-    boot_header->you.stack.num_pages = stack_num_pages;
+        // Set user RIP (RCX) and RFLAGS (R11)
+        "mov %[entry], %%rcx\n"
+        "mov $0x202, %%r11\n"
 
-    nvme_deinit();
-    interrupts_disable();
+        // Transition to user mode
+        "sysretq\n"
+        :
+        : [entry] "r"(entry)
+        : "rax", "rcx", "rdx", "r11", "memory");
 
-    // Handoff boot_header to kernel in rax register
-    asm volatile("mov %0, %%rax\n"
-                 "mov %1, %%rsp\n"
-                 "mov %%rsp, %%rbp\n"
-                 "call *%2"
-                 :
-                 : "r"(PHYSMAP_BASE + (uintptr_t)boot_header),
-                   "r"(stack_vaddr_top), "r"(entry)
-                 : "memory");
-    panic("why are you here?\n");
+    panic("why are you here?");
 }

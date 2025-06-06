@@ -1,5 +1,4 @@
 #include "bmain.h"
-#include "boot/header.h"
 #include <libk/console.h>
 #include <libk/io.h>
 #include <mm/slab.h>
@@ -21,10 +20,10 @@ bmain(void)
     console_init();
     kprintf("Starting bootloader...\n");
 
-    gdt_init();
     idt_init();
     mm_init();
     paging_init();
+    gdt_init();
 
     pci_init();
 

@@ -1,18 +1,77 @@
 #include <cpu/gdt.h>
 #include <stdint.h>
 #include <libk/io.h>
+#include <libk/string.h>
+#include <mm/mm.h>
 
-#define GDT_ENTRIES 5
+#define GDT_SEGMENT_DESCRIPTORS        5
+#define GDT_SYSTEM_SEGMENT_DESCRIPTORS 1
 
 extern void gdt_reload_segments(void);
+extern void gdt_flush_tss(void);
 
-struct [[gnu::packed]] gdt_entry {
-    uint16_t limit_1;
-    uint16_t base_1;
-    uint8_t base_2;
-    uint8_t access;
-    uint8_t limit_2_and_flags;
-    uint8_t base_3;
+struct [[gnu::packed]] segment_descriptor {
+    uint32_t limit_low : 16;
+    uint32_t base_low : 24;
+
+    // Access byte
+    uint32_t accessed : 1;
+    uint32_t read_write : 1;
+    uint32_t conforming_expand_down : 1;
+    uint32_t code : 1;
+    uint32_t code_data_segment : 1;
+    uint32_t dpl : 2;
+    uint32_t present : 1;
+
+    uint32_t limit_high : 4;
+
+    // Flags
+    uint32_t reserved : 1;
+    uint32_t long_mode_code : 1;
+    uint32_t big : 1;
+    uint32_t granularity : 1;
+
+    uint32_t base_high : 8;
+};
+
+struct [[gnu::packed]] system_segment_descriptor {
+    uint64_t limit_low : 16;
+    uint64_t base_low : 24;
+
+    // Access byte
+    uint64_t type : 4;
+    uint64_t system : 1;
+    uint64_t dpl : 2;
+    uint64_t present : 1;
+
+    uint64_t limit_high : 4;
+
+    // Flags
+    uint64_t available : 1;
+    uint64_t long_mode_code : 1;
+    uint64_t big : 1;
+    uint64_t granularity : 1;
+
+    uint64_t base_high : 40;
+    uint64_t reserved : 32;
+};
+
+struct [[gnu::packed]] tss {
+    uint32_t reserved1;
+    uint64_t rsp0;
+    uint64_t rsp1;
+    uint64_t rsp2;
+    uint64_t reserved2;
+    uint64_t ist1;
+    uint64_t ist2;
+    uint64_t ist3;
+    uint64_t ist4;
+    uint64_t ist5;
+    uint64_t ist6;
+    uint64_t ist7;
+    uint64_t reserved3;
+    uint16_t reserved4;
+    uint16_t iopb;
 };
 
 struct [[gnu::packed]] gdtr {
@@ -20,30 +79,46 @@ struct [[gnu::packed]] gdtr {
     uint64_t offset;
 };
 
-static struct gdt_entry gdt[GDT_ENTRIES];
+static struct tss tss;
+static char gdt[sizeof(struct segment_descriptor) * GDT_SEGMENT_DESCRIPTORS +
+                sizeof(struct system_segment_descriptor) *
+                    GDT_SYSTEM_SEGMENT_DESCRIPTORS];
 
-void
-gdt_init_entry(struct gdt_entry* gdt_entry, uint32_t base, uint32_t limit,
-               uint8_t access, uint8_t flags)
-{
-    gdt_entry->limit_1 = limit & 0xFFFF;
-    gdt_entry->base_1 = base & 0xFFFF;
-    gdt_entry->base_2 = (base >> 16) & 0xFF;
-    gdt_entry->access = access;
-    gdt_entry->limit_2_and_flags = ((limit >> 16) & 0xF) | (flags << 4);
-    gdt_entry->base_3 = (base >> (16 + 8)) & 0xFF;
-};
+// Forward declarations
+static void gdt_init_entry_null(struct segment_descriptor* entry);
+static void gdt_init_entry_kernel_code(struct segment_descriptor* entry);
+static void gdt_init_entry_kernel_data(struct segment_descriptor* entry);
+static void gdt_init_entry_user_code(struct segment_descriptor* entry);
+static void gdt_init_entry_user_data(struct segment_descriptor* entry);
+static void gdt_init_entry_tss(struct system_segment_descriptor* entry);
+static void gdt_init_tss(struct tss* tss);
 
 void
 gdt_init(void)
 {
     kprintf("[START] Initialize the Global Descriptor Table\n");
 
-    gdt_init_entry(&gdt[0], 0, 0x00000, 0x00, 0x0); // Null
-    gdt_init_entry(&gdt[1], 0, 0xFFFFF, 0x9A, 0xA); // Kernel CS
-    gdt_init_entry(&gdt[2], 0, 0xFFFFF, 0x92, 0xC); // Kernel Data
-    gdt_init_entry(&gdt[3], 0, 0xFFFFF, 0xFA, 0xA); // User CS
-    gdt_init_entry(&gdt[4], 0, 0xFFFFF, 0xF2, 0xC); // User Data
+    size_t offset = 0;
+
+    gdt_init_entry_null((struct segment_descriptor*)(gdt + offset));
+    offset += sizeof(struct segment_descriptor);
+
+    gdt_init_entry_kernel_code((struct segment_descriptor*)(gdt + offset));
+    offset += sizeof(struct segment_descriptor);
+
+    gdt_init_entry_kernel_data((struct segment_descriptor*)(gdt + offset));
+    offset += sizeof(struct segment_descriptor);
+
+    gdt_init_entry_user_code((struct segment_descriptor*)(gdt + offset));
+    offset += sizeof(struct segment_descriptor);
+
+    gdt_init_entry_user_data((struct segment_descriptor*)(gdt + offset));
+    offset += sizeof(struct segment_descriptor);
+
+    gdt_init_entry_tss((struct system_segment_descriptor*)(gdt + offset));
+    offset += sizeof(struct system_segment_descriptor);
+
+    gdt_init_tss(&tss);
 
     struct gdtr gdtr;
     gdtr.limit = sizeof(gdt) - 1;
@@ -51,6 +126,174 @@ gdt_init(void)
 
     asm volatile("lgdt %0" : : "m"(gdtr) : "memory");
     gdt_reload_segments();
+    gdt_flush_tss();
 
     kprintf("[DONE ] Initialize the Global Descriptor Table\n");
 };
+
+static void
+gdt_init_entry_null(struct segment_descriptor* entry)
+{
+    uint32_t limit = 0;
+    uint32_t base = 0;
+
+    entry->limit_low = limit & 0xFFFF;
+    entry->limit_high = (limit >> 16) & 0xF;
+    entry->base_low = base & 0xFFFFFF;
+    entry->base_high = (base >> 24) & 0xFF;
+
+    // Access byte
+    entry->accessed = 0;
+    entry->read_write = 0;
+    entry->conforming_expand_down = 0;
+    entry->code = 0;
+    entry->code_data_segment = 0;
+    entry->dpl = 0;
+    entry->present = 0;
+
+    // Flags
+    entry->reserved = 0;
+    entry->long_mode_code = 0;
+    entry->big = 0;
+    entry->granularity = 0;
+}
+
+static void
+gdt_init_entry_kernel_code(struct segment_descriptor* entry)
+{
+    uint32_t limit = 0xFFFFF;
+    uint32_t base = 0;
+
+    entry->limit_low = limit & 0xFFFF;
+    entry->limit_high = (limit >> 16) & 0xF;
+    entry->base_low = base & 0xFFFFFF;
+    entry->base_high = (base >> 24) & 0xFF;
+
+    // Access byte (0x9A)
+    entry->accessed = 0;
+    entry->read_write = 1;
+    entry->conforming_expand_down = 0;
+    entry->code = 1;
+    entry->code_data_segment = 1;
+    entry->dpl = 0;
+    entry->present = 1;
+
+    // Flags (0xA)
+    entry->reserved = 0;
+    entry->long_mode_code = 1;
+    entry->big = 0;
+    entry->granularity = 1;
+}
+
+static void
+gdt_init_entry_kernel_data(struct segment_descriptor* entry)
+{
+    uint32_t limit = 0xFFFFF;
+    uint32_t base = 0;
+
+    entry->limit_low = limit & 0xFFFF;
+    entry->limit_high = (limit >> 16) & 0xF;
+    entry->base_low = base & 0xFFFFFF;
+
+    // Access byte (0x92)
+    entry->accessed = 0;
+    entry->read_write = 1;
+    entry->conforming_expand_down = 0;
+    entry->code = 0;
+    entry->code_data_segment = 1;
+    entry->dpl = 0;
+    entry->present = 1;
+
+    // Flags (0xC)
+    entry->reserved = 0;
+    entry->long_mode_code = 0;
+    entry->big = 1;
+    entry->granularity = 1;
+}
+
+static void
+gdt_init_entry_user_code(struct segment_descriptor* entry)
+{
+    uint32_t limit = 0xFFFFF;
+    uint32_t base = 0;
+
+    entry->limit_low = limit & 0xFFFF;
+    entry->limit_high = (limit >> 16) & 0xF;
+    entry->base_low = base & 0xFFFFFF;
+
+    // Access byte (0xFA)
+    entry->accessed = 0;
+    entry->read_write = 1;
+    entry->conforming_expand_down = 0;
+    entry->code = 1;
+    entry->code_data_segment = 1;
+    entry->dpl = 3;
+    entry->present = 1;
+
+    // Flags (0xA)
+    entry->reserved = 0;
+    entry->long_mode_code = 1;
+    entry->big = 0;
+    entry->granularity = 1;
+}
+
+static void
+gdt_init_entry_user_data(struct segment_descriptor* entry)
+{
+    uint32_t limit = 0xFFFFF;
+    uint32_t base = 0;
+
+    entry->limit_low = limit & 0xFFFF;
+    entry->limit_high = (limit >> 16) & 0xF;
+    entry->base_low = base & 0xFFFFFF;
+
+    // Access byte (0xF2)
+    entry->accessed = 0;
+    entry->read_write = 1;
+    entry->conforming_expand_down = 0;
+    entry->code = 0;
+    entry->code_data_segment = 1;
+    entry->dpl = 3;
+    entry->present = 1;
+
+    // Flags (0xC)
+    entry->reserved = 0;
+    entry->long_mode_code = 0;
+    entry->big = 1;
+    entry->granularity = 1;
+}
+
+#define TSS_AVAILABLE 0x9
+#define TSS_BUSY      0xB
+
+static void
+gdt_init_entry_tss(struct system_segment_descriptor* entry)
+{
+    uint32_t limit = (uint32_t)(sizeof(struct tss) - 1);
+    uint64_t base = (uint64_t)&tss;
+
+    entry->limit_low = limit & 0xFFFF;
+    entry->limit_high = (limit >> 16) & 0xF;
+    entry->base_low = base & 0xFFFFFF;
+    entry->base_high = (base >> 24) & 0xFFFFFFFFFF;
+    entry->reserved = 0;
+
+    // Access byte (0x89)
+    entry->type = TSS_AVAILABLE;
+    entry->system = 0;
+    entry->dpl = 0;
+    entry->present = 1;
+
+    // Flags (0x0)
+    entry->available = 0;
+    entry->long_mode_code = 0;
+    entry->big = 0;
+    entry->granularity = 0;
+}
+
+static void
+gdt_init_tss(struct tss* tss)
+{
+    memset(tss, 0, sizeof(struct tss));
+    tss->rsp0 = (uint64_t)alloc_stack();
+}

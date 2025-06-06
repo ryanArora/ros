@@ -1,6 +1,8 @@
 #include <libk/io.h>
 #include <libk/console.h>
 #include <stdarg.h>
+#include <drivers/serial.h>
+#include <stddef.h>
 
 _Noreturn void
 abort(void)
@@ -100,6 +102,7 @@ kputchar(char ch)
         return;
     }
 
+    serial_putchar(ch);
     console_putchar(ch);
 }
 

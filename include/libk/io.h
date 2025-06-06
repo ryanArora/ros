@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <boot/header.h>
 
 /*
     CPU Port IO Functions
@@ -37,13 +38,11 @@ void interrupts_restore(bool interrupts_enabled);
 /*
     Panic
 */
-extern uint32_t console_background;
-extern uint32_t console_foreground;
 
 #define panic(...)                                                             \
     do {                                                                       \
-        console_background = 0xFF0000;                                         \
-        console_foreground = 0xFFFFFF;                                         \
+        boot_header->console.background = 0xFF0000;                            \
+        boot_header->console.foreground = 0xFFFFFF;                            \
         kprintf("%s:%d: %s: panic\n", __FILE__, __LINE__, __FUNCTION__);       \
         __VA_OPT__(kprintf(__VA_ARGS__));                                      \
         abort();                                                               \

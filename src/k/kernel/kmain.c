@@ -21,7 +21,6 @@ kmain(void)
     // Pickup boot_header from rax register
     asm volatile("mov %%rax, %0" : "=r"(boot_header));
 
-    console_init();
     kprintf("Starting kernel...\n");
 
     gdt_init();

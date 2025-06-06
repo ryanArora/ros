@@ -18,6 +18,8 @@ static struct boot_header _boot_header = {
     .fb_size = 0,
     .fb_pixels_per_scan_line = 0,
 
+    .console = {0},
+
     .you = {0},
 };
 

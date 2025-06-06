@@ -5,18 +5,14 @@
 #include <libk/string.h>
 #include <stdint.h>
 #include <boot/header.h>
-
-uint32_t console_background;
-uint32_t console_foreground;
-
-static uint32_t console_x;
-static uint32_t console_y;
+#include <drivers/serial.h>
+#include <drivers/gop.h>
 
 void
 console_init(void)
 {
-    console_background = 0x0000FF;
-    console_foreground = 0xFFFFFF;
+    boot_header->console.background = 0x0000FF;
+    boot_header->console.foreground = 0xFFFFFF;
 
     console_clear();
 }
@@ -25,28 +21,27 @@ void
 console_putchar(char ch)
 {
     if (ch == '\n') {
-        console_x = 0;
-        console_y += font.height;
+        boot_header->console.x = 0;
+        boot_header->console.y += font.height;
         return;
     }
 
-    if (console_x + font.width > CONSOLE_WIDTH) {
-        console_x = 0;
-        console_y += font.height;
+    if (boot_header->console.x + font.width > FB_WIDTH) {
+        boot_header->console.x = 0;
+        boot_header->console.y += font.height;
     }
 
-    if (console_y + font.height > CONSOLE_HEIGHT) {
+    if (boot_header->console.y + font.height > FB_HEIGHT) {
         memmove((char*)boot_header->fb_vaddr,
-                (char*)boot_header->fb_vaddr + 4 * CONSOLE_WIDTH * font.height,
-                4 * CONSOLE_WIDTH * (CONSOLE_HEIGHT - font.height));
+                (char*)boot_header->fb_vaddr + 4 * FB_WIDTH * font.height,
+                4 * FB_WIDTH * (FB_HEIGHT - font.height));
 
-        for (uint32_t x = 0; x < CONSOLE_WIDTH; ++x) {
-            for (uint32_t y = CONSOLE_HEIGHT - font.height; y < CONSOLE_HEIGHT;
-                 ++y) {
-                gop_draw_pixel(console_background, x, y);
+        for (uint32_t x = 0; x < FB_WIDTH; ++x) {
+            for (uint32_t y = FB_HEIGHT - font.height; y < FB_HEIGHT; ++y) {
+                gop_draw_pixel(boot_header->console.background, x, y);
             }
         }
-        console_y -= font.height;
+        boot_header->console.y -= font.height;
     }
 
     int mask[8] = {1, 2, 4, 8, 16, 32, 64, 128};
@@ -54,33 +49,34 @@ console_putchar(char ch)
 
     for (uint32_t cy = 0; cy < 16; ++cy) {
         for (uint32_t cx = 0; cx < 8; ++cx) {
-            gop_draw_pixel(glyph[cy] & mask[cx] ? console_foreground
-                                                : console_background,
-                           console_x + 8 - cx, console_y + cy);
+            gop_draw_pixel(
+                glyph[cy] & mask[cx] ? boot_header->console.foreground
+                                     : boot_header->console.background,
+                boot_header->console.x + 8 - cx, boot_header->console.y + cy);
         }
     }
 
-    console_x += font.width;
+    boot_header->console.x += font.width;
 }
 
 void
 console_backspace(void)
 {
-    if (console_x == 0) return;
-    console_x -= font.width;
+    if (boot_header->console.x == 0) return;
+    boot_header->console.x -= font.width;
     console_putchar(' ');
-    console_x -= font.width;
+    boot_header->console.x -= font.width;
 }
 
 void
 console_clear(void)
 {
-    for (uint32_t x = 0; x < CONSOLE_WIDTH; ++x) {
-        for (uint32_t y = 0; y < CONSOLE_HEIGHT; ++y) {
-            gop_draw_pixel(console_background, x, y);
+    for (uint32_t x = 0; x < FB_WIDTH; ++x) {
+        for (uint32_t y = 0; y < FB_HEIGHT; ++y) {
+            gop_draw_pixel(boot_header->console.background, x, y);
         }
     }
 
-    console_x = 0;
-    console_y = 0;
+    boot_header->console.x = 0;
+    boot_header->console.y = 0;
 }

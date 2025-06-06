@@ -18,7 +18,7 @@ gop_init(void)
                           &GopGuid, NULL, (VOID**)&Gop);
     assert(!EFI_ERROR(Status));
 
-    gop_set_resolution(Gop, GOP_WIDTH, GOP_HEIGHT);
+    gop_set_resolution(Gop, FB_WIDTH, FB_HEIGHT);
     boot_header->fb_paddr = (void*)Gop->Mode->FrameBufferBase;
     boot_header->fb_vaddr = (void*)Gop->Mode->FrameBufferBase;
     boot_header->fb_size = Gop->Mode->FrameBufferSize;

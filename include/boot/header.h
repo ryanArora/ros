@@ -1,6 +1,7 @@
 #pragma once
 #include <efi.h>
 #include <cpu/paging.h>
+#include <libk/console.h>
 
 #define YOU_ENTRIES_MAX 3
 
@@ -25,6 +26,8 @@ struct boot_header {
     void* fb_paddr;
     size_t fb_size;
     uint32_t fb_pixels_per_scan_line;
+
+    struct console console;
 
     struct you you;
 };

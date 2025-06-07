@@ -79,10 +79,17 @@ struct [[gnu::packed]] gdtr {
     uint64_t offset;
 };
 
+struct [[gnu::packed]] gdt {
+    struct segment_descriptor null;
+    struct segment_descriptor kernel_code;
+    struct segment_descriptor kernel_data;
+    struct segment_descriptor user_code;
+    struct segment_descriptor user_data;
+    struct system_segment_descriptor tss;
+};
+
 static struct tss tss;
-static char gdt[sizeof(struct segment_descriptor) * GDT_SEGMENT_DESCRIPTORS +
-                sizeof(struct system_segment_descriptor) *
-                    GDT_SYSTEM_SEGMENT_DESCRIPTORS];
+static struct gdt gdt;
 
 // Forward declarations
 static void gdt_init_entry_null(struct segment_descriptor* entry);
@@ -98,25 +105,12 @@ gdt_init(void)
 {
     kprintf("[START] Initialize the Global Descriptor Table\n");
 
-    size_t offset = 0;
-
-    gdt_init_entry_null((struct segment_descriptor*)(gdt + offset));
-    offset += sizeof(struct segment_descriptor);
-
-    gdt_init_entry_kernel_code((struct segment_descriptor*)(gdt + offset));
-    offset += sizeof(struct segment_descriptor);
-
-    gdt_init_entry_kernel_data((struct segment_descriptor*)(gdt + offset));
-    offset += sizeof(struct segment_descriptor);
-
-    gdt_init_entry_user_code((struct segment_descriptor*)(gdt + offset));
-    offset += sizeof(struct segment_descriptor);
-
-    gdt_init_entry_user_data((struct segment_descriptor*)(gdt + offset));
-    offset += sizeof(struct segment_descriptor);
-
-    gdt_init_entry_tss((struct system_segment_descriptor*)(gdt + offset));
-    offset += sizeof(struct system_segment_descriptor);
+    gdt_init_entry_null(&gdt.null);
+    gdt_init_entry_kernel_code(&gdt.kernel_code);
+    gdt_init_entry_kernel_data(&gdt.kernel_data);
+    gdt_init_entry_user_code(&gdt.user_code);
+    gdt_init_entry_user_data(&gdt.user_data);
+    gdt_init_entry_tss(&gdt.tss);
 
     gdt_init_tss(&tss);
 
@@ -194,6 +188,7 @@ gdt_init_entry_kernel_data(struct segment_descriptor* entry)
     entry->limit_low = limit & 0xFFFF;
     entry->limit_high = (limit >> 16) & 0xF;
     entry->base_low = base & 0xFFFFFF;
+    entry->base_high = (base >> 24) & 0xFF;
 
     // Access byte (0x92)
     entry->accessed = 0;
@@ -220,6 +215,7 @@ gdt_init_entry_user_code(struct segment_descriptor* entry)
     entry->limit_low = limit & 0xFFFF;
     entry->limit_high = (limit >> 16) & 0xF;
     entry->base_low = base & 0xFFFFFF;
+    entry->base_high = (base >> 24) & 0xFF;
 
     // Access byte (0xFA)
     entry->accessed = 0;
@@ -246,6 +242,7 @@ gdt_init_entry_user_data(struct segment_descriptor* entry)
     entry->limit_low = limit & 0xFFFF;
     entry->limit_high = (limit >> 16) & 0xF;
     entry->base_low = base & 0xFFFFFF;
+    entry->base_high = (base >> 24) & 0xFF;
 
     // Access byte (0xF2)
     entry->accessed = 0;

@@ -4,7 +4,7 @@
 #include <drivers/serial.h>
 #include <stddef.h>
 
-_Noreturn void
+[[noreturn]] void
 abort(void)
 {
     asm volatile("cli;"
@@ -14,7 +14,7 @@ abort(void)
         ;
 }
 
-_Noreturn void
+[[noreturn]] void
 spin(void)
 {
     while (1)
@@ -50,6 +50,13 @@ interrupts_restore(bool interrupts_enabled)
         asm volatile("sti" ::: "memory");
     else
         asm volatile("cli" ::: "memory");
+}
+
+[[noreturn]] void
+shutdown(void)
+{
+    outw(0x604, 0x2000);
+    abort();
 }
 
 void

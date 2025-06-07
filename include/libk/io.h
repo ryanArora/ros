@@ -23,8 +23,8 @@ void kprintf(const char* fmt, ...);
 /*
     Die
 */
-_Noreturn void abort(void);
-_Noreturn void spin(void);
+[[noreturn]] void abort(void);
+[[noreturn]] void spin(void);
 
 /*
     Interrupts

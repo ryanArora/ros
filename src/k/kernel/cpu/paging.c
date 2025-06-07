@@ -40,16 +40,19 @@ paging_init(void)
             desc->Type == EfiRuntimeServicesCode ||
             desc->Type == EfiRuntimeServicesData ||
             desc->Type == EfiLoaderCode || desc->Type == EfiLoaderData) {
-            map_pages(paddr, PHYSMAP_BASE + paddr, desc->NumberOfPages);
+            map_pages(paddr, PHYSMAP_BASE + paddr, 1, 0, 1, 1, 0,
+                      desc->NumberOfPages);
         }
     }
 
     size_t fb_num_pages = CEIL_DIV(boot_header->fb_size, PAGE_SIZE);
-    map_pages(boot_header->fb_paddr, boot_header->fb_vaddr, fb_num_pages);
+    map_pages(boot_header->fb_paddr, boot_header->fb_vaddr, 1, 0, 1, 1, 0,
+              fb_num_pages);
 
     for (size_t i = 0; i < boot_header->you.num_entries; ++i) {
         struct you_entry* entry = &boot_header->you.entries[i];
-        map_pages((void*)entry->paddr, (void*)entry->vaddr, entry->num_pages);
+        map_pages((void*)entry->paddr, (void*)entry->vaddr, 1, 0, 1, 1, 0,
+                  entry->num_pages);
     }
 
     // Guard page for the kernel stack

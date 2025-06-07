@@ -45,6 +45,7 @@ $(TARGET): $(FS_DIR) $(BOOT_TARGET) $(KERNEL_TARGET) $(INIT_TARGET)
 
 dev: $(TARGET)
 	qemu-system-x86_64 \
+		-serial stdio \
 		-bios OVMF.fd \
 		-drive id=disk,file=$<,if=none,format=raw \
 		-device nvme,serial=deadbeef,drive=disk

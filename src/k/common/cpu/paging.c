@@ -26,7 +26,9 @@ init_pt_entry(struct pt_entry* pt, void* paddr, bool read_write,
 }
 
 void
-map_page(void* paddr, void* vaddr)
+map_page(void* paddr, void* vaddr, bool read_write, bool user_supervisor,
+         bool page_write_through, bool page_cache_disabled,
+         bool execute_disable)
 {
     if (!PAGE_ALIGNED(paddr))
         panic("paddr is not page aligned, paddr=0x%llX, vaddr=0x%llX\n", paddr,
@@ -41,7 +43,7 @@ map_page(void* paddr, void* vaddr)
     if (!pml4_entry->present) {
         void* pdpt_vaddr = alloc_pagez(1);
         void* pdpt_paddr = vaddr_to_paddr(pdpt_vaddr);
-        init_pt_entry(pml4_entry, pdpt_paddr, 1, 0, 1, 1, 0);
+        init_pt_entry(pml4_entry, pdpt_paddr, 1, 0, 0, 0, 0);
     }
 
     struct pt_entry* pdpt_paddr =
@@ -51,7 +53,7 @@ map_page(void* paddr, void* vaddr)
     if (!pdpt_entry->present) {
         void* pt_vaddr = alloc_pagez(1);
         void* pt_paddr = vaddr_to_paddr(pt_vaddr);
-        init_pt_entry(pdpt_entry, pt_paddr, 1, 0, 1, 1, 0);
+        init_pt_entry(pdpt_entry, pt_paddr, 1, 0, 0, 0, 0);
     }
 
     struct pt_entry* pd_paddr =
@@ -61,7 +63,7 @@ map_page(void* paddr, void* vaddr)
     if (!pd_entry->present) {
         void* pt_vaddr = alloc_pagez(1);
         void* pt_paddr = vaddr_to_paddr(pt_vaddr);
-        init_pt_entry(pd_entry, pt_paddr, 1, 0, 1, 1, 0);
+        init_pt_entry(pd_entry, pt_paddr, 1, 0, 0, 0, 0);
     }
 
     struct pt_entry* pt_paddr =
@@ -69,10 +71,121 @@ map_page(void* paddr, void* vaddr)
     struct pt_entry* pt_vaddr = paddr_to_vaddr(pt_paddr);
     struct pt_entry* pt_entry = &pt_vaddr[v.pt_index];
     if (!pt_entry->present) {
-        init_pt_entry(pt_entry, paddr, 1, 0, 1, 1, 0);
+        init_pt_entry(pt_entry, paddr, read_write, user_supervisor,
+                      page_write_through, page_cache_disabled, execute_disable);
         asm volatile("invlpg (%0)" ::"r"(vaddr) : "memory");
     } else {
         panic("page is already mapped, vaddr=0x%llX\n", vaddr);
+    }
+}
+
+void
+map_page_kernel_code(void* paddr, void* vaddr)
+{
+    map_page(paddr, vaddr, 1, 0, 0, 0, 0);
+};
+
+void
+map_page_kernel_data(void* paddr, void* vaddr)
+{
+    map_page(paddr, vaddr, 1, 0, 0, 0, 1);
+}
+
+void
+map_page_kernel_rodata(void* paddr, void* vaddr)
+{
+    map_page(paddr, vaddr, 0, 0, 0, 0, 1);
+}
+
+void
+map_page_user_code(void* paddr, void* vaddr)
+{
+    map_page(paddr, vaddr, 1, 1, 0, 0, 0);
+}
+
+void
+map_page_user_data(void* paddr, void* vaddr)
+{
+    map_page(paddr, vaddr, 1, 1, 0, 0, 1);
+}
+
+void
+map_page_user_rodata(void* paddr, void* vaddr)
+{
+    map_page(paddr, vaddr, 0, 1, 0, 0, 1);
+}
+
+void
+map_page_dma(void* paddr, void* vaddr)
+{
+    map_page(paddr, vaddr, 1, 0, 1, 1, 1);
+}
+
+void
+map_pages(void* paddr, void* vaddr, bool read_write, bool user_supervisor,
+          bool page_write_through, bool page_cache_disabled,
+          bool execute_disable, size_t num_pages)
+{
+    for (size_t i = 0; i < num_pages; ++i) {
+        map_page(paddr + i * PAGE_SIZE, vaddr + i * PAGE_SIZE, read_write,
+                 user_supervisor, page_write_through, page_cache_disabled,
+                 execute_disable);
+    }
+}
+
+void
+map_pages_kernel_code(void* paddr, void* vaddr, size_t num_pages)
+{
+    for (size_t i = 0; i < num_pages; ++i) {
+        map_page_kernel_code(paddr + i * PAGE_SIZE, vaddr + i * PAGE_SIZE);
+    }
+}
+
+void
+map_pages_kernel_data(void* paddr, void* vaddr, size_t num_pages)
+{
+    for (size_t i = 0; i < num_pages; ++i) {
+        map_page_kernel_data(paddr + i * PAGE_SIZE, vaddr + i * PAGE_SIZE);
+    }
+}
+
+void
+map_pages_kernel_rodata(void* paddr, void* vaddr, size_t num_pages)
+{
+    for (size_t i = 0; i < num_pages; ++i) {
+        map_page_kernel_rodata(paddr + i * PAGE_SIZE, vaddr + i * PAGE_SIZE);
+    }
+}
+
+void
+map_pages_user_code(void* paddr, void* vaddr, size_t num_pages)
+{
+    for (size_t i = 0; i < num_pages; ++i) {
+        map_page_user_code(paddr + i * PAGE_SIZE, vaddr + i * PAGE_SIZE);
+    }
+}
+
+void
+map_pages_user_data(void* paddr, void* vaddr, size_t num_pages)
+{
+    for (size_t i = 0; i < num_pages; ++i) {
+        map_page_user_data(paddr + i * PAGE_SIZE, vaddr + i * PAGE_SIZE);
+    }
+}
+
+void
+map_pages_user_rodata(void* paddr, void* vaddr, size_t num_pages)
+{
+    for (size_t i = 0; i < num_pages; ++i) {
+        map_page_user_rodata(paddr + i * PAGE_SIZE, vaddr + i * PAGE_SIZE);
+    }
+}
+
+void
+map_pages_dma(void* paddr, void* vaddr, size_t num_pages)
+{
+    for (size_t i = 0; i < num_pages; ++i) {
+        map_page_dma(paddr + i * PAGE_SIZE, vaddr + i * PAGE_SIZE);
     }
 }
 
@@ -109,14 +222,6 @@ unmap_page(void* vaddr)
         panic("page is already unmapped because pt_entry is not present\n");
 
     pt_entry->present = 0;
-}
-
-void
-map_pages(void* paddr, void* vaddr, size_t num_pages)
-{
-    for (size_t i = 0; i < num_pages; ++i) {
-        map_page(paddr + i * PAGE_SIZE, vaddr + i * PAGE_SIZE);
-    }
 }
 
 void

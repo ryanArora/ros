@@ -51,12 +51,30 @@ extern struct pt_entry* pml4_vaddr;
 
 void paging_init(void);
 
-void map_page(void* paddr, void* vaddr);
-void unmap_page(void* vaddr);
+void map_page(void* paddr, void* vaddr, bool read_write, bool user_supervisor,
+              bool page_write_through, bool page_cache_disabled,
+              bool execute_disable);
+void map_page_kernel_code(void* paddr, void* vaddr);
+void map_page_kernel_data(void* paddr, void* vaddr);
+void map_page_kernel_rodata(void* paddr, void* vaddr);
+void map_page_user_code(void* paddr, void* vaddr);
+void map_page_user_data(void* paddr, void* vaddr);
+void map_page_user_rodata(void* paddr, void* vaddr);
+void map_page_dma(void* paddr, void* vaddr);
 
-void map_pages(void* paddr, void* vaddr, size_t num_pages);
+void map_pages(void* paddr, void* vaddr, bool read_write, bool user_supervisor,
+               bool page_write_through, bool page_cache_disabled,
+               bool execute_disable, size_t num_pages);
+void map_pages_kernel_code(void* paddr, void* vaddr, size_t num_pages);
+void map_pages_kernel_data(void* paddr, void* vaddr, size_t num_pages);
+void map_pages_kernel_rodata(void* paddr, void* vaddr, size_t num_pages);
+void map_pages_user_code(void* paddr, void* vaddr, size_t num_pages);
+void map_pages_user_data(void* paddr, void* vaddr, size_t num_pages);
+void map_pages_user_rodata(void* paddr, void* vaddr, size_t num_pages);
+void map_pages_dma(void* paddr, void* vaddr, size_t num_pages);
+
+void unmap_page(void* vaddr);
 void unmap_pages(void* vaddr, size_t num_pages);
 
 void* paddr_to_vaddr(void* paddr);
-void* any_vaddr_to_paddr(void* vaddr);
 void* vaddr_to_paddr(void* vaddr);

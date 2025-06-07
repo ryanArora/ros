@@ -94,8 +94,8 @@ load_kernel(const char* path)
         if (buf_bytes_read != program_header->filesz)
             panic("failed to read PT_LOAD segment data\n");
 
-        map_pages(vaddr_to_paddr(buf), (void*)program_header->vaddr,
-                  buf_num_pages);
+        map_pages(vaddr_to_paddr(buf), (void*)program_header->vaddr, 1, 0, 1, 1,
+                  0, buf_num_pages);
 
         // The kernel needs to know where it is to map its code.
         if (boot_header->you.num_entries >= YOU_ENTRIES_MAX)

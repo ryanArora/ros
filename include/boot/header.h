@@ -14,7 +14,7 @@ struct you_entry {
 struct you {
     struct you_entry stack;
     size_t num_entries;
-    struct you_entry* entries;
+    struct you_entry entries[YOU_ENTRIES_MAX];
 };
 
 struct boot_header {

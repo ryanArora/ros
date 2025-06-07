@@ -90,8 +90,8 @@ load_init_process(const char* path)
         if (buf_bytes_read != program_header->filesz)
             panic("failed to read PT_LOAD segment data\n");
 
-        map_pages(vaddr_to_paddr(buf), (void*)program_header->vaddr,
-                  buf_num_pages);
+        map_pages(vaddr_to_paddr(buf), (void*)program_header->vaddr, 1, 0, 1, 1,
+                  0, buf_num_pages);
     }
 
     uintptr_t entry = elf_header->entry;

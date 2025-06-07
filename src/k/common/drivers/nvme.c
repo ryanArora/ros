@@ -138,7 +138,7 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
     uint64_t nvme_base_paddr = ((uint64_t)bar1 << 32) | (bar0 & ~0xF);
     assert(PAGE_ALIGNED(nvme_base_paddr));
     nvme_base_vaddr = (uintptr_t)paddr_to_vaddr((void*)nvme_base_paddr);
-    map_pages((void*)nvme_base_paddr, (void*)nvme_base_vaddr, 4);
+    map_pages((void*)nvme_base_paddr, (void*)nvme_base_vaddr, 1, 0, 1, 1, 0, 4);
 
     // Check the controller version is supported.
     uint32_t nvme_version = nvme_read_reg_dword(NVME_REGISTER_OFFSET_VS);

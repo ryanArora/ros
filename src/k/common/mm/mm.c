@@ -22,7 +22,7 @@ free_stack(void* stack_top)
 
     // Remap the bottom page which was previously unmapped to prevent
     // stackoverflow
-    map_page(vaddr_to_paddr(stack_btm), stack_btm);
+    map_page(vaddr_to_paddr(stack_btm), stack_btm, 1, 0, 1, 1, 0);
 
     free_pages(stack_btm, STACK_NUM_PAGES);
 }

@@ -44,15 +44,16 @@ paging_init(void)
             desc->Type == EfiRuntimeServicesCode ||
             desc->Type == EfiRuntimeServicesData ||
             desc->Type == EfiLoaderCode || desc->Type == EfiLoaderData) {
-            map_pages(paddr, paddr, desc->NumberOfPages);
-            map_pages(paddr, PHYSMAP_BASE + paddr, desc->NumberOfPages);
+            map_pages(paddr, paddr, 1, 0, 1, 1, 0, desc->NumberOfPages);
+            map_pages(paddr, PHYSMAP_BASE + paddr, 1, 0, 1, 1, 0,
+                      desc->NumberOfPages);
         }
     }
 
     void* fb_paddr = boot_header->fb_paddr;
     void* fb_vaddr = PHYSMAP_BASE + boot_header->fb_vaddr;
     size_t fb_num_pages = CEIL_DIV(boot_header->fb_size, PAGE_SIZE);
-    map_pages(fb_paddr, fb_vaddr, fb_num_pages);
+    map_pages(fb_paddr, fb_vaddr, 1, 0, 1, 1, 0, fb_num_pages);
     boot_header->fb_vaddr = fb_vaddr;
 
     asm volatile("mov %0, %%cr3" ::"r"(vaddr_to_paddr(pml4_vaddr)) : "memory");

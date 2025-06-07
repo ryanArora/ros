@@ -631,19 +631,20 @@ nvme_submit_io(uint8_t opcode, uint64_t lba, uint16_t num_blocks, void* buf)
     io_submission_queue_tail =
         (io_submission_queue_tail + 1) % io_submission_queue.size;
 
+    uint64_t timeout = 100'000'000;
+    io_cmd_done = false;
+    interrupts_enable();
+
     nvme_write_reg_dword(
         nvme_submission_queue_tail_doorbell(NVME_SUBMISSION_QID_IO),
         io_submission_queue_tail);
 
-    uint64_t timeout = 100'000'000;
-    io_cmd_done = false;
     while (!io_cmd_done) {
-        if (timeout == 0) {
-            panic("nvme_submit_io timeout\n");
-        }
-
+        if (timeout == 0) panic("nvme_submit_io timeout\n");
         --timeout;
     }
+
+    interrupts_disable();
 }
 
 void

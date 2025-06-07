@@ -12,6 +12,7 @@
 #include <blk/blk.h>
 #include <cpu/paging.h>
 #include <mm/mm.h>
+#include <syscall/syscall.h>
 
 struct boot_header* boot_header;
 
@@ -20,6 +21,7 @@ kmain(void)
 {
     // Pickup boot_header from rax register
     asm volatile("mov %%rax, %0" : "=r"(boot_header));
+    interrupts_disable();
 
     kprintf("Starting kernel...\n");
 
@@ -31,9 +33,9 @@ kmain(void)
     pci_init();
     pic_init();
     pit_init();
-    interrupts_enable();
 
     blk_init();
+
+    syscall_init();
     load_init_process("/bin/init");
-    spin();
 }

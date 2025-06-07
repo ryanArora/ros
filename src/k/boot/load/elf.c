@@ -124,7 +124,6 @@ load_kernel(const char* path)
     boot_header->you.stack.num_pages = stack_num_pages;
 
     nvme_deinit();
-    interrupts_disable();
 
     // Handoff boot_header to kernel in rax register
     asm volatile("mov %0, %%rax\n"

@@ -15,6 +15,12 @@ uint16_t inw(uint16_t port);
 uint32_t inl(uint16_t port);
 
 /*
+    MSR Functions
+*/
+uint64_t rdmsr(uint32_t msr);
+void wrmsr(uint32_t msr, uint64_t value);
+
+/*
     Printing
 */
 void kputchar(char ch);
@@ -32,7 +38,7 @@ void kprintf(const char* fmt, ...);
 void interrupts_enable(void);
 void interrupts_disable(void);
 
-bool interupts_enabled(void);
+bool interrupts_enabled(void);
 void interrupts_restore(bool interrupts_enabled);
 
 /*

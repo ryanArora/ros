@@ -1,6 +1,6 @@
 .section .text
-.globl _start
+.global _start
 
 _start:
-    cli
-    hlt
+    syscall
+    jmp _start

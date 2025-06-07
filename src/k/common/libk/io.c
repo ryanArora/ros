@@ -52,13 +52,6 @@ interrupts_restore(bool interrupts_enabled)
         asm volatile("cli" ::: "memory");
 }
 
-[[noreturn]] void
-shutdown(void)
-{
-    outw(0x604, 0x2000);
-    abort();
-}
-
 void
 outb(uint16_t port, uint8_t val)
 {
@@ -99,6 +92,23 @@ inl(uint16_t port)
     uint32_t ret;
     asm volatile("inl %w1, %0" : "=a"(ret) : "Nd"(port) : "memory");
     return ret;
+}
+
+uint64_t
+rdmsr(uint32_t msr)
+{
+    uint32_t low = 0;
+    uint32_t high = 0;
+    asm volatile("rdmsr" : "=a"(low), "=d"(high) : "c"(msr));
+    return ((uint64_t)high << 32) | (uint64_t)low;
+}
+
+void
+wrmsr(uint32_t msr, uint64_t value)
+{
+    uint32_t low = (uint32_t)value;
+    uint32_t high = (uint32_t)(value >> 32);
+    asm volatile("wrmsr" : : "a"(low), "d"(high), "c"(msr));
 }
 
 void

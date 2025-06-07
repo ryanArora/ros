@@ -43,7 +43,7 @@ map_page(void* paddr, void* vaddr, bool read_write, bool user_supervisor,
     if (!pml4_entry->present) {
         void* pdpt_vaddr = alloc_pagez(1);
         void* pdpt_paddr = vaddr_to_paddr(pdpt_vaddr);
-        init_pt_entry(pml4_entry, pdpt_paddr, 1, 0, 0, 0, 0);
+        init_pt_entry(pml4_entry, pdpt_paddr, 1, 1, 0, 0, 0);
     }
 
     struct pt_entry* pdpt_paddr =
@@ -53,7 +53,7 @@ map_page(void* paddr, void* vaddr, bool read_write, bool user_supervisor,
     if (!pdpt_entry->present) {
         void* pt_vaddr = alloc_pagez(1);
         void* pt_paddr = vaddr_to_paddr(pt_vaddr);
-        init_pt_entry(pdpt_entry, pt_paddr, 1, 0, 0, 0, 0);
+        init_pt_entry(pdpt_entry, pt_paddr, 1, 1, 0, 0, 0);
     }
 
     struct pt_entry* pd_paddr =
@@ -63,7 +63,7 @@ map_page(void* paddr, void* vaddr, bool read_write, bool user_supervisor,
     if (!pd_entry->present) {
         void* pt_vaddr = alloc_pagez(1);
         void* pt_paddr = vaddr_to_paddr(pt_vaddr);
-        init_pt_entry(pd_entry, pt_paddr, 1, 0, 0, 0, 0);
+        init_pt_entry(pd_entry, pt_paddr, 1, 1, 0, 0, 0);
     }
 
     struct pt_entry* pt_paddr =

@@ -90,36 +90,29 @@ load_init_process(const char* path)
         if (buf_bytes_read != program_header->filesz)
             panic("failed to read PT_LOAD segment data\n");
 
-        map_pages(vaddr_to_paddr(buf), (void*)program_header->vaddr, 1, 0, 1, 1,
-                  0, buf_num_pages);
+        kprintf("map_pages 0x%llX -> 0x%llX, %d pages\n", vaddr_to_paddr(buf),
+                (void*)program_header->vaddr, buf_num_pages);
+
+        void* paddr = vaddr_to_paddr(buf);
+        void* vaddr = (void*)program_header->vaddr;
+        map_pages_user_code(paddr, vaddr, buf_num_pages);
     }
 
     uintptr_t entry = elf_header->entry;
     free_pages(elf_header, elf_header_num_pages);
     free_pages(program_headers, program_headers_num_pages);
 
-    asm volatile(
-        // Enable SYSCALL/SYSRET
-        "mov $0xc0000082, %%rcx\n"
-        "wrmsr\n"
-        "mov $0xc0000080, %%rcx\n"
-        "rdmsr\n"
-        "orb $1, %%al\n"
-        "wrmsr\n"
-        "mov $0xc0000081, %%rcx\n"
-        "rdmsr\n"
-        "mov $0x00180008, %%edx\n"
-        "wrmsr\n"
+    uint64_t stack_pointer;
+    asm volatile("mov %%rsp, %0" : "=r"(stack_pointer));
+    kprintf("load_init_process, rsp=0x%llX, interrupts_enabled=%d\n",
+            stack_pointer, interrupts_enabled());
 
-        // Set user RIP (RCX) and RFLAGS (R11)
-        "mov %[entry], %%rcx\n"
-        "mov $0x202, %%r11\n"
-
-        // Transition to user mode
-        "sysretq\n"
-        :
-        : [entry] "r"(entry)
-        : "rax", "rcx", "rdx", "r11", "memory");
+    asm volatile("mov %[entry], %%rcx\n"
+                 "mov $0x2, %%r11\n"
+                 "sysretq\n"
+                 :
+                 : [entry] "r"(entry)
+                 : "rcx", "r11", "memory");
 
     panic("why are you here?");
 }

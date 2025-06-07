@@ -4,9 +4,6 @@
 #include <libk/string.h>
 #include <mm/mm.h>
 
-#define GDT_SEGMENT_DESCRIPTORS        5
-#define GDT_SYSTEM_SEGMENT_DESCRIPTORS 1
-
 extern void gdt_reload_segments(void);
 extern void gdt_flush_tss(void);
 
@@ -293,4 +290,5 @@ gdt_init_tss(struct tss* tss)
 {
     memset(tss, 0, sizeof(struct tss));
     tss->rsp0 = (uint64_t)alloc_stack();
+    kprintf("tss->rsp0=0x%llX\n", tss->rsp0);
 }

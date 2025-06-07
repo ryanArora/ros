@@ -17,6 +17,8 @@
 [[noreturn]] void
 bmain(void)
 {
+    interrupts_disable();
+
     console_init();
     kprintf("Starting bootloader...\n");
 
@@ -29,7 +31,6 @@ bmain(void)
 
     pic_init();
     pit_init();
-    interrupts_enable();
 
     blk_init();
     load_kernel("/kernel");

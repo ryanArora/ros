@@ -14,9 +14,8 @@ struct tls tls;
 static void init_tls(struct tls* tls);
 [[noreturn]] extern void syscall_handler(void);
 
-static void syscall_exit(uint64_t code);
-
 #define SYSCALL_EXIT 0
+static void syscall_exit(uint64_t code);
 
 void
 syscall_init(void)

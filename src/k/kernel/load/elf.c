@@ -102,16 +102,16 @@ load_init_process(const char* path)
     free_pages(elf_header, elf_header_num_pages);
     free_pages(program_headers, program_headers_num_pages);
 
-    uint64_t stack_pointer;
-    asm volatile("mov %%rsp, %0" : "=r"(stack_pointer));
-    kprintf("load_init_process, rsp=0x%llX, interrupts_enabled=%d\n",
-            stack_pointer, interrupts_enabled());
+    void* rsp = (void*)0x00007fffffff0000;
+    alloc_user_stack(rsp);
 
-    asm volatile("mov %[entry], %%rcx\n"
+    asm volatile("mov %[rsp], %%rsp\n"
+                 "mov %%rsp, %%rbp\n"
+                 "mov %[entry], %%rcx\n"
                  "mov $0x2, %%r11\n"
                  "sysretq\n"
                  :
-                 : [entry] "r"(entry)
+                 : [entry] "r"(entry), [rsp] "r"(rsp)
                  : "rcx", "r11", "memory");
 
     panic("why are you here?");

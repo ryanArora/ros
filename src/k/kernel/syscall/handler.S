@@ -1,36 +1,50 @@
+.equ KERNEL_RSP_OFFSET, 0x0
+.equ USER_RSP_OFFSET, 0x8
+
 .global syscall_handler
 syscall_handler:
-    push %rax
-    push %rbx
-    push %rcx
-    push %rdx
-    push %rsi
-    push %rdi
-    push %rbp
-    push %r8
-    push %r9
-    push %r10
-    push %r11
-    push %r12
-    push %r13
-    push %r14
-    push %r15
+    # Save the user stack pointer, restore the kernel stack pointer
+    swapgs
+    movq %rsp, %gs:USER_RSP_OFFSET
+    movq %gs:KERNEL_RSP_OFFSET, %rsp
 
+    pushq %rax
+    pushq %rbx
+    pushq %rcx
+    pushq %rdx
+    pushq %rsi
+    pushq %rdi
+    pushq %rbp
+    pushq %r8
+    pushq %r9
+    pushq %r10
+    pushq %r11
+    pushq %r12
+    pushq %r13
+    pushq %r14
+    pushq %r15
+
+    movq %r10, %rcx            # So that syscall_handler_c works with SystemV
     call syscall_handler_c
 
-    pop %r15
-    pop %r14
-    pop %r13
-    pop %r12
-    pop %r11
-    pop %r10
-    pop %r9
-    pop %r8
-    pop %rbp
-    pop %rdi
-    pop %rsi
-    pop %rdx
-    pop %rcx
-    pop %rbx
-    pop %rax
+    popq %r15
+    popq %r14
+    popq %r13
+    popq %r12
+    popq %r11
+    popq %r10
+    popq %r9
+    popq %r8
+    popq %rbp
+    popq %rdi
+    popq %rsi
+    popq %rdx
+    popq %rcx
+    popq %rbx
+    popq %rax
+
+    # Restore the user stack pointer
+    movq %gs:USER_RSP_OFFSET, %rsp
+    swapgs
+
     sysretq

@@ -15,5 +15,8 @@ void* kmalloc(size_t size);
 void* kzmalloc(size_t size);
 void kfree(void* ptr);
 
-void* alloc_stack(void); // Returns a pointer to the top of the stack
-void free_stack(void* stack_top);
+void* alloc_kernel_stack(void); // Returns a pointer to the top of the stack
+void free_kernel_stack(void* stack_top);
+
+void* alloc_user_stack(void* stack_top_user_vaddr);
+void free_user_stack(void* stack_top_kernel_vaddr);

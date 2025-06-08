@@ -15,7 +15,8 @@
 #include <kernel/syscall/syscall.h>
 #include <kernel/sched/sched.h>
 #include <kernel/tls.h>
-
+#include <kernel/libk/ds/list.h>
+#include <kernel/libk/ds/tree.h>
 struct boot_header* boot_header;
 
 [[noreturn]] void
@@ -37,6 +38,11 @@ kmain(void)
     pit_init();
 
     blk_init();
+
+#ifdef TEST
+    list_test();
+    tree_test();
+#endif
 
     syscall_init();
     tls_init();

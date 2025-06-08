@@ -2,6 +2,12 @@ KCC := clang
 KCFLAGS := -D_GNU_SOURCE -std=gnu23 -Wall -Wextra -Werror -MMD -MP -Ilib/gnu-efi/inc -Iinclude -fpic -ffreestanding -nostdlib -nostdinc -fno-stack-protector -fno-stack-check -fshort-wchar -mno-red-zone -mgeneral-regs-only
 UCC := clang
 UCFLAGS := -D_GNU_SOURCE -std=gnu23 -Wall -Wextra -Werror -MMD -MP -Iinclude -fpic -ffreestanding -nostdlib -nostdinc -fno-stack-protector -fno-stack-check -fshort-wchar -mno-red-zone -mgeneral-regs-only
+
+ifdef TEST
+KCFLAGS += -DTEST
+UCFLAGS += -DTEST
+endif
+
 AS := as
 LD := ld
 OBJCOPY := objcopy

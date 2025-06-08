@@ -1,10 +1,10 @@
 #include "ext2.h"
-#include <libk/io.h>
-#include <blk/blk.h>
-#include <libk/string.h>
-#include <libk/math.h>
-#include <mm/mm.h>
-#include <cpu/paging.h>
+#include <kernel/libk/io.h>
+#include <kernel/blk/blk.h>
+#include <kernel/libk/string.h>
+#include <kernel/libk/math.h>
+#include <kernel/mm/mm.h>
+#include <kernel/cpu/paging.h>
 
 #define EXT2_SUPERBLOCK_MAGIC 0xEF53
 #define EXT2_ROOT_INO         2

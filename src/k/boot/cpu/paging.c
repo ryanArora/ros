@@ -1,13 +1,13 @@
-#include <cpu/paging.h>
-#include <libk/io.h>
-#include <libk/string.h>
-#include <boot/header.h>
-#include <cpu/paging.h>
-#include <libk/string.h>
-#include <libk/io.h>
-#include <boot/header.h>
-#include <libk/math.h>
-#include <mm/mm.h>
+#include <kernel/cpu/paging.h>
+#include <kernel/libk/io.h>
+#include <kernel/libk/string.h>
+#include <kernel/boot/header.h>
+#include <kernel/cpu/paging.h>
+#include <kernel/libk/string.h>
+#include <kernel/libk/io.h>
+#include <kernel/boot/header.h>
+#include <kernel/libk/math.h>
+#include <kernel/mm/mm.h>
 
 struct pt_entry* pml4_vaddr;
 

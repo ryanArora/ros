@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-#include <boot/header.h>
+#include <kernel/boot/header.h>
 
 /*
     CPU Port IO Functions

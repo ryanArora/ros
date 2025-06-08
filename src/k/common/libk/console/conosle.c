@@ -1,12 +1,11 @@
-#include <libk/console.h>
-
+#include <kernel/libk/console.h>
 #include "spleen-8x16.h"
-#include <drivers/gop.h>
-#include <libk/string.h>
+#include <kernel/drivers/gop.h>
+#include <kernel/libk/string.h>
 #include <stdint.h>
-#include <boot/header.h>
-#include <drivers/serial.h>
-#include <drivers/gop.h>
+#include <kernel/boot/header.h>
+#include <kernel/drivers/serial.h>
+#include <kernel/drivers/gop.h>
 
 // Forward declarations
 static void console_scroll_down(void);

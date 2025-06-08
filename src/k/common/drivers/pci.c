@@ -1,7 +1,7 @@
-#include <drivers/pci.h>
-#include <libk/io.h>
+#include <kernel/drivers/pci.h>
+#include <kernel/libk/io.h>
 #include <stdint.h>
-#include <drivers/nvme.h>
+#include <kernel/drivers/nvme.h>
 #include <stddef.h>
 
 #define PCI_CONFIG_VENDOR_ID_OFFSET           0x00

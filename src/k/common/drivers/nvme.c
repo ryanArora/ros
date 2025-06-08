@@ -1,13 +1,13 @@
-#include <drivers/nvme.h>
-#include <libk/io.h>
-#include <drivers/pci.h>
-#include <mm/mm.h>
-#include <cpu/idt.h>
-#include <libk/string.h>
-#include <libk/math.h>
-#include <blk/blk.h>
+#include <kernel/drivers/nvme.h>
+#include <kernel/libk/io.h>
+#include <kernel/drivers/pci.h>
+#include <kernel/mm/mm.h>
+#include <kernel/cpu/idt.h>
+#include <kernel/libk/string.h>
+#include <kernel/libk/math.h>
+#include <kernel/blk/blk.h>
 #include <limits.h>
-#include <cpu/paging.h>
+#include <kernel/cpu/paging.h>
 
 #define NVME_REGISTER_OFFSET_CAP   0x00
 #define NVME_REGISTER_OFFSET_VS    0x08

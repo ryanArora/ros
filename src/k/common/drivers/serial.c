@@ -1,5 +1,5 @@
-#include <drivers/serial.h>
-#include <libk/io.h>
+#include <kernel/drivers/serial.h>
+#include <kernel/libk/io.h>
 
 #define COM1 0x3F8
 

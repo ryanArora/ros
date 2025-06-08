@@ -1,8 +1,8 @@
 #include "fat16.h"
-#include <blk/blk.h>
-#include <libk/string.h>
-#include <libk/io.h>
-#include <mm/mm.h>
+#include <kernel/blk/blk.h>
+#include <kernel/libk/string.h>
+#include <kernel/libk/io.h>
+#include <kernel/mm/mm.h>
 
 static void fat16_mount(struct blk_device* dev);
 static void fat16_umount(struct blk_device* dev);

@@ -1,10 +1,10 @@
-#include <mm/mm.h>
-#include <mm/pfa.h>
-#include <mm/slab.h>
-#include <boot/header.h>
-#include <libk/io.h>
-#include <cpu/paging.h>
-#include <libk/string.h>
+#include <kernel/mm/mm.h>
+#include <kernel/mm/pfa.h>
+#include <kernel/mm/slab.h>
+#include <kernel/boot/header.h>
+#include <kernel/libk/io.h>
+#include <kernel/cpu/paging.h>
+#include <kernel/libk/string.h>
 
 static struct pfa_state pfa_state;
 static struct slab_state slab_state;

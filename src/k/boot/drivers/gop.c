@@ -1,8 +1,8 @@
-#include <drivers/gop.h>
+#include <kernel/drivers/gop.h>
 #include <efi.h>
 #include <efilib.h>
-#include <libk/io.h>
-#include <boot/header.h>
+#include <kernel/libk/io.h>
+#include <kernel/boot/header.h>
 #include "../efi_main.h"
 
 static void gop_set_resolution(EFI_GRAPHICS_OUTPUT_PROTOCOL* Gop,

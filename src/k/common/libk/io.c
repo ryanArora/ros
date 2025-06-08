@@ -1,7 +1,7 @@
-#include <libk/io.h>
-#include <libk/console.h>
+#include <kernel/libk/io.h>
+#include <kernel/libk/console.h>
 #include <stdarg.h>
-#include <drivers/serial.h>
+#include <kernel/drivers/serial.h>
 #include <stddef.h>
 
 [[noreturn]] void

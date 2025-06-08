@@ -1,5 +1,5 @@
-#include <libk/string.h>
-#include <mm/mm.h>
+#include <kernel/libk/string.h>
+#include <kernel/mm/mm.h>
 #include <stdint.h>
 
 void*

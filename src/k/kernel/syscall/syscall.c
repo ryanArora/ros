@@ -1,7 +1,7 @@
-#include <libk/io.h>
-#include <syscall/syscall.h>
-#include <cpu/gdt.h>
-#include <mm/mm.h>
+#include <kernel/libk/io.h>
+#include <kernel/syscall/syscall.h>
+#include <kernel/cpu/gdt.h>
+#include <kernel/mm/mm.h>
 
 #define LSTAR_MSR_OFFSET     0xC0000082
 #define IA32_EFER_MSR_OFFSET 0xC0000080

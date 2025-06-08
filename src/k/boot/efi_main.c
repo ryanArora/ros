@@ -1,9 +1,9 @@
 #include <efi.h>
 #include <efilib.h>
-#include <drivers/gop.h>
+#include <kernel/drivers/gop.h>
 #include "bmain.h"
-#include <libk/io.h>
-#include <boot/header.h>
+#include <kernel/libk/io.h>
+#include <kernel/boot/header.h>
 
 EFI_HANDLE ImageHandle;
 EFI_SYSTEM_TABLE* SystemTable;

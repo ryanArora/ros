@@ -1,9 +1,9 @@
-#include <load/elf.h>
-#include <libk/io.h>
-#include <blk/blk.h>
-#include <libk/math.h>
-#include <mm/mm.h>
-#include <libk/string.h>
+#include <kernel/load/elf.h>
+#include <kernel/libk/io.h>
+#include <kernel/blk/blk.h>
+#include <kernel/libk/math.h>
+#include <kernel/mm/mm.h>
+#include <kernel/libk/string.h>
 
 [[noreturn]] void
 load_init_process(const char* path)

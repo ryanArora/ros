@@ -1,6 +1,6 @@
-#include <drivers/pit.h>
-#include <drivers/pic.h>
-#include <libk/io.h>
+#include <kernel/drivers/pit.h>
+#include <kernel/drivers/pic.h>
+#include <kernel/libk/io.h>
 #include <stdint.h>
 
 void

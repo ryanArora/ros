@@ -1,7 +1,7 @@
 #pragma once
 #include <efi.h>
-#include <cpu/paging.h>
-#include <libk/console.h>
+#include <kernel/cpu/paging.h>
+#include <kernel/libk/console.h>
 
 #define YOU_ENTRIES_MAX 3
 

@@ -1,9 +1,9 @@
-#include <blk/blk.h>
-#include <libk/io.h>
-#include <libk/math.h>
-#include <libk/string.h>
-#include <mm/mm.h>
-#include <cpu/paging.h>
+#include <kernel/blk/blk.h>
+#include <kernel/libk/io.h>
+#include <kernel/libk/math.h>
+#include <kernel/libk/string.h>
+#include <kernel/mm/mm.h>
+#include <kernel/cpu/paging.h>
 
 #define BLK_DEVICES_MAX 16
 

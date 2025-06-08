@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-#include <libk/io.h>
+#include <kernel/libk/io.h>
 
 #define CEIL_DIV(x, y) (((x) + (y) - 1) / (y))
 #define MIN(x, y)      ((x) < (y) ? (x) : (y))

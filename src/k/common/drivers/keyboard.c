@@ -1,5 +1,5 @@
-#include <drivers/keyboard.h>
-#include <libk/io.h>
+#include <kernel/drivers/keyboard.h>
+#include <kernel/libk/io.h>
 #include <stdint.h>
 
 static bool lshift;

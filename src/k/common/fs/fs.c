@@ -1,8 +1,8 @@
-#include <fs/fs.h>
+#include <kernel/fs/fs.h>
 #include "ext2.h"
 #include "fat16.h"
 #include <stddef.h>
-#include <libk/io.h>
+#include <kernel/libk/io.h>
 
 #define FS_MAX_OPEN_FILES 512;
 

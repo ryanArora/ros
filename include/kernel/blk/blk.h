@@ -1,6 +1,6 @@
 #pragma once
 #include <stdint.h>
-#include "fs/fs.h"
+#include <kernel/fs/fs.h>
 
 #define BLOCK_SIZE 512
 

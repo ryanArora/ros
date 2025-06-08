@@ -1,14 +1,14 @@
-#include <mm/slab.h>
+#include <kernel/mm/slab.h>
 #include <efi.h>
-#include <libk/io.h>
-#include <libk/string.h>
+#include <kernel/libk/io.h>
+#include <kernel/libk/string.h>
 #include <stdint.h>
-#include <mm/mm.h>
+#include <kernel/mm/mm.h>
 #include <limits.h>
-#include <boot/header.h>
-#include <cpu/paging.h>
-#include <mm/pfa.h>
-#include <libk/math.h>
+#include <kernel/boot/header.h>
+#include <kernel/cpu/paging.h>
+#include <kernel/mm/pfa.h>
+#include <kernel/libk/math.h>
 
 // Forward declarations
 static struct slab_header* slab_create(size_t object_size);

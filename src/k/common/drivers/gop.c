@@ -1,6 +1,6 @@
-#include <drivers/gop.h>
-#include <boot/header.h>
-#include <libk/io.h>
+#include <kernel/drivers/gop.h>
+#include <kernel/boot/header.h>
+#include <kernel/libk/io.h>
 
 void
 gop_draw_pixel(uint32_t pixel, uint32_t x, uint32_t y)

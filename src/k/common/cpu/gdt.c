@@ -1,8 +1,8 @@
-#include <cpu/gdt.h>
+#include <kernel/cpu/gdt.h>
 #include <stdint.h>
-#include <libk/io.h>
-#include <libk/string.h>
-#include <mm/mm.h>
+#include <kernel/libk/io.h>
+#include <kernel/libk/string.h>
+#include <kernel/mm/mm.h>
 
 extern void gdt_reload_segments(void);
 extern void gdt_flush_tss(void);

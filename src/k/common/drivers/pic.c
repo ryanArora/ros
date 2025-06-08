@@ -1,5 +1,5 @@
-#include <drivers/pic.h>
-#include <libk/io.h>
+#include <kernel/drivers/pic.h>
+#include <kernel/libk/io.h>
 
 void
 pic_init(void)

@@ -1,5 +1,5 @@
 #pragma once
-#include <fs/fs.h>
+#include <kernel/fs/fs.h>
 
 bool fs_ext2_probe(struct blk_device* dev);
 

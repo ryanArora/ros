@@ -1,13 +1,13 @@
-#include <load/elf.h>
-#include "fs/fs.h"
-#include <libk/io.h>
-#include <libk/string.h>
-#include <mm/mm.h>
-#include <libk/console.h>
-#include <cpu/paging.h>
-#include <libk/math.h>
-#include <boot/header.h>
-#include <drivers/nvme.h>
+#include <kernel/load/elf.h>
+#include <kernel/fs/fs.h>
+#include <kernel/libk/io.h>
+#include <kernel/libk/string.h>
+#include <kernel/mm/mm.h>
+#include <kernel/libk/console.h>
+#include <kernel/cpu/paging.h>
+#include <kernel/libk/math.h>
+#include <kernel/boot/header.h>
+#include <kernel/drivers/nvme.h>
 
 [[noreturn]] void
 load_kernel(const char* path)

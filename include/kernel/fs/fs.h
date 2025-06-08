@@ -1,5 +1,5 @@
 #pragma once
-#include <blk/blk.h>
+#include <kernel/blk/blk.h>
 #include <stddef.h>
 
 struct blk_device;

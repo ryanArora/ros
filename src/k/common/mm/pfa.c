@@ -1,9 +1,9 @@
-#include <mm/pfa.h>
+#include <kernel/mm/pfa.h>
 #include <efi.h>
-#include <libk/io.h>
-#include <boot/header.h>
-#include <cpu/paging.h>
-#include <libk/math.h>
+#include <kernel/libk/io.h>
+#include <kernel/boot/header.h>
+#include <kernel/cpu/paging.h>
+#include <kernel/libk/math.h>
 
 // Forward declarations
 static void* get_buddy(struct pfa_state* state, void* page, size_t order);

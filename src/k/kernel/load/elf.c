@@ -90,9 +90,6 @@ load_init_process(const char* path)
         if (buf_bytes_read != program_header->filesz)
             panic("failed to read PT_LOAD segment data\n");
 
-        kprintf("map_pages 0x%llX -> 0x%llX, %d pages\n", vaddr_to_paddr(buf),
-                (void*)program_header->vaddr, buf_num_pages);
-
         void* paddr = vaddr_to_paddr(buf);
         void* vaddr = (void*)program_header->vaddr;
         map_pages_user_code(paddr, vaddr, buf_num_pages);

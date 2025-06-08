@@ -13,6 +13,8 @@
 #include <kernel/cpu/paging.h>
 #include <kernel/mm/mm.h>
 #include <kernel/syscall/syscall.h>
+#include <kernel/sched/sched.h>
+#include <kernel/tls.h>
 
 struct boot_header* boot_header;
 
@@ -37,5 +39,6 @@ kmain(void)
     blk_init();
 
     syscall_init();
-    load_init_process("/bin/init");
+    tls_init();
+    sched_init();
 }

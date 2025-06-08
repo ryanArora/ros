@@ -2,16 +2,13 @@
 #include <kernel/syscall/syscall.h>
 #include <kernel/cpu/gdt.h>
 #include <kernel/mm/mm.h>
+#include <kernel/sched/sched.h>
 
 #define LSTAR_MSR_OFFSET     0xC0000082
 #define IA32_EFER_MSR_OFFSET 0xC0000080
 #define STAR_MSR_OFFSET      0xC0000081
-#define IA32_KERNEL_GS_BASE  0xC0000102
-
-struct tls tls;
 
 // Forward declarations
-static void init_tls(struct tls* tls);
 [[noreturn]] extern void syscall_handler(void);
 
 #define SYSCALL_EXIT 0
@@ -27,17 +24,7 @@ syscall_init(void)
     wrmsr(STAR_MSR_OFFSET, ((uint64_t)GDT_USER_CODE_OFFSET << 48) |
                                ((uint64_t)GDT_KERNEL_CODE_OFFSET << 32));
 
-    init_tls(&tls);
-
     kprintf("[DONE ] Initialize syscall handler\n");
-}
-
-static void
-init_tls(struct tls* tls)
-{
-    tls->kernel_rsp = (uint64_t)alloc_kernel_stack();
-    tls->user_rsp = 0;
-    wrmsr(IA32_KERNEL_GS_BASE, (uint64_t)tls);
 }
 
 void
@@ -54,12 +41,12 @@ syscall_handler_c(uint64_t syscall_num, uint64_t one, uint64_t two,
         syscall_exit(one);
         break;
     default:
-        panic("syscall_handler_c, invalid syscall id: %llu\n", syscall_num);
+        panic("syscall_handler_c, invalid syscall id: 0x%llX\n", syscall_num);
     }
 }
 
 static void
 syscall_exit(uint64_t code)
 {
-    panic("syscall_exit, code: 0x%llX\n", code);
+    sched_exit(code);
 }

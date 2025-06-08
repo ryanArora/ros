@@ -1,7 +1,7 @@
 #include <libk/console.h>
 
-#include <fonts/spleen-8x16.h>
-#include "./drivers/gop.h"
+#include "spleen-8x16.h"
+#include <drivers/gop.h>
 #include <libk/string.h>
 #include <stdint.h>
 #include <boot/header.h>

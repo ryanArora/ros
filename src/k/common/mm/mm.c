@@ -1,6 +1,7 @@
 #include <kernel/mm/mm.h>
 #include <kernel/cpu/paging.h>
 #include <kernel/libk/io.h>
+#include <kernel/libk/string.h>
 
 #define KERNEL_STACK_NUM_PAGES 16
 #define USER_STACK_NUM_PAGES   16

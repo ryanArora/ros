@@ -9,7 +9,7 @@
 #include <kernel/drivers/pit.h>
 #include <kernel/load/elf.h>
 #include <kernel/drivers/pci.h>
-#include <kernel/blk/blk.h>
+#include <kernel/drivers/blk.h>
 #include <kernel/cpu/paging.h>
 #include <kernel/mm/mm.h>
 #include <kernel/syscall/syscall.h>
@@ -17,6 +17,8 @@
 #include <kernel/tls.h>
 #include <kernel/libk/ds/list.h>
 #include <kernel/libk/ds/tree.h>
+#include <kernel/fs/uvfs.h>
+
 struct boot_header* boot_header;
 
 [[noreturn]] void
@@ -37,6 +39,7 @@ kmain(void)
     pic_init();
     pit_init();
 
+    uvfs_init();
     blk_init();
 
 #ifdef TEST

@@ -1,5 +1,5 @@
 #include <kernel/load/elf.h>
-#include <kernel/fs/fs.h>
+#include <kernel/fs/uvfs.h>
 #include <kernel/libk/io.h>
 #include <kernel/libk/string.h>
 #include <kernel/mm/mm.h>
@@ -14,20 +14,22 @@ load_kernel(const char* path)
 {
     kprintf("Loading kernel...\n");
 
+    struct file file;
+    if (open(path, &file) != FS_RESULT_OK) {
+        panic("failed to open %s", path);
+    }
+
     struct fs_stat st;
-    if (blk_root_device->fs->stat(blk_root_device, path, &st) ==
-        FS_STAT_RESULT_NOT_OK) {
-        panic("failed to stat %s\n");
+    if (stat(&file, &st) != FS_RESULT_OK) {
+        panic("failed to stat %s", path);
     }
 
     size_t elf_header_num_pages =
         CEIL_DIV(sizeof(struct elf_header64), PAGE_SIZE);
     struct elf_header64* elf_header = alloc_pagez(elf_header_num_pages);
 
-    size_t bytes_read = blk_root_device->fs->read(
-        blk_root_device, path, elf_header, sizeof(struct elf_header64), 0);
-
-    if (bytes_read != sizeof(struct elf_header64)) {
+    if (read(&file, elf_header, sizeof(struct elf_header64), 0) !=
+        FS_RESULT_OK) {
         panic("failed to read ELF header\n");
     }
 
@@ -68,13 +70,9 @@ load_kernel(const char* path)
     struct elf_program_header64* program_headers =
         alloc_pagez(program_headers_num_pages);
 
-    bytes_read = blk_root_device->fs->read(
-        blk_root_device, path, program_headers,
-        elf_header->phnum * sizeof(struct elf_program_header64),
-        elf_header->phoff);
-
-    if (bytes_read != elf_header->phnum * sizeof(struct elf_program_header64)) {
-        free_pages(elf_header, elf_header_num_pages);
+    if (read(&file, program_headers,
+             elf_header->phnum * sizeof(struct elf_program_header64),
+             elf_header->phoff) != FS_RESULT_OK) {
         panic("failed to read program header\n");
     }
 
@@ -87,12 +85,10 @@ load_kernel(const char* path)
         size_t buf_num_pages = CEIL_DIV(program_header->memsz, PAGE_SIZE);
         void* buf = alloc_pagez(buf_num_pages);
 
-        size_t buf_bytes_read = blk_root_device->fs->read(
-            blk_root_device, path, buf, program_header->filesz,
-            program_header->offset);
-
-        if (buf_bytes_read != program_header->filesz)
+        if (read(&file, buf, program_header->filesz, program_header->offset) !=
+            FS_RESULT_OK) {
             panic("failed to read PT_LOAD segment data\n");
+        }
 
         map_pages(vaddr_to_paddr(buf), (void*)program_header->vaddr, 1, 0, 1, 1,
                   0, buf_num_pages);

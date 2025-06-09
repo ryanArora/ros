@@ -1,10 +1,11 @@
-#include "ext2.h"
+#include <kernel/fs/ext2.h>
 #include <kernel/libk/io.h>
-#include <kernel/blk/blk.h>
+#include <kernel/drivers/blk.h>
 #include <kernel/libk/string.h>
 #include <kernel/libk/math.h>
 #include <kernel/mm/mm.h>
 #include <kernel/cpu/paging.h>
+#include <kernel/fs/fs.h>
 
 #define EXT2_SUPERBLOCK_MAGIC 0xEF53
 #define EXT2_ROOT_INO         2
@@ -15,22 +16,6 @@
 #define EXT2_S_IFREG     0x8000 // regular file
 #define EXT2_ISDIR(mode) (((mode) & EXT2_S_IFMT) == EXT2_S_IFDIR)
 #define EXT2_ISREG(mode) (((mode) & EXT2_S_IFMT) == EXT2_S_IFREG)
-
-static void ext2_mount(struct blk_device* dev);
-static void ext2_umount(struct blk_device* dev);
-static enum fs_stat_result ext2_stat(struct blk_device* dev, const char* path,
-                                     struct fs_stat* st);
-static size_t ext2_read(struct blk_device* dev, const char* path, void* buf,
-                        size_t count, size_t offset);
-
-struct fs fs_ext2 = {
-    .name = "ext2",
-    .mount = ext2_mount,
-    .umount = ext2_umount,
-    .stat = ext2_stat,
-    .read = ext2_read,
-    ._internal = NULL,
-};
 
 struct ext2_superblock {
     uint32_t inodes_count;
@@ -119,10 +104,10 @@ struct ext2_group_desc {
     uint8_t reserved[12];
 };
 
-struct ext2_internal {
+struct ext2_state {
+    struct blk_device* dev;
     struct ext2_superblock* sb;
     struct ext2_group_desc* bgdt;
-
     uint32_t block_size;
 };
 
@@ -134,72 +119,75 @@ struct ext2_dir_entry {
     char name[EXT2_NAME_LEN];
 };
 
-/*
-    Forward declarations
-*/
-static void ext2_blk_read(struct blk_device* dev, uint32_t ext2_block,
+// Forward declarations
+static void ext2_blk_read(struct fs* ext2, uint32_t ext2_block,
                           uint32_t num_ext2_blocks, void* buf);
 static void ext2_read_superblock(struct blk_device* dev,
                                  struct ext2_superblock* sb);
-static void ext2_read_bgdt(struct blk_device* dev,
-                           struct ext2_group_desc* bgdt);
-static void ext2_get_inode(struct blk_device* dev, size_t ino,
+static void ext2_read_bgdt(struct fs* ext2, struct ext2_group_desc* bgdt);
+static void ext2_get_inode(struct fs* ext2, size_t ino,
                            struct ext2_inode* inode);
-static uint32_t ext2_get_block_number(struct blk_device* dev,
-                                      struct ext2_inode* inode,
+static uint32_t ext2_get_block_number(struct fs* ext2, struct ext2_inode* inode,
                                       uint32_t logical_block);
-static uint32_t ext2_read_indirect_block(struct blk_device* dev,
+static uint32_t ext2_read_indirect_block(struct fs* ext2,
                                          uint32_t indirect_block,
                                          uint32_t index);
 
-bool
-fs_ext2_probe(struct blk_device* dev)
+enum fs_result
+ext2_probe(struct blk_device* dev)
 {
+    assert(dev);
+
     struct ext2_superblock* ext2_superblock =
         kmalloc(sizeof(struct ext2_superblock));
     ext2_read_superblock(dev, ext2_superblock);
 
     bool is_ext2 = ext2_superblock->magic == EXT2_SUPERBLOCK_MAGIC;
-
     kfree(ext2_superblock);
-    ext2_superblock = NULL;
-    return is_ext2;
+
+    return is_ext2 ? FS_RESULT_OK : FS_RESULT_NOT_OK;
 }
 
-static void
-ext2_mount(struct blk_device* dev)
+void
+ext2_init(struct fs* ext2, struct blk_device* dev)
 {
+    assert(ext2);
+    assert(dev);
+
     if (dev->block_size != 512) {
         panic("block size is not 512\n");
     }
 
-    dev->fs->_internal = kmalloc(sizeof(struct ext2_internal));
-    struct ext2_internal* ext2 = dev->fs->_internal;
+    ext2->state = kzmalloc(sizeof(struct ext2_state));
+    struct ext2_state* state = ext2->state;
 
-    ext2->sb = kmalloc(sizeof(struct ext2_superblock));
-    ext2_read_superblock(dev, ext2->sb);
-    ext2->block_size = 1024 << ext2->sb->log_block_size; // convenience
+    state->dev = dev;
+
+    state->sb = kmalloc(sizeof(struct ext2_superblock));
+    ext2_read_superblock(dev, state->sb);
+    state->block_size = 1024 << state->sb->log_block_size; // convenience
 
     uint32_t num_groups =
-        CEIL_DIV(ext2->sb->blocks_count, ext2->sb->blocks_per_group);
-    ext2->bgdt = kmalloc(num_groups * sizeof(struct ext2_group_desc));
-    ext2_read_bgdt(dev, ext2->bgdt);
+        CEIL_DIV(state->sb->blocks_count, state->sb->blocks_per_group);
+    state->bgdt = kmalloc(num_groups * sizeof(struct ext2_group_desc));
+    ext2_read_bgdt(ext2, state->bgdt);
 }
 
-static void
-ext2_umount(struct blk_device* dev)
+void
+ext2_deinit(struct fs* ext2)
 {
-    struct ext2_internal* ext2 = dev->fs->_internal;
+    assert(ext2 && ext2->state);
 
-    kfree(ext2->sb);
-    ext2->sb = NULL;
+    struct ext2_state* state = ext2->state;
 
-    kfree(ext2->bgdt);
-    ext2->bgdt = NULL;
+    kfree(state->sb);
+    state->sb = NULL;
 
-    kfree(ext2);
-    ext2 = NULL;
-    dev->fs->_internal = NULL;
+    kfree(state->bgdt);
+    state->bgdt = NULL;
+
+    kfree(ext2->state);
+    ext2->state = NULL;
 }
 
 static char**
@@ -228,17 +216,20 @@ ext2_split_path(const char* path)
     return parts;
 }
 
-static enum fs_stat_result
-ext2_lookup(struct blk_device* dev, const char* path, struct ext2_inode* out)
+static enum fs_result
+ext2_lookup(struct fs* ext2, const char* path, struct ext2_inode* out)
 {
-    struct ext2_internal* ext2 = dev->fs->_internal;
+    assert(ext2 && ext2->state);
+    assert(path);
+    assert(out);
+    struct ext2_state* state = ext2->state;
 
     struct ext2_inode* inode = kmalloc(sizeof(struct ext2_inode));
-    ext2_get_inode(dev, EXT2_ROOT_INO, inode);
+    ext2_get_inode(ext2, EXT2_ROOT_INO, inode);
     if (!EXT2_ISDIR(inode->mode)) {
         kfree(inode);
         inode = NULL;
-        return FS_STAT_RESULT_NOT_OK;
+        return FS_RESULT_NOT_OK;
     }
 
     char** parts = ext2_split_path(path);
@@ -249,26 +240,26 @@ ext2_lookup(struct blk_device* dev, const char* path, struct ext2_inode* out)
     for (size_t i = 0; i < 1024; i++) {
         if (parts[i] == NULL) break;
 
-        uint32_t num_ext2_blocks = inode->blocks / (ext2->block_size / 512);
+        uint32_t num_ext2_blocks = inode->blocks / (state->block_size / 512);
 
         for (size_t blk = 0; blk < num_ext2_blocks; ++blk) {
-            uint32_t block_num = ext2_get_block_number(dev, inode, blk);
+            uint32_t block_num = ext2_get_block_number(ext2, inode, blk);
             if (block_num == 0) {
                 continue; // Sparse block
             }
 
-            uint8_t* block_data = kmalloc(ext2->block_size);
-            ext2_blk_read(dev, block_num, 1, block_data);
+            uint8_t* block_data = kmalloc(state->block_size);
+            ext2_blk_read(ext2, block_num, 1, block_data);
 
             size_t offset = 0;
-            while (offset < ext2->block_size) {
+            while (offset < state->block_size) {
                 struct ext2_dir_entry* entry =
                     (struct ext2_dir_entry*)&block_data[offset];
                 if (entry->inode == 0) continue;
 
                 if (strcmp(entry->name, parts[i]) == 0) {
                     // Matched paths, so get the inode
-                    ext2_get_inode(dev, entry->inode, inode);
+                    ext2_get_inode(ext2, entry->inode, inode);
 
                     // Check if we are the last part
                     if (parts[i + 1] == NULL) {
@@ -277,7 +268,7 @@ ext2_lookup(struct blk_device* dev, const char* path, struct ext2_inode* out)
                         inode = NULL;
                         kfree(block_data);
                         block_data = NULL;
-                        return FS_STAT_RESULT_OK;
+                        return FS_RESULT_OK;
                     }
 
                     // If we matched and we are not done, then we are not ok
@@ -286,7 +277,7 @@ ext2_lookup(struct blk_device* dev, const char* path, struct ext2_inode* out)
                         inode = NULL;
                         kfree(block_data);
                         block_data = NULL;
-                        return FS_STAT_RESULT_NOT_OK;
+                        return FS_RESULT_NOT_OK;
                     }
 
                     // Go again
@@ -302,64 +293,70 @@ ext2_lookup(struct blk_device* dev, const char* path, struct ext2_inode* out)
 
     kfree(inode);
     inode = NULL;
-    return FS_STAT_RESULT_NOT_OK;
+    return FS_RESULT_NOT_OK;
 }
 
-static enum fs_stat_result
-ext2_stat(struct blk_device* dev, const char* path, struct fs_stat* st)
+enum fs_result
+ext2_stat(struct fs* ext2, const char* path, struct fs_stat* st)
 {
+    assert(ext2 && ext2->state);
+    assert(path);
+    assert(st);
+    struct ext2_state* state = ext2->state;
+    (void)state;
+
     struct ext2_inode inode;
-    if (ext2_lookup(dev, path, &inode) != FS_STAT_RESULT_OK) {
-        return FS_STAT_RESULT_NOT_OK;
+    if (ext2_lookup(ext2, path, &inode) != FS_RESULT_OK) {
+        return FS_RESULT_NOT_OK;
     }
 
     st->size = inode.size;
-    return FS_STAT_RESULT_OK;
+    return FS_RESULT_OK;
 }
 
-static size_t
-ext2_read(struct blk_device* dev, const char* path, void* buf, size_t count,
+enum fs_result
+ext2_read(struct fs* ext2, const char* path, void* buf, size_t count,
           size_t offset)
 {
-    struct ext2_internal* ext2 = dev->fs->_internal;
+    struct ext2_state* state = ext2->state;
 
     struct ext2_inode inode;
-    if (ext2_lookup(dev, path, &inode) != FS_STAT_RESULT_OK) {
-        return FS_STAT_RESULT_NOT_OK;
+    if (ext2_lookup(ext2, path, &inode) != FS_RESULT_OK) {
+        return FS_RESULT_NOT_OK;
     }
 
     if (offset >= inode.size) {
-        return 0; // Offset is beyond the file size, nothing to read
+        return FS_RESULT_NOT_OK;
     }
 
     if (count + offset > inode.size) {
-        count = inode.size - offset; // Adjust count to read only available data
+        count = inode.size - offset; // Adjust count to read only available
     }
 
-    size_t start_block = offset / ext2->block_size;
-    size_t block_offset = offset % ext2->block_size;
+    size_t start_block = offset / state->block_size;
+    size_t block_offset = offset % state->block_size;
     size_t ext2_blocks_to_read =
-        CEIL_DIV(block_offset + count, ext2->block_size);
+        CEIL_DIV(block_offset + count, state->block_size);
 
     size_t bytes_read = 0;
 
     for (size_t i = start_block; i < start_block + ext2_blocks_to_read; i++) {
-        uint32_t block_num = ext2_get_block_number(dev, &inode, i);
+        uint32_t block_num = ext2_get_block_number(ext2, &inode, i);
         if (block_num == 0) {
             // Sparse block - fill with zeros
             size_t bytes_to_copy =
-                MIN(ext2->block_size - block_offset, count - bytes_read);
+                MIN(state->block_size - block_offset, count - bytes_read);
             memset(buf + bytes_read, 0, bytes_to_copy);
             bytes_read += bytes_to_copy;
             block_offset = 0;
             continue;
         }
 
-        uint8_t* block_data = kmalloc(ext2->block_size);
-        ext2_blk_read(dev, block_num, 1, block_data);
+        uint8_t* block_data = kmalloc(state->block_size);
+        ext2_blk_read(ext2, block_num, 1, block_data);
 
         size_t bytes_to_copy =
-            MIN(ext2->block_size - block_offset, count - bytes_read);
+            MIN(state->block_size - block_offset, count - bytes_read);
         memcpy(buf + bytes_read, block_data + block_offset, bytes_to_copy);
         bytes_read += bytes_to_copy;
 
@@ -367,12 +364,15 @@ ext2_read(struct blk_device* dev, const char* path, void* buf, size_t count,
         kfree(block_data);
     }
 
-    return bytes_read;
+    return (bytes_read == count) ? FS_RESULT_OK : FS_RESULT_NOT_OK;
 }
 
 static void
 ext2_read_superblock(struct blk_device* dev, struct ext2_superblock* sb)
 {
+    assert(dev);
+    assert(sb);
+
     uint64_t sb_offset = 1024;
     uint32_t sb_size = 1024;
 
@@ -391,30 +391,34 @@ ext2_read_superblock(struct blk_device* dev, struct ext2_superblock* sb)
 }
 
 static void
-ext2_read_bgdt(struct blk_device* dev, struct ext2_group_desc* bgdt)
+ext2_read_bgdt(struct fs* ext2, struct ext2_group_desc* bgdt)
 {
-    struct ext2_internal* ext2 = dev->fs->_internal;
-    struct ext2_superblock* sb = ext2->sb;
+    assert(ext2 && ext2->state);
+    assert(bgdt);
+    struct ext2_state* state = ext2->state;
 
-    uint32_t bgdt_block_num = (ext2->block_size == 1024) ? 2 : 1;
-    uint32_t num_groups = CEIL_DIV(sb->blocks_count, sb->blocks_per_group);
+    uint32_t bgdt_block_num = (state->block_size == 1024) ? 2 : 1;
+    uint32_t num_groups =
+        CEIL_DIV(state->sb->blocks_count, state->sb->blocks_per_group);
     uint32_t bgdt_size_bytes = num_groups * sizeof(struct ext2_group_desc);
-    uint32_t bgdt_num_blocks = CEIL_DIV(bgdt_size_bytes, ext2->block_size);
+    uint32_t bgdt_num_blocks = CEIL_DIV(bgdt_size_bytes, state->block_size);
 
-    uint32_t total_bytes = bgdt_num_blocks * ext2->block_size;
+    uint32_t total_bytes = bgdt_num_blocks * state->block_size;
     size_t num_pages = CEIL_DIV(total_bytes, PAGE_SIZE);
     void* tmp = alloc_pagez(num_pages);
 
-    ext2_blk_read(dev, bgdt_block_num, bgdt_num_blocks, tmp);
+    ext2_blk_read(ext2, bgdt_block_num, bgdt_num_blocks, tmp);
     memcpy(bgdt, tmp, bgdt_size_bytes);
     free_pages(tmp, num_pages);
 }
 
 static void
-ext2_get_inode(struct blk_device* dev, size_t ino, struct ext2_inode* inode)
+ext2_get_inode(struct fs* ext2, size_t ino, struct ext2_inode* inode)
 {
-    struct ext2_internal* ext2 = dev->fs->_internal;
-    struct ext2_superblock* sb = ext2->sb;
+    assert(ext2 && ext2->state);
+    assert(inode);
+    struct ext2_state* state = ext2->state;
+    struct ext2_superblock* sb = state->sb;
 
     if (ino == 0 || ino > sb->inodes_count) {
         panic("invalid inode number");
@@ -423,31 +427,33 @@ ext2_get_inode(struct blk_device* dev, size_t ino, struct ext2_inode* inode)
     size_t group = (ino - 1) / sb->inodes_per_group;
     size_t index_in_group = (ino - 1) % sb->inodes_per_group;
 
-    struct ext2_group_desc* bgdt = ext2->bgdt;
+    struct ext2_group_desc* bgdt = state->bgdt;
     uint32_t inode_table_block = bgdt[group].inode_table;
 
     // Offset in bytes from start of inode table
     size_t byte_offset = index_in_group * sb->inode_size;
 
     // Compute block within inode table
-    size_t block_offset = byte_offset / ext2->block_size;
-    size_t offset_in_block = byte_offset % ext2->block_size;
+    size_t block_offset = byte_offset / state->block_size;
+    size_t offset_in_block = byte_offset % state->block_size;
 
     void* buf = alloc_pagez(1);
-    ext2_blk_read(dev, inode_table_block + block_offset, 1, buf);
+    ext2_blk_read(ext2, inode_table_block + block_offset, 1, buf);
     memcpy(inode, (uint8_t*)buf + offset_in_block, sb->inode_size);
     free_pages(buf, 1);
 }
 
 static void
-ext2_blk_read(struct blk_device* dev, uint32_t ext2_block,
-              uint32_t num_ext2_blocks, void* buf)
+ext2_blk_read(struct fs* ext2, uint32_t ext2_block, uint32_t num_ext2_blocks,
+              void* buf)
 {
-    struct ext2_internal* ext2 = dev->fs->_internal;
-    struct ext2_superblock* sb = ext2->sb;
+    assert(ext2 && ext2->state);
+    assert(buf);
+    struct ext2_state* state = ext2->state;
+    struct ext2_superblock* sb = state->sb;
 
     uint32_t ext2_block_size = 1024 << sb->log_block_size;
-    uint32_t dev_block_size = dev->block_size;
+    uint32_t dev_block_size = state->dev->block_size;
 
     if (ext2_block_size % dev_block_size != 0) {
         panic("ext2 block size is not aligned with device block size");
@@ -461,18 +467,19 @@ ext2_blk_read(struct blk_device* dev, uint32_t ext2_block,
     size_t num_pages = CEIL_DIV(total_bytes, PAGE_SIZE);
     void* tmp = alloc_pagez(num_pages);
 
-    blk_read(dev, lba, total_dev_blocks, tmp);
+    blk_read(state->dev, lba, total_dev_blocks, tmp);
     memcpy(buf, tmp, num_ext2_blocks * ext2_block_size);
     free_pages(tmp, num_pages);
 }
 
 static uint32_t
-ext2_read_indirect_block(struct blk_device* dev, uint32_t indirect_block,
+ext2_read_indirect_block(struct fs* ext2, uint32_t indirect_block,
                          uint32_t index)
 {
-    struct ext2_internal* ext2 = dev->fs->_internal;
-    uint32_t* block_data = kmalloc(ext2->block_size);
-    ext2_blk_read(dev, indirect_block, 1, block_data);
+    assert(ext2 && ext2->state);
+    struct ext2_state* state = ext2->state;
+    uint32_t* block_data = kmalloc(state->block_size);
+    ext2_blk_read(ext2, indirect_block, 1, block_data);
 
     uint32_t result = block_data[index];
     kfree(block_data);
@@ -480,11 +487,12 @@ ext2_read_indirect_block(struct blk_device* dev, uint32_t indirect_block,
 }
 
 static uint32_t
-ext2_get_block_number(struct blk_device* dev, struct ext2_inode* inode,
+ext2_get_block_number(struct fs* ext2, struct ext2_inode* inode,
                       uint32_t logical_block)
 {
-    struct ext2_internal* ext2 = dev->fs->_internal;
-    uint32_t ptrs_per_block = ext2->block_size / sizeof(uint32_t);
+    assert(ext2 && ext2->state);
+    struct ext2_state* state = ext2->state;
+    uint32_t ptrs_per_block = state->block_size / sizeof(uint32_t);
 
     // Direct blocks (0-11)
     if (logical_block < 12) {
@@ -497,7 +505,7 @@ ext2_get_block_number(struct blk_device* dev, struct ext2_inode* inode,
         if (inode->singly_indirect_block == 0) {
             return 0;
         }
-        return ext2_read_indirect_block(dev, inode->singly_indirect_block,
+        return ext2_read_indirect_block(ext2, inode->singly_indirect_block,
                                         logical_block);
     }
 
@@ -511,11 +519,11 @@ ext2_get_block_number(struct blk_device* dev, struct ext2_inode* inode,
         uint32_t second_level_index = logical_block % ptrs_per_block;
 
         uint32_t first_level_block = ext2_read_indirect_block(
-            dev, inode->doubly_indirect_block, first_level_index);
+            ext2, inode->doubly_indirect_block, first_level_index);
         if (first_level_block == 0) {
             return 0;
         }
-        return ext2_read_indirect_block(dev, first_level_block,
+        return ext2_read_indirect_block(ext2, first_level_block,
                                         second_level_index);
     }
 
@@ -532,16 +540,16 @@ ext2_get_block_number(struct blk_device* dev, struct ext2_inode* inode,
         uint32_t third_level_index = logical_block % ptrs_per_block;
 
         uint32_t first_level_block = ext2_read_indirect_block(
-            dev, inode->triply_indirect_block, first_level_index);
+            ext2, inode->triply_indirect_block, first_level_index);
         if (first_level_block == 0) {
             return 0;
         }
         uint32_t second_level_block = ext2_read_indirect_block(
-            dev, first_level_block, second_level_index);
+            ext2, first_level_block, second_level_index);
         if (second_level_block == 0) {
             return 0;
         }
-        return ext2_read_indirect_block(dev, second_level_block,
+        return ext2_read_indirect_block(ext2, second_level_block,
                                         third_level_index);
     }
 

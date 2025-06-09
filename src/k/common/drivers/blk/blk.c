@@ -1,9 +1,12 @@
-#include <kernel/blk/blk.h>
+#include <kernel/drivers/blk.h>
 #include <kernel/libk/io.h>
 #include <kernel/libk/math.h>
 #include <kernel/libk/string.h>
 #include <kernel/mm/mm.h>
 #include <kernel/cpu/paging.h>
+#include <kernel/fs/uvfs.h>
+#include <kernel/fs/ext2.h>
+#include <kernel/fs/fs.h>
 
 #define BLK_DEVICES_MAX 16
 
@@ -43,8 +46,7 @@ struct blk_device*
 blk_register_device(const char* name, uint64_t starting_lba,
                     uint64_t ending_lba, uint64_t block_size,
                     void (*read)(uint64_t lba, uint16_t num_blocks, void* buf),
-                    void (*write)(uint64_t lba, uint16_t num_blocks, void* buf),
-                    struct fs* fs)
+                    void (*write)(uint64_t lba, uint16_t num_blocks, void* buf))
 {
     if (blk_device_table_size >= BLK_DEVICES_MAX) {
         panic("blk_device_table is full\n");
@@ -56,7 +58,6 @@ blk_register_device(const char* name, uint64_t starting_lba,
     blk_device_table[blk_device_table_size].block_size = block_size;
     blk_device_table[blk_device_table_size]._internal_read = read;
     blk_device_table[blk_device_table_size]._internal_write = write;
-    blk_device_table[blk_device_table_size].fs = fs;
     blk_device_table_size++;
 
     return &blk_device_table[blk_device_table_size - 1];
@@ -75,16 +76,6 @@ blk_init(void)
         struct blk_device* dev = &blk_device_table[i];
         blk_init_for_device(dev);
     }
-
-    if (blk_root_device == NULL) {
-        panic("no root device found\n");
-    }
-
-    if (blk_root_device->fs == NULL) {
-        panic("root device has unknown filesystem\n");
-    }
-
-    blk_root_device->fs->mount(blk_root_device);
 
     kprintf("[DONE ] Initialize the block layer\n");
 }
@@ -133,14 +124,7 @@ blk_init_for_device(struct blk_device* dev)
 
         struct blk_device* partition_dev = blk_register_device(
             partition_name, entry->starting_lba, entry->ending_lba,
-            dev->block_size, dev->_internal_read, dev->_internal_write, NULL);
-
-        // probe
-        struct fs* fs = fs_probe(partition_dev);
-        if (fs == NULL) {
-            kprintf("warn: %s has unknown filesystem\n", partition_name);
-        }
-        partition_dev->fs = fs;
+            dev->block_size, dev->_internal_read, dev->_internal_write);
 
         // is this the root device?
         if (entry->partition_name[0] == 'r' &&
@@ -155,6 +139,10 @@ blk_init_for_device(struct blk_device* dev)
             blk_root_device = partition_dev;
         }
     }
+
+    struct fs* fs = kzmalloc(sizeof(struct fs));
+    assert(fs_probe(fs, blk_root_device) == FS_RESULT_OK);
+    mount("/", fs);
 }
 
 void

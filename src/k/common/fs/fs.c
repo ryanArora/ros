@@ -1,19 +1,17 @@
 #include <kernel/fs/fs.h>
-#include "ext2.h"
-#include "fat16.h"
-#include <stddef.h>
 #include <kernel/libk/io.h>
+#include <kernel/fs/ext2.h>
 
-#define FS_MAX_OPEN_FILES 512;
-
-struct fs*
-fs_probe(struct blk_device* dev)
+enum fs_result
+fs_probe(struct fs* fs, struct blk_device* dev)
 {
-    if (fs_ext2_probe(dev)) {
-        return &fs_ext2;
-    } else if (fs_fat16_probe(dev)) {
-        return &fs_fat16;
-    } else {
-        return NULL;
+    assert(fs);
+    assert(dev);
+
+    if (ext2_probe(dev) == FS_RESULT_OK) {
+        ext2_init(fs, dev);
+        return FS_RESULT_OK;
     }
+
+    return FS_RESULT_NOT_OK;
 }

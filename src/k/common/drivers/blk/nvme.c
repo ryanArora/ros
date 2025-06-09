@@ -5,7 +5,7 @@
 #include <kernel/cpu/idt.h>
 #include <kernel/libk/string.h>
 #include <kernel/libk/math.h>
-#include <kernel/blk/blk.h>
+#include <kernel/drivers/blk.h>
 #include <limits.h>
 #include <kernel/cpu/paging.h>
 
@@ -222,8 +222,7 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
 
     size_t end_lba = SIZE_MAX - 1000;
 
-    blk_register_device("nvme0n1", 0, end_lba, 512, nvme_read, nvme_write,
-                        NULL);
+    blk_register_device("nvme0n1", 0, end_lba, 512, nvme_read, nvme_write);
 
     kprintf("[DONE ] Initialize NVMe Controller\n");
 }

@@ -9,10 +9,11 @@
 #include <kernel/cpu/idt.h>
 #include <kernel/drivers/nvme.h>
 #include <kernel/drivers/pci.h>
-#include <kernel/blk/blk.h>
+#include <kernel/drivers/blk.h>
 #include <kernel/cpu/paging.h>
 #include <kernel/load/elf.h>
 #include <kernel/mm/mm.h>
+#include <kernel/fs/uvfs.h>
 
 [[noreturn]] void
 bmain(void)
@@ -32,6 +33,8 @@ bmain(void)
     pic_init();
     pit_init();
 
+    uvfs_init();
     blk_init();
+
     load_kernel("/kernel");
 }

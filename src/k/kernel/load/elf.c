@@ -92,6 +92,8 @@ load_init_process(const char* path)
         map_pages_user_code(paddr, vaddr, buf_num_pages);
     }
 
+    assert(close(file) == FS_RESULT_OK);
+
     uintptr_t entry = elf_header->entry;
     free_pages(elf_header, elf_header_num_pages);
     free_pages(program_headers, program_headers_num_pages);

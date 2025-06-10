@@ -15,7 +15,6 @@ struct task {
 static void task_init(struct task* task);
 
 static struct list tasks;
-static uint64_t max_tid = 0;
 
 [[noreturn]] void
 sched_init(void)
@@ -47,6 +46,6 @@ sched_exit(uint64_t code)
 static void
 task_init(struct task* task)
 {
-    list_node_init(&task->link, max_tid++);
+    list_node_init(&tasks, &task->link);
     list_push(&tasks, &task->link);
 }

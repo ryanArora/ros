@@ -18,6 +18,7 @@
 #include <kernel/libk/ds/list.h>
 #include <kernel/libk/ds/tree.h>
 #include <kernel/fs/uvfs.h>
+#include <kernel/fs/path.h>
 
 struct boot_header* boot_header;
 
@@ -43,6 +44,7 @@ kmain(void)
     blk_init();
 
 #ifdef TEST
+    path_test();
     list_test();
     tree_test();
 #endif

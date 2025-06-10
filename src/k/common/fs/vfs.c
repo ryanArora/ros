@@ -5,11 +5,7 @@
 #include <kernel/mm/mm.h>
 #include <kernel/libk/ds/list.h>
 #include <stddef.h>
-
-struct path_component {
-    struct list_node link;
-    char* name;
-};
+#include <kernel/fs/path.h>
 
 struct mount_node {
     struct tree_node node;
@@ -18,50 +14,60 @@ struct mount_node {
 };
 
 // Forward declarations
-static struct list* split_path(const char* path);
+static enum fs_result vfs_path_lookup(struct fs* vfs, const struct path* path,
+                                      struct mount_node** mount_node_out,
+                                      struct path** subpath_out);
 
 void
-vfs_init(struct fs* vfs)
+vfs_init(struct fs** vfs_ptr)
 {
-    assert(vfs);
+    assert(vfs_ptr && *vfs_ptr == NULL);
+    struct fs* vfs = kzmalloc(sizeof(struct fs));
 
+    vfs->name = "vfs";
+    vfs->mount = vfs_mount;
+    vfs->unmount = vfs_unmount;
+    vfs->stat = vfs_stat;
+    vfs->read = vfs_read;
+    vfs->write = vfs_write;
     vfs->state = kzmalloc(sizeof(struct vfs_state));
     struct vfs_state* state = vfs->state;
 
     tree_init(&state->mounts);
+
+    *vfs_ptr = vfs;
 }
 
 void
 vfs_deinit(struct fs* vfs)
 {
-    assert(vfs && vfs->state);
+    assert(vfs);
     struct vfs_state* state = vfs->state;
 
     // TODO: Free the mount tree
     (void)state->mounts;
 
     kfree(vfs->state);
+    kfree(vfs);
 }
 
 enum fs_result
-vfs_mount(struct fs* vfs, const char* mount_path, struct fs* mount_fs)
+vfs_mount(struct fs* vfs, const struct path* mount_path, struct fs* mount_fs)
 {
     assert(vfs && vfs->state);
     assert(mount_path);
     assert(mount_fs);
     struct vfs_state* state = vfs->state;
 
-    kprintf("vfs_mount: mount_path=%s, mount_fs=%s\n", mount_path,
-            mount_fs->name);
-
-    struct list* components = split_path(mount_path);
+    kprintf("vfs_mount: mount_fs=%s\n", mount_fs->name);
+    kprintf("vfs_mount: mount_path components:\n");
+    path_print(mount_path);
 
     // Handle root mount case
-    if (list_empty(components)) {
+    if (list_empty(&mount_path->components)) {
         // Mounting at root "/"
         if (state->mounts.root != NULL) {
             // Root already mounted
-            kfree(components);
             return FS_RESULT_NOT_OK;
         }
 
@@ -73,22 +79,12 @@ vfs_mount(struct fs* vfs, const char* mount_path, struct fs* mount_fs)
         root_mount->fs = mount_fs;
 
         tree_set_root(&state->mounts, &root_mount->node);
-        kfree(components);
         return FS_RESULT_OK;
     }
 
     // Ensure root exists before mounting subdirectories
     if (state->mounts.root == NULL) {
         // No root mount yet, can't mount subdirectories
-        // Clean up components
-        list_foreach(components, comp_link)
-        {
-            struct path_component* comp =
-                container_of(comp_link, struct path_component, link);
-            kfree(comp->name);
-            kfree(comp);
-        }
-        kfree(components);
         return FS_RESULT_NOT_OK;
     }
 
@@ -96,7 +92,7 @@ vfs_mount(struct fs* vfs, const char* mount_path, struct fs* mount_fs)
     struct mount_node* current =
         container_of(state->mounts.root, struct mount_node, node);
 
-    list_foreach(components, comp_link)
+    list_foreach(&mount_path->components, comp_link)
     {
         struct path_component* comp =
             container_of(comp_link, struct path_component, link);
@@ -119,15 +115,6 @@ vfs_mount(struct fs* vfs, const char* mount_path, struct fs* mount_fs)
             // Check if already mounted
             if (child->fs != NULL) {
                 // Already a mount point here
-                // Clean up components
-                list_foreach(components, cleanup_link)
-                {
-                    struct path_component* cleanup_comp =
-                        container_of(cleanup_link, struct path_component, link);
-                    kfree(cleanup_comp->name);
-                    kfree(cleanup_comp);
-                }
-                kfree(components);
                 return FS_RESULT_NOT_OK;
             }
             // Node exists but not a mount point, mount here
@@ -152,24 +139,14 @@ vfs_mount(struct fs* vfs, const char* mount_path, struct fs* mount_fs)
         current = child;
     }
 
-    // Clean up components list
-    list_foreach(components, comp_link)
-    {
-        struct path_component* comp =
-            container_of(comp_link, struct path_component, link);
-        kfree(comp->name);
-        kfree(comp);
-    }
-    kfree(components);
-
     return FS_RESULT_OK;
 }
 
 enum fs_result
-vfs_unmount(struct fs* vfs, const char* path)
+vfs_unmount(struct fs* vfs, const struct path* mount_path)
 {
     assert(vfs && vfs->state);
-    assert(path);
+    assert(mount_path);
     struct vfs_state* state = vfs->state;
     (void)state;
 
@@ -177,46 +154,33 @@ vfs_unmount(struct fs* vfs, const char* path)
 }
 
 enum fs_result
-vfs_open(struct fs* vfs, const char* path, struct file* file)
+vfs_stat(struct fs* vfs, const struct path* path, struct fs_stat* st)
 {
     assert(vfs && vfs->state);
     assert(path);
-    assert(file);
-    struct vfs_state* state = vfs->state;
-    (void)state;
-
-    panic("unimplemented");
-};
-
-enum fs_result
-vfs_close(struct fs* vfs, struct file* file)
-{
-    assert(vfs && vfs->state);
-    assert(file);
-    struct vfs_state* state = vfs->state;
-    (void)state;
-
-    panic("unimplemented");
-}
-
-enum fs_result
-vfs_stat(struct fs* vfs, struct file* file, struct fs_stat* st)
-{
-    assert(vfs && vfs->state);
-    assert(file);
     assert(st);
     struct vfs_state* state = vfs->state;
     (void)state;
 
-    panic("unimplemented");
+    enum fs_result ret;
+
+    struct mount_node* mount_node = NULL;
+    struct path* subpath = NULL;
+    if ((ret = vfs_path_lookup(vfs, path, &mount_node, &subpath)) !=
+        FS_RESULT_OK)
+        return ret;
+
+    ret = mount_node->fs->stat(mount_node->fs, subpath, st);
+    path_deinit(subpath);
+    return ret;
 }
 
 enum fs_result
-vfs_read(struct fs* vfs, struct file* file, void* buf, size_t count,
+vfs_read(struct fs* vfs, const struct path* path, void* buf, size_t count,
          size_t offset)
 {
     assert(vfs && vfs->state);
-    assert(file);
+    assert(path);
     assert(buf);
     struct vfs_state* state = vfs->state;
     (void)state;
@@ -227,11 +191,11 @@ vfs_read(struct fs* vfs, struct file* file, void* buf, size_t count,
 }
 
 enum fs_result
-vfs_write(struct fs* vfs, struct file* file, const void* buf, size_t count,
-          size_t offset)
+vfs_write(struct fs* vfs, const struct path* path, const void* buf,
+          size_t count, size_t offset)
 {
     assert(vfs && vfs->state);
-    assert(file);
+    assert(path);
     assert(buf);
     struct vfs_state* state = vfs->state;
     (void)state;
@@ -241,65 +205,113 @@ vfs_write(struct fs* vfs, struct file* file, const void* buf, size_t count,
     panic("unimplemented");
 }
 
-static struct list*
-split_path(const char* path)
+static enum fs_result
+vfs_path_lookup(struct fs* vfs, const struct path* path,
+                struct mount_node** mount_node_ptr, struct path** subpath_ptr)
 {
+    assert(vfs && vfs->state);
     assert(path);
+    assert(mount_node_ptr && *mount_node_ptr == NULL);
+    assert(subpath_ptr && *subpath_ptr == NULL);
+    struct vfs_state* state = vfs->state;
 
-    if (path[0] != '/') {
-        panic("path must be absolute");
+    // Check if root is mounted
+    if (state->mounts.root == NULL) {
+        return FS_RESULT_NOT_OK;
     }
 
-    struct list* components = kmalloc(sizeof(struct list));
-    list_init(components);
+    struct mount_node* current_mount =
+        container_of(state->mounts.root, struct mount_node, node);
 
-    const char* start = path + 1;
-    const char* end = start;
+    // Track the deepest mount point we find
+    struct mount_node* deepest_mount = NULL;
+    size_t deepest_depth = 0;
 
-    while (*start != '\0') {
-        // Find end of current component
-        while (*end != '/' && *end != '\0') {
-            end++;
-        }
-
-        // Calculate component length
-        size_t len = end - start;
-
-        // Skip empty components (consecutive slashes)
-        if (len > 0) {
-            // Allocate and initialize component
-            struct path_component* comp =
-                kmalloc(sizeof(struct path_component));
-            list_node_init(&comp->link, 0);
-
-            // Allocate exact memory for component name (including null
-            // terminator)
-            comp->name = kmalloc(len + 1);
-
-            // Copy component name
-            memcpy(comp->name, start, len);
-            comp->name[len] = '\0';
-
-            // Add to list
-            list_push(components, &comp->link);
-        }
-
-        // Move to next component
-        if (*end == '/') {
-            end++;
-        }
-        start = end;
+    // Check if root has a filesystem
+    if (current_mount->fs != NULL) {
+        deepest_mount = current_mount;
+        deepest_depth = 0;
     }
 
-    return components;
+    // Traverse path components
+    size_t current_depth = 0;
+    list_foreach(&path->components, comp_link)
+    {
+        struct path_component* comp =
+            container_of(comp_link, struct path_component, link);
+
+        // Look for child with this name
+        struct mount_node* child = NULL;
+        struct tree_node* child_node;
+        tree_foreach_child(&current_mount->node, child_node)
+        {
+            struct mount_node* mount_child =
+                container_of(child_node, struct mount_node, node);
+            if (strcmp(mount_child->name, comp->name) == 0) {
+                child = mount_child;
+                break;
+            }
+        }
+
+        if (child == NULL) {
+            // No child with this name, stop traversal
+            break;
+        }
+
+        current_mount = child;
+        current_depth++;
+
+        // Update deepest mount if this has a filesystem
+        if (current_mount->fs != NULL) {
+            deepest_mount = current_mount;
+            deepest_depth = current_depth;
+        }
+    }
+
+    // Check if we found any mount point
+    if (deepest_mount == NULL) {
+        return FS_RESULT_NOT_OK;
+    }
+
+    *mount_node_ptr = deepest_mount;
+
+    // Create subpath from components after the mount point
+    struct path* subpath = kmalloc(sizeof(struct path));
+    list_init(&subpath->components);
+
+    // Skip components up to the mount point
+    struct list_node* comp_link = path->components.head;
+    for (size_t i = 0; i < deepest_depth; i++) {
+        if (comp_link == NULL) {
+            break;
+        }
+        comp_link = comp_link->next;
+    }
+
+    // Copy remaining components
+    while (comp_link != NULL) {
+        struct path_component* orig_comp =
+            container_of(comp_link, struct path_component, link);
+
+        struct path_component* new_comp =
+            kmalloc(sizeof(struct path_component));
+        size_t name_len = strlen(orig_comp->name);
+        new_comp->name = kmalloc(name_len + 1);
+        strcpy(new_comp->name, orig_comp->name);
+
+        list_push(&subpath->components, &new_comp->link);
+
+        comp_link = comp_link->next;
+    }
+
+    *subpath_ptr = subpath;
+    return FS_RESULT_OK;
 }
 
 struct fs vfs = {
     .name = "vfs",
     .mount = vfs_mount,
     .unmount = vfs_unmount,
-    .open = vfs_open,
-    .close = vfs_close,
     .stat = vfs_stat,
     .read = vfs_read,
     .write = vfs_write,

@@ -140,8 +140,8 @@ blk_init_for_device(struct blk_device* dev)
         }
     }
 
-    struct fs* fs = kzmalloc(sizeof(struct fs));
-    assert(fs_probe(fs, blk_root_device) == FS_RESULT_OK);
+    struct fs* fs = NULL;
+    assert(fs_probe(blk_root_device, &fs) == FS_RESULT_OK);
     mount("/", fs);
 }
 

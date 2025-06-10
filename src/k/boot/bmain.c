@@ -14,6 +14,7 @@
 #include <kernel/load/elf.h>
 #include <kernel/mm/mm.h>
 #include <kernel/fs/uvfs.h>
+#include <kernel/fs/path.h>
 
 [[noreturn]] void
 bmain(void)

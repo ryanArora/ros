@@ -7,12 +7,13 @@
 struct list_node {
     struct list_node* next;
     struct list_node* prev;
-    uint64_t id;
+    size_t id;
 };
 
 struct list {
     struct list_node* head;
     struct list_node* tail;
+    size_t id_max;
 };
 
 static inline void
@@ -25,7 +26,20 @@ list_init(struct list* list)
 };
 
 #define list_foreach(list, node)                                               \
-    for (struct list_node* node = list->head; node != NULL; node = node->next)
+    for (struct list_node* node = (list)->head; node != NULL; node = node->next)
+
+#define list_foreach_reverse(list, node)                                       \
+    for (struct list_node* node = (list)->tail; node != NULL; node = node->prev)
+
+#define list_foreach_safe(list, node, tmp)                                     \
+    for (struct list_node* node = (list)->head,                                \
+                           *tmp = (node) ? (node)->next : NULL;                \
+         node != NULL; node = tmp, tmp = (node) ? (node)->next : NULL)
+
+#define list_foreach_reverse_safe(list, node, tmp)                             \
+    for (struct list_node* node = (list)->tail,                                \
+                           *tmp = (node) ? (node)->prev : NULL;                \
+         node != NULL; node = tmp, tmp = (node) ? (node)->prev : NULL)
 
 static inline void
 list_push(struct list* list, struct list_node* node)
@@ -79,7 +93,7 @@ list_find(struct list* list, uint64_t id)
 };
 
 static inline bool
-list_empty(struct list* list)
+list_empty(const struct list* list)
 {
     assert(list);
 
@@ -87,13 +101,14 @@ list_empty(struct list* list)
 }
 
 static inline void
-list_node_init(struct list_node* node, uint64_t id)
+list_node_init(struct list* list, struct list_node* node)
 {
+    assert(list);
     assert(node);
 
     node->next = NULL;
     node->prev = NULL;
-    node->id = id;
+    node->id = list->id_max++;
 }
 
 static inline struct list_node*

@@ -31,7 +31,7 @@ tree_node_init(struct tree_node* node, uint64_t id)
 
     node->parent = NULL;
     list_init(&node->children);
-    list_node_init(&node->sibling_link, id);
+    list_node_init(&node->children, &node->sibling_link);
     node->id = id;
 }
 

@@ -16,8 +16,7 @@ uvfs_init(void)
 {
     kprintf("[START] Initialize UVFS\n");
 
-    uvfs = kzmalloc(sizeof(struct vfs_state));
-    vfs_init(uvfs);
+    vfs_init(&uvfs);
 
     kprintf("[DONE ] Initialize UVFS\n");
 }
@@ -28,50 +27,86 @@ uvfs_deinit(void)
     kprintf("[START] Deinitialize UVFS\n");
 
     vfs_deinit(uvfs);
-    kfree(uvfs);
     uvfs = NULL;
 
     kprintf("[DONE ] Deinitialize UVFS\n");
 }
 
 enum fs_result
-mount(const char* mount_path, struct fs* mount_fs)
+mount(const char* mount_path_str, struct fs* mount_fs)
 {
-    return vfs_mount(uvfs, mount_path, mount_fs);
+    assert(mount_path_str);
+    assert(mount_fs);
+
+    struct path* mount_path = NULL;
+    enum fs_result ret = path_init(mount_path_str, &mount_path);
+    if (ret != FS_RESULT_OK) return ret;
+
+    ret = vfs_mount(uvfs, mount_path, mount_fs);
+
+    path_deinit(mount_path);
+    return ret;
 }
 
 enum fs_result
-unmount(const char* mount_path)
+unmount(const char* mount_path_str)
 {
-    return vfs_unmount(uvfs, mount_path);
+    assert(mount_path_str);
+
+    struct path* mount_path = NULL;
+    enum fs_result ret = path_init(mount_path_str, &mount_path);
+    if (ret != FS_RESULT_OK) return ret;
+
+    ret = vfs_unmount(uvfs, mount_path);
+
+    path_deinit(mount_path);
+    return ret;
 }
 
 enum fs_result
-open(const char* path, struct file* file)
+stat(const char* path_str, struct fs_stat* st)
 {
-    return vfs_open(uvfs, path, file);
+    assert(path_str);
+    assert(st);
+
+    struct path* path = NULL;
+    enum fs_result ret = path_init(path_str, &path);
+    if (ret != FS_RESULT_OK) return ret;
+
+    ret = vfs_stat(uvfs, path, st);
+
+    path_deinit(path);
+    return ret;
 }
 
 enum fs_result
-close(struct file* file)
+read(const char* path_str, void* buf, size_t count, size_t offset)
 {
-    return vfs_close(uvfs, file);
+    assert(path_str);
+    assert(buf);
+
+    struct path* path = NULL;
+    enum fs_result ret = path_init(path_str, &path);
+    if (ret != FS_RESULT_OK) return ret;
+
+    ret = vfs_read(uvfs, path, buf, count, offset);
+
+    path_deinit(path);
+    return ret;
 }
 
 enum fs_result
-stat(struct file* file, struct fs_stat* st)
+write(const char* path_str, const void* buf, size_t count, size_t offset)
 {
-    return vfs_stat(uvfs, file, st);
-}
+    assert(path_str);
+    assert(buf);
 
-enum fs_result
-read(struct file* file, void* buf, size_t count, size_t offset)
-{
-    return vfs_read(uvfs, file, buf, count, offset);
-}
+    struct path* path = NULL;
+    enum fs_result ret = path_init(path_str, &path);
+    if (ret != FS_RESULT_OK) return ret;
 
-enum fs_result
-write(struct file* file, const void* buf, size_t count, size_t offset)
-{
-    return vfs_write(uvfs, file, buf, count, offset);
+    ret = vfs_write(uvfs, path, buf, count, offset);
+
+    path_deinit(path);
+    return ret;
 }

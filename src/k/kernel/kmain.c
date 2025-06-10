@@ -17,6 +17,7 @@
 #include <kernel/tls.h>
 #include <kernel/libk/ds/list.h>
 #include <kernel/libk/ds/tree.h>
+#include <kernel/libk/ds/hashtable.h>
 #include <kernel/fs/uvfs.h>
 #include <kernel/fs/path.h>
 
@@ -47,6 +48,7 @@ kmain(void)
     path_test();
     list_test();
     tree_test();
+    hashtable_test();
 #endif
 
     syscall_init();

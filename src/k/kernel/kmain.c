@@ -20,6 +20,7 @@
 #include <kernel/libk/ds/hashtable.h>
 #include <kernel/fs/uvfs.h>
 #include <kernel/fs/path.h>
+#include <kernel/fs/ramfs.h>
 
 struct boot_header* boot_header;
 
@@ -49,6 +50,7 @@ kmain(void)
     list_test();
     tree_test();
     hashtable_test();
+    ramfs_test();
 #endif
 
     syscall_init();

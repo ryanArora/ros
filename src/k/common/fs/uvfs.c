@@ -108,6 +108,7 @@ read(struct file* file, void* buf, size_t count, size_t offset)
 {
     assert(file);
     assert(buf);
+    assert(count > 0);
 
     return vfs_read(uvfs, file, buf, count, offset);
 }
@@ -117,6 +118,7 @@ write(struct file* file, const void* buf, size_t count, size_t offset)
 {
     assert(file);
     assert(buf);
+    assert(count > 0);
 
     return vfs_write(uvfs, file, buf, count, offset);
 }

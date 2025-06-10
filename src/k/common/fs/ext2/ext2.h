@@ -64,31 +64,6 @@ struct ext2_superblock {
     uint8_t unused[760];
 };
 
-struct ext2_inode {
-    uint16_t mode;        // Type and Permissions
-    uint16_t uid;         // Lower 16 bits of Owner ID
-    uint32_t size;        // Lower 32 bits of size in bytes
-    uint32_t atime;       // Last Access Time
-    uint32_t ctime;       // Creation Time
-    uint32_t mtime;       // Last Modification Time
-    uint32_t dtime;       // Deletion Time
-    uint16_t gid;         // Lower 16 bits of Group ID
-    uint16_t links_count; // Count of hard links
-    uint32_t blocks;      // Count of disk sectors
-    uint32_t flags;       // File flags
-    uint32_t osd1;        // Operating System Specific Value #1
-    uint32_t direct_block[12];
-    uint32_t singly_indirect_block;
-    uint32_t doubly_indirect_block;
-    uint32_t triply_indirect_block;
-    uint32_t generation; // File version (for NFS)
-    uint32_t file_acl;   // File ACL
-    uint32_t dir_acl;    // Directory ACL (if a directory)
-    uint32_t faddr;      // Fragment address
-    uint8_t osd2[12];    // Operating System Specific Value #2
-    uint8_t padding[128];
-};
-
 struct ext2_group_desc {
     uint32_t block_bitmap;      // Block ID of block bitmap
     uint32_t inode_bitmap;      // Block ID of inode bitmap

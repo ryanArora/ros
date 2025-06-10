@@ -6,10 +6,6 @@
 #include <kernel/fs/path.h>
 #include "fs.h"
 
-struct vfs_state {
-    struct tree mounts;
-};
-
 void vfs_init(struct fs** vfs_out);
 void vfs_deinit(struct fs* vfs);
 enum fs_result vfs_mount(struct fs* vfs, const struct path* mount_path,

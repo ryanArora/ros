@@ -84,6 +84,8 @@ ext2_deinit(struct fs* ext2)
 
     kfree(ext2->state);
     ext2->state = NULL;
+
+    kfree(ext2);
 }
 
 enum fs_result
@@ -147,6 +149,8 @@ ext2_read(struct fs* ext2, struct file* file, void* buf, size_t count,
     assert(ext2 && ext2->state);
     assert(file && file->inode);
     assert(buf);
+    assert(count > 0);
+
     struct ext2_state* state = ext2->state;
 
     struct ext2_inode* inode = file->inode;
@@ -199,7 +203,7 @@ ext2_write(struct fs* ext2, struct file* file, const void* buf, size_t count,
     assert(ext2 && ext2->state);
     assert(file);
     assert(buf);
-    (void)count;
+    assert(count > 0);
     (void)offset;
 
     panic("not implemented\n");

@@ -6,6 +6,7 @@
 #include <kernel/libk/ds/list.h>
 #include <stddef.h>
 #include <kernel/fs/path.h>
+#include "vfs.h"
 
 struct mount_node {
     struct tree_node node;
@@ -19,9 +20,9 @@ static enum fs_result vfs_path_lookup(struct fs* vfs, const struct path* path,
                                       struct path** subpath_out);
 
 void
-vfs_init(struct fs** vfs_ptr)
+vfs_init(struct fs** vfs_out)
 {
-    assert(vfs_ptr && *vfs_ptr == NULL);
+    assert(vfs_out && *vfs_out == NULL);
     struct fs* vfs = kzmalloc(sizeof(struct fs));
 
     vfs->name = "vfs";
@@ -37,7 +38,7 @@ vfs_init(struct fs** vfs_ptr)
 
     tree_init(&state->mounts);
 
-    *vfs_ptr = vfs;
+    *vfs_out = vfs;
 }
 
 void
@@ -211,6 +212,7 @@ vfs_read(struct fs* vfs, struct file* file, void* buf, size_t count,
     assert(vfs && vfs->state);
     assert(file && file->fs && file->fs->read);
     assert(buf);
+    assert(count > 0);
 
     return file->fs->read(file->fs, file, buf, count, offset);
 }
@@ -222,18 +224,19 @@ vfs_write(struct fs* vfs, struct file* file, const void* buf, size_t count,
     assert(vfs && vfs->state);
     assert(file && file->fs && file->fs->write);
     assert(buf);
+    assert(count > 0);
 
     return file->fs->write(file->fs, file, buf, count, offset);
 }
 
 static enum fs_result
 vfs_path_lookup(struct fs* vfs, const struct path* path,
-                struct mount_node** mount_node_ptr, struct path** subpath_ptr)
+                struct mount_node** mount_node_out, struct path** subpath_out)
 {
     assert(vfs && vfs->state);
     assert(path);
-    assert(mount_node_ptr && *mount_node_ptr == NULL);
-    assert(subpath_ptr && *subpath_ptr == NULL);
+    assert(mount_node_out && *mount_node_out == NULL);
+    assert(subpath_out && *subpath_out == NULL);
     struct vfs_state* state = vfs->state;
 
     // Check if root is mounted
@@ -294,7 +297,7 @@ vfs_path_lookup(struct fs* vfs, const struct path* path,
         return FS_RESULT_NOT_OK;
     }
 
-    *mount_node_ptr = deepest_mount;
+    *mount_node_out = deepest_mount;
 
     // Create subpath from components after the mount point
     struct path* subpath = kmalloc(sizeof(struct path));
@@ -325,7 +328,7 @@ vfs_path_lookup(struct fs* vfs, const struct path* path,
         comp_link = comp_link->next;
     }
 
-    *subpath_ptr = subpath;
+    *subpath_out = subpath;
     return FS_RESULT_OK;
 }
 

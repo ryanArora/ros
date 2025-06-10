@@ -2,6 +2,7 @@
 #include "blk.h"
 #include <kernel/mm/mm.h>
 #include <kernel/libk/string.h>
+#include <kernel/fs/ext2.h>
 
 void
 ext2_get_inode(struct fs* ext2, size_t ino, struct ext2_inode** inode_out)

@@ -117,56 +117,53 @@ ext2_read(struct fs* ext2, const struct path* path, void* buf, size_t count,
     struct ext2_state* state = ext2->state;
     (void)state;
 
-    panic("not implemented\n");
+    struct ext2_inode* inode = NULL;
+    if (ext2_path_lookup(ext2, path, &inode) != FS_RESULT_OK) {
+        return FS_RESULT_NOT_OK;
+    }
 
-    // struct ext2_state* state = ext2->state;
+    if (offset >= inode->size) {
+        return FS_RESULT_NOT_OK;
+    }
 
-    // struct ext2_inode inode;
-    // if (ext2_lookup(ext2, path, &inode) != FS_RESULT_OK) {
-    //     return FS_RESULT_NOT_OK;
-    // }
+    if (count + offset > inode->size) {
+        count = inode->size - offset; // Adjust count to read only available
+    }
 
-    // if (offset >= inode.size) {
-    //     return FS_RESULT_NOT_OK;
-    // }
+    size_t start_block = offset / state->block_size;
+    size_t block_offset = offset % state->block_size;
+    size_t ext2_blocks_to_read =
+        CEIL_DIV(block_offset + count, state->block_size);
 
-    // if (count + offset > inode.size) {
-    //     count = inode.size - offset; // Adjust count to read only available
-    // }
+    size_t bytes_read = 0;
 
-    // size_t start_block = offset / state->block_size;
-    // size_t block_offset = offset % state->block_size;
-    // size_t ext2_blocks_to_read =
-    //     CEIL_DIV(block_offset + count, state->block_size);
+    for (size_t i = start_block; i < start_block + ext2_blocks_to_read; i++) {
+        uint32_t block_num = ext2_get_block_number(ext2, inode, i);
+        if (block_num == 0) {
+            // Sparse block - fill with zeros
+            size_t bytes_to_copy =
+                MIN(state->block_size - block_offset, count - bytes_read);
+            memset(buf + bytes_read, 0, bytes_to_copy);
+            bytes_read += bytes_to_copy;
+            block_offset = 0;
+            continue;
+        }
 
-    // size_t bytes_read = 0;
+        uint8_t* block_data = kmalloc(state->block_size);
+        ext2_blk_read(ext2, block_num, 1, block_data);
 
-    // for (size_t i = start_block; i < start_block + ext2_blocks_to_read; i++)
-    // {
-    //     uint32_t block_num = ext2_get_block_number(ext2, &inode, i);
-    //     if (block_num == 0) {
-    //         // Sparse block - fill with zeros
-    //         size_t bytes_to_copy =
-    //             MIN(state->block_size - block_offset, count - bytes_read);
-    //         memset(buf + bytes_read, 0, bytes_to_copy);
-    //         bytes_read += bytes_to_copy;
-    //         block_offset = 0;
-    //         continue;
-    //     }
+        size_t bytes_to_copy =
+            MIN(state->block_size - block_offset, count - bytes_read);
+        memcpy(buf + bytes_read, block_data + block_offset, bytes_to_copy);
+        bytes_read += bytes_to_copy;
 
-    //     uint8_t* block_data = kmalloc(state->block_size);
-    //     ext2_blk_read(ext2, block_num, 1, block_data);
+        block_offset = 0; // Only the first block might have an offset
+        kfree(block_data);
+    }
 
-    //     size_t bytes_to_copy =
-    //         MIN(state->block_size - block_offset, count - bytes_read);
-    //     memcpy(buf + bytes_read, block_data + block_offset, bytes_to_copy);
-    //     bytes_read += bytes_to_copy;
-
-    //     block_offset = 0; // Only the first block might have an offset
-    //     kfree(block_data);
-    // }
-
-    // return (bytes_read == count) ? FS_RESULT_OK : FS_RESULT_NOT_OK;
+    ext2_free_inode(inode);
+    inode = NULL;
+    return (bytes_read == count) ? FS_RESULT_OK : FS_RESULT_NOT_OK;
 }
 
 enum fs_result

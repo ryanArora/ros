@@ -59,10 +59,6 @@ vfs_mount(struct fs* vfs, const struct path* mount_path, struct fs* mount_fs)
     assert(mount_fs);
     struct vfs_state* state = vfs->state;
 
-    kprintf("vfs_mount: mount_fs=%s\n", mount_fs->name);
-    kprintf("vfs_mount: mount_path components:\n");
-    path_print(mount_path);
-
     // Handle root mount case
     if (list_empty(&mount_path->components)) {
         // Mounting at root "/"
@@ -184,10 +180,18 @@ vfs_read(struct fs* vfs, const struct path* path, void* buf, size_t count,
     assert(buf);
     struct vfs_state* state = vfs->state;
     (void)state;
-    (void)count;
-    (void)offset;
 
-    panic("unimplemented");
+    enum fs_result ret;
+
+    struct mount_node* mount_node = NULL;
+    struct path* subpath = NULL;
+    if ((ret = vfs_path_lookup(vfs, path, &mount_node, &subpath)) !=
+        FS_RESULT_OK)
+        return ret;
+
+    ret = mount_node->fs->read(mount_node->fs, subpath, buf, count, offset);
+    path_deinit(subpath);
+    return ret;
 }
 
 enum fs_result
@@ -199,10 +203,18 @@ vfs_write(struct fs* vfs, const struct path* path, const void* buf,
     assert(buf);
     struct vfs_state* state = vfs->state;
     (void)state;
-    (void)count;
-    (void)offset;
 
-    panic("unimplemented");
+    enum fs_result ret;
+
+    struct mount_node* mount_node = NULL;
+    struct path* subpath = NULL;
+    if ((ret = vfs_path_lookup(vfs, path, &mount_node, &subpath)) !=
+        FS_RESULT_OK)
+        return ret;
+
+    ret = mount_node->fs->write(mount_node->fs, subpath, buf, count, offset);
+    path_deinit(subpath);
+    return ret;
 }
 
 static enum fs_result

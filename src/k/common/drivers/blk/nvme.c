@@ -9,6 +9,8 @@
 #include <limits.h>
 #include <kernel/cpu/paging.h>
 
+#define NVME_TIMEOUT 1'000'000'000
+
 #define NVME_REGISTER_OFFSET_CAP   0x00
 #define NVME_REGISTER_OFFSET_VS    0x08
 #define NVME_REGISTER_OFFSET_INTMS 0x0C
@@ -173,7 +175,7 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
 
     // Disable the controller
     nvme_write_reg_dword(NVME_REGISTER_OFFSET_CC, 0);
-    uint64_t timeout = 100'000'000;
+    uint64_t timeout = NVME_TIMEOUT;
     while (nvme_read_reg_dword(NVME_REGISTER_OFFSET_CSTS) & 0x1) {
         if (timeout == 0) panic("nvme_init: timeout");
         timeout--;
@@ -206,7 +208,7 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
     cc |= (4 << 20); // IOCQES = 4 → 2^4 = 16 bytes per CQ entry
     cc |= (1 << 0);  // EN = 1 → enable controller
     nvme_write_reg_dword(NVME_REGISTER_OFFSET_CC, cc);
-    timeout = 100'000'000;
+    timeout = NVME_TIMEOUT;
     while ((nvme_read_reg_dword(NVME_REGISTER_OFFSET_CSTS) & 0x1) == 0) {
         if (timeout == 0) panic("nvme_init: timeout");
         timeout--;
@@ -273,7 +275,7 @@ nvme_send_admin_command_identify_controller()
         admin_submission_queue_tail);
 
     // Poll
-    uint64_t timeout = 100'000'000;
+    uint64_t timeout = NVME_TIMEOUT;
     while (true) {
         if (timeout == 0)
             panic("nvme_send_admin_command_identify_controller: timeout");
@@ -364,7 +366,7 @@ nvme_send_admin_command_identify_namespace_list()
         admin_submission_queue_tail);
 
     // Poll
-    uint64_t timeout = 100'000'000;
+    uint64_t timeout = NVME_TIMEOUT;
     while (true) {
         if (timeout == 0)
             panic("nvme_send_admin_command_identify_namespace_list: timeout");
@@ -425,7 +427,7 @@ static void
 nvme_send_admin_command_create_io_completion_queue()
 {
     io_completion_queue.vaddr = alloc_pagez(1);
-    io_completion_queue.size = 63;
+    io_completion_queue.size = 64;
 
     struct nvme_submission_queue_entry* sqe =
         &admin_submission_queue.vaddr[admin_submission_queue_tail];
@@ -442,7 +444,7 @@ nvme_send_admin_command_create_io_completion_queue()
     sqe->metadata_ptr = 0;
     sqe->data_ptr[0] = (uintptr_t)vaddr_to_paddr(io_completion_queue.vaddr);
     sqe->data_ptr[1] = 0;
-    sqe->command_specific[0] = 1 | (io_completion_queue.size << 16);
+    sqe->command_specific[0] = 1 | ((io_completion_queue.size - 1) << 16);
     sqe->command_specific[1] = (1 << 1) | 1;
     sqe->command_specific[2] = 0;
     sqe->command_specific[3] = 0;
@@ -459,7 +461,7 @@ nvme_send_admin_command_create_io_completion_queue()
         admin_submission_queue_tail);
 
     // Poll
-    uint64_t timeout = 100'000'000;
+    uint64_t timeout = NVME_TIMEOUT;
     while (true) {
         if (timeout == 0)
             panic(
@@ -504,7 +506,7 @@ static void
 nvme_send_admin_command_create_io_submission_queue()
 {
     io_submission_queue.vaddr = alloc_pagez(1);
-    io_submission_queue.size = 63;
+    io_submission_queue.size = 64;
 
     struct nvme_submission_queue_entry* sqe =
         &admin_submission_queue.vaddr[admin_submission_queue_tail];
@@ -522,7 +524,7 @@ nvme_send_admin_command_create_io_submission_queue()
     sqe->metadata_ptr = 0;
     sqe->data_ptr[0] = (uintptr_t)vaddr_to_paddr(io_submission_queue.vaddr);
     sqe->data_ptr[1] = 0;
-    sqe->command_specific[0] = 1 | (io_submission_queue.size << 16);
+    sqe->command_specific[0] = 1 | ((io_submission_queue.size - 1) << 16);
     sqe->command_specific[1] = 1 | (1 << 16);
     sqe->command_specific[2] = 0;
     sqe->command_specific[3] = 0;
@@ -630,7 +632,7 @@ nvme_submit_io(uint8_t opcode, uint64_t lba, uint16_t num_blocks, void* buf)
     io_submission_queue_tail =
         (io_submission_queue_tail + 1) % io_submission_queue.size;
 
-    uint64_t timeout = 100'000'000;
+    uint64_t timeout = NVME_TIMEOUT;
     io_cmd_done = false;
     interrupts_enable();
 
@@ -663,7 +665,7 @@ nvme_interrupt_handler(void* frame)
 {
     (void)frame;
 
-    uint64_t timeout = 100'000'000;
+    uint64_t timeout = NVME_TIMEOUT;
 
     while (true) {
         if (timeout == 0) panic("nvme_interrupt_handler: timeout");

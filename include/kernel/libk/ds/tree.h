@@ -67,9 +67,9 @@ tree_find_child(struct tree_node* parent, uint64_t id)
     struct list* children_list = &parent->children;
     list_foreach(children_list, child_link)
     {
-        if (child_link->id == id) {
-            struct tree_node* child =
-                container_of(child_link, struct tree_node, sibling_link);
+        struct tree_node* child =
+            container_of(child_link, struct tree_node, sibling_link);
+        if (child->id == id) {
             return child;
         }
     }

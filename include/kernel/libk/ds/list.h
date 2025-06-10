@@ -23,6 +23,7 @@ list_init(struct list* list)
 
     list->head = NULL;
     list->tail = NULL;
+    list->id_max = 0;
 };
 
 #define list_foreach(list, node)                                               \
@@ -140,7 +141,7 @@ list_test_basic_operations(void)
 
     kprintf("list_test: pushing 5 nodes\n");
     for (int i = 0; i < 5; i++) {
-        list_node_init(&nodes[i], i);
+        list_node_init(&test_list, &nodes[i]);
         kprintf("list_test: pushing node %lld at 0x%llX\n", (int64_t)i,
                 (uint64_t)&nodes[i]);
         list_push(&test_list, &nodes[i]);
@@ -181,16 +182,12 @@ list_test_find_operations(void)
     list_init(&test_list);
 
     for (int i = 0; i < 3; i++) {
-        list_node_init(&nodes[i], i * 10);
-        kprintf("list_test: pushing node with id %lld\n", (int64_t)(i * 10));
+        list_node_init(&test_list, &nodes[i]);
+        kprintf("list_test: pushing node %d\n", i);
         list_push(&test_list, &nodes[i]);
     }
 
-    kprintf("list_test: finding node with id 10\n");
-    struct list_node* found = list_find(&test_list, 10);
-    if (found != &nodes[1])
-        panic("list_test: find failed to locate existing node");
-
+    struct list_node* found;
     kprintf("list_test: finding non-existent node with id 999\n");
     found = list_find(&test_list, 999);
     if (found != NULL)
@@ -201,9 +198,10 @@ list_test_find_operations(void)
     if (found != &nodes[0])
         panic("list_test: find failed to locate first node");
 
-    kprintf("list_test: finding node with id 20\n");
-    found = list_find(&test_list, 20);
-    if (found != &nodes[2]) panic("list_test: find failed to locate last node");
+    kprintf("list_test: finding node with id 1\n");
+    found = list_find(&test_list, 1);
+    if (found != &nodes[1]) panic("list_test: find failed to locate last node");
+
     kprintf("list_test: find_operations test completed successfully\n");
 }
 
@@ -217,7 +215,7 @@ list_test_remove_operations(void)
     list_init(&test_list);
 
     for (int i = 0; i < 5; i++) {
-        list_node_init(&nodes[i], i);
+        list_node_init(&test_list, &nodes[i]);
         list_push(&test_list, &nodes[i]);
     }
     kprintf("list_test: pushed 5 nodes (0-4)\n");
@@ -269,7 +267,7 @@ list_test_circular_operations(void)
     list_init(&test_list);
 
     for (int i = 0; i < 3; i++) {
-        list_node_init(&nodes[i], i);
+        list_node_init(&test_list, &nodes[i]);
         list_push(&test_list, &nodes[i]);
     }
     kprintf("list_test: pushed 3 nodes (0-2)\n");
@@ -301,7 +299,7 @@ list_test_edge_cases(void)
 
     list_init(&test_list);
 
-    list_node_init(&single_node, 42);
+    list_node_init(&test_list, &single_node);
     kprintf("list_test: pushing single node with id 42\n");
     list_push(&test_list, &single_node);
 
@@ -334,7 +332,7 @@ list_test_double_push(void)
     list_init(&test_list);
 
     kprintf("list_test: testing reuse of node after removal\n");
-    list_node_init(&node1, 1);
+    list_node_init(&test_list, &node1);
 
     kprintf("list_test: pushing node first time\n");
     list_push(&test_list, &node1);
@@ -343,7 +341,7 @@ list_test_double_push(void)
     list_remove(&test_list, &node1);
 
     kprintf("list_test: re-initializing and pushing same node again\n");
-    list_node_init(&node1, 2);
+    list_node_init(&test_list, &node1);
     list_push(&test_list, &node1);
 
     kprintf("list_test: verifying single node in list\n");
@@ -363,7 +361,7 @@ list_test_double_push(void)
         panic("list_test: should have exactly 1 node after remove and re-push");
 
     kprintf("list_test: testing multiple nodes scenario\n");
-    list_node_init(&node2, 3);
+    list_node_init(&test_list, &node2);
     list_push(&test_list, &node2);
 
     count = 0;

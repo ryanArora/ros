@@ -7,9 +7,9 @@
 [[noreturn]] void
 abort(void)
 {
-    asm volatile("cli;"
-                 "hlt" ::
-                     : "memory");
+    outw(0x501, 0x31);
+    outw(0x604, 0);
+
     while (1)
         ;
 }

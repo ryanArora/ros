@@ -83,53 +83,62 @@ path_test(void)
     path_print(path);
     kprintf("\n");
     path_deinit(path);
+    path = NULL;
 
     assert(path_init("/a", &path) == FS_RESULT_OK);
     kprintf("path /a:\n");
     path_print(path);
     kprintf("\n");
     path_deinit(path);
+    path = NULL;
 
     assert(path_init("/a/", &path) == FS_RESULT_OK);
     kprintf("path /a/:\n");
     path_print(path);
     kprintf("\n");
     path_deinit(path);
+    path = NULL;
 
     assert(path_init("/a/b", &path) == FS_RESULT_OK);
     kprintf("path /a/b:\n");
     path_print(path);
     kprintf("\n");
     path_deinit(path);
+    path = NULL;
 
     assert(path_init("/a/b/", &path) == FS_RESULT_OK);
     kprintf("path /a/b/:\n");
     path_print(path);
     kprintf("\n");
     path_deinit(path);
+    path = NULL;
 
     assert(path_init("/abacus", &path) == FS_RESULT_OK);
     kprintf("path /abacus:\n");
     path_print(path);
     path_deinit(path);
+    path = NULL;
 
     assert(path_init("/abacus/", &path) == FS_RESULT_OK);
     kprintf("path /abacus/:\n");
     path_print(path);
     kprintf("\n");
     path_deinit(path);
+    path = NULL;
 
     assert(path_init("/abacus/babacus", &path) == FS_RESULT_OK);
     kprintf("path /abacus/babacus:\n");
     path_print(path);
     kprintf("\n");
     path_deinit(path);
+    path = NULL;
 
     assert(path_init("/abacus/babacus/", &path) == FS_RESULT_OK);
     kprintf("path /abacus/babacus/:\n");
     path_print(path);
     kprintf("\n");
     path_deinit(path);
+    path = NULL;
 
     assert(path_init("", &path) == FS_RESULT_NOT_OK);
     assert(path_init("a", &path) == FS_RESULT_NOT_OK);

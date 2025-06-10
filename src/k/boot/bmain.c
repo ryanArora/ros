@@ -30,7 +30,6 @@ bmain(void)
     gdt_init();
 
     pci_init();
-
     pic_init();
     pit_init();
 

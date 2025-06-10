@@ -28,6 +28,8 @@ vfs_init(struct fs** vfs_ptr)
     vfs->mount = vfs_mount;
     vfs->unmount = vfs_unmount;
     vfs->stat = vfs_stat;
+    vfs->open = vfs_open;
+    vfs->close = vfs_close;
     vfs->read = vfs_read;
     vfs->write = vfs_write;
     vfs->state = kzmalloc(sizeof(struct vfs_state));
@@ -172,12 +174,11 @@ vfs_stat(struct fs* vfs, const struct path* path, struct fs_stat* st)
 }
 
 enum fs_result
-vfs_read(struct fs* vfs, const struct path* path, void* buf, size_t count,
-         size_t offset)
+vfs_open(struct fs* vfs, const struct path* path, struct file** file_out)
 {
     assert(vfs && vfs->state);
     assert(path);
-    assert(buf);
+    assert(file_out);
     struct vfs_state* state = vfs->state;
     (void)state;
 
@@ -189,32 +190,40 @@ vfs_read(struct fs* vfs, const struct path* path, void* buf, size_t count,
         FS_RESULT_OK)
         return ret;
 
-    ret = mount_node->fs->read(mount_node->fs, subpath, buf, count, offset);
+    ret = mount_node->fs->open(mount_node->fs, subpath, file_out);
     path_deinit(subpath);
     return ret;
 }
 
 enum fs_result
-vfs_write(struct fs* vfs, const struct path* path, const void* buf,
-          size_t count, size_t offset)
+vfs_close(struct fs* vfs, struct file* file)
 {
     assert(vfs && vfs->state);
-    assert(path);
+    assert(file && file->fs && file->fs->close);
+
+    return file->fs->close(file->fs, file);
+}
+
+enum fs_result
+vfs_read(struct fs* vfs, struct file* file, void* buf, size_t count,
+         size_t offset)
+{
+    assert(vfs && vfs->state);
+    assert(file && file->fs && file->fs->read);
     assert(buf);
-    struct vfs_state* state = vfs->state;
-    (void)state;
 
-    enum fs_result ret;
+    return file->fs->read(file->fs, file, buf, count, offset);
+}
 
-    struct mount_node* mount_node = NULL;
-    struct path* subpath = NULL;
-    if ((ret = vfs_path_lookup(vfs, path, &mount_node, &subpath)) !=
-        FS_RESULT_OK)
-        return ret;
+enum fs_result
+vfs_write(struct fs* vfs, struct file* file, const void* buf, size_t count,
+          size_t offset)
+{
+    assert(vfs && vfs->state);
+    assert(file && file->fs && file->fs->write);
+    assert(buf);
 
-    ret = mount_node->fs->write(mount_node->fs, subpath, buf, count, offset);
-    path_deinit(subpath);
-    return ret;
+    return file->fs->write(file->fs, file, buf, count, offset);
 }
 
 static enum fs_result

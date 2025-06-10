@@ -16,11 +16,16 @@ load_init_process(const char* path)
         panic("failed to stat %s\n", path);
     }
 
+    struct file* file = NULL;
+    if (open(path, &file) != FS_RESULT_OK) {
+        panic("failed to open %s\n", path);
+    }
+
     size_t elf_header_num_pages =
         CEIL_DIV(sizeof(struct elf_header64), PAGE_SIZE);
     struct elf_header64* elf_header = alloc_pagez(elf_header_num_pages);
 
-    if (read(path, elf_header, sizeof(struct elf_header64), 0) !=
+    if (read(file, elf_header, sizeof(struct elf_header64), 0) !=
         FS_RESULT_OK) {
         panic("failed to read ELF header\n");
     }
@@ -62,7 +67,7 @@ load_init_process(const char* path)
     struct elf_program_header64* program_headers =
         alloc_pagez(program_headers_num_pages);
 
-    if (read(path, program_headers,
+    if (read(file, program_headers,
              elf_header->phnum * sizeof(struct elf_program_header64),
              elf_header->phoff) != FS_RESULT_OK) {
         panic("failed to read program header\n");
@@ -77,7 +82,7 @@ load_init_process(const char* path)
         size_t buf_num_pages = CEIL_DIV(program_header->memsz, PAGE_SIZE);
         void* buf = alloc_pagez(buf_num_pages);
 
-        if (read(path, buf, program_header->filesz, program_header->offset) !=
+        if (read(file, buf, program_header->filesz, program_header->offset) !=
             FS_RESULT_OK) {
             panic("failed to read PT_LOAD segment data\n");
         }

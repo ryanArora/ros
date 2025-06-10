@@ -4,6 +4,11 @@
 #include <stddef.h>
 #include <kernel/fs/path.h>
 
+struct file {
+    struct fs* fs;
+    struct ext2_inode* inode;
+};
+
 enum fs_result {
     FS_RESULT_OK = 0,
     FS_RESULT_NOT_OK = -1,
@@ -24,11 +29,16 @@ struct fs {
     enum fs_result (*stat)(struct fs* fs, const struct path* path,
                            struct fs_stat* st);
 
-    enum fs_result (*read)(struct fs* fs, const struct path* path, void* buf,
+    enum fs_result (*open)(struct fs* fs, const struct path* path,
+                           struct file** file_out);
+
+    enum fs_result (*close)(struct fs* fs, struct file* file);
+
+    enum fs_result (*read)(struct fs* fs, struct file* file, void* buf,
                            size_t count, size_t offset);
 
-    enum fs_result (*write)(struct fs* fs, const struct path* path,
-                            const void* buf, size_t count, size_t offset);
+    enum fs_result (*write)(struct fs* fs, struct file* file, const void* buf,
+                            size_t count, size_t offset);
 
     void* state;
 };

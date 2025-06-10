@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <kernel/libk/ds/hashtable.h>
 
 #define EXT2_SUPERBLOCK_MAGIC 0xEF53
 #define EXT2_ROOT_INO         2
@@ -112,4 +113,6 @@ struct ext2_state {
     struct ext2_superblock* sb;
     struct ext2_group_desc* bgdt;
     uint32_t block_size;
+
+    struct hashtable inodes;
 };

@@ -48,6 +48,8 @@ ext2_init(struct blk_device* dev, struct fs** ext2_out)
     ext2->mount = NULL;
     ext2->unmount = NULL;
     ext2->stat = ext2_stat;
+    ext2->open = ext2_open;
+    ext2->close = ext2_close;
     ext2->read = ext2_read;
     ext2->write = ext2_write;
     ext2->state = kzmalloc(sizeof(struct ext2_state));
@@ -106,22 +108,48 @@ ext2_stat(struct fs* ext2, const struct path* path, struct fs_stat* st)
 }
 
 enum fs_result
-ext2_read(struct fs* ext2, const struct path* path, void* buf, size_t count,
-          size_t offset)
+ext2_open(struct fs* ext2, const struct path* path, struct file** file_out)
 {
     assert(ext2 && ext2->state);
     assert(path);
-    assert(buf);
-    (void)count;
-    (void)offset;
-    struct ext2_state* state = ext2->state;
-    (void)state;
+    assert(file_out);
 
     struct ext2_inode* inode = NULL;
     if (ext2_path_lookup(ext2, path, &inode) != FS_RESULT_OK) {
         return FS_RESULT_NOT_OK;
     }
 
+    struct file* file = kzmalloc(sizeof(struct file));
+    file->fs = ext2;
+    file->inode = inode;
+
+    *file_out = file;
+    return FS_RESULT_OK;
+}
+
+enum fs_result
+ext2_close(struct fs* ext2, struct file* file)
+{
+    assert(ext2 && ext2->state);
+    assert(file);
+
+    ext2_free_inode(file->inode);
+    file->inode = NULL;
+    kfree(file);
+
+    return FS_RESULT_OK;
+}
+
+enum fs_result
+ext2_read(struct fs* ext2, struct file* file, void* buf, size_t count,
+          size_t offset)
+{
+    assert(ext2 && ext2->state);
+    assert(file && file->inode);
+    assert(buf);
+    struct ext2_state* state = ext2->state;
+
+    struct ext2_inode* inode = file->inode;
     if (offset >= inode->size) {
         return FS_RESULT_NOT_OK;
     }
@@ -161,17 +189,15 @@ ext2_read(struct fs* ext2, const struct path* path, void* buf, size_t count,
         kfree(block_data);
     }
 
-    ext2_free_inode(inode);
-    inode = NULL;
     return (bytes_read == count) ? FS_RESULT_OK : FS_RESULT_NOT_OK;
 }
 
 enum fs_result
-ext2_write(struct fs* ext2, const struct path* path, const void* buf,
-           size_t count, size_t offset)
+ext2_write(struct fs* ext2, struct file* file, const void* buf, size_t count,
+           size_t offset)
 {
     assert(ext2 && ext2->state);
-    assert(path);
+    assert(file);
     assert(buf);
     (void)count;
     (void)offset;

@@ -80,33 +80,43 @@ stat(const char* path_str, struct fs_stat* st)
 }
 
 enum fs_result
-read(const char* path_str, void* buf, size_t count, size_t offset)
+open(const char* path_str, struct file** file_out)
 {
     assert(path_str);
-    assert(buf);
+    assert(file_out);
 
     struct path* path = NULL;
     enum fs_result ret = path_init(path_str, &path);
     if (ret != FS_RESULT_OK) return ret;
 
-    ret = vfs_read(uvfs, path, buf, count, offset);
+    ret = vfs_open(uvfs, path, file_out);
 
     path_deinit(path);
     return ret;
 }
 
 enum fs_result
-write(const char* path_str, const void* buf, size_t count, size_t offset)
+close(struct file* file)
 {
-    assert(path_str);
+    assert(file);
+
+    return vfs_close(uvfs, file);
+}
+
+enum fs_result
+read(struct file* file, void* buf, size_t count, size_t offset)
+{
+    assert(file);
     assert(buf);
 
-    struct path* path = NULL;
-    enum fs_result ret = path_init(path_str, &path);
-    if (ret != FS_RESULT_OK) return ret;
+    return vfs_read(uvfs, file, buf, count, offset);
+}
 
-    ret = vfs_write(uvfs, path, buf, count, offset);
+enum fs_result
+write(struct file* file, const void* buf, size_t count, size_t offset)
+{
+    assert(file);
+    assert(buf);
 
-    path_deinit(path);
-    return ret;
+    return vfs_write(uvfs, file, buf, count, offset);
 }

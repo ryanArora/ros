@@ -66,8 +66,16 @@ vfs_mount(struct fs* vfs, const struct path* mount_path, struct fs* mount_fs)
     if (list_empty(&mount_path->components)) {
         // Mounting at root "/"
         if (state->mounts.root != NULL) {
-            // Root already mounted
-            return FS_RESULT_NOT_OK;
+            // Check if root already has a filesystem
+            struct mount_node* existing_root =
+                container_of(state->mounts.root, struct mount_node, node);
+            if (existing_root->fs != NULL) {
+                // Root already mounted with a filesystem
+                return FS_RESULT_NOT_OK;
+            }
+            // Root exists but no filesystem - just attach the filesystem
+            existing_root->fs = mount_fs;
+            return FS_RESULT_OK;
         }
 
         // Create root mount node
@@ -81,10 +89,16 @@ vfs_mount(struct fs* vfs, const struct path* mount_path, struct fs* mount_fs)
         return FS_RESULT_OK;
     }
 
-    // Ensure root exists before mounting subdirectories
+    // For subdirectory mounts, create root node if it doesn't exist
     if (state->mounts.root == NULL) {
-        // No root mount yet, can't mount subdirectories
-        return FS_RESULT_NOT_OK;
+        // Create a placeholder root node without a filesystem
+        struct mount_node* root_mount = kmalloc(sizeof(struct mount_node));
+        tree_node_init(&root_mount->node, 0);
+        root_mount->name = kmalloc(2);
+        strcpy(root_mount->name, "/");
+        root_mount->fs = NULL; // No filesystem yet
+
+        tree_set_root(&state->mounts, &root_mount->node);
     }
 
     // Traverse the mount tree, creating nodes as needed

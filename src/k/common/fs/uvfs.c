@@ -14,22 +14,22 @@ struct fs* uvfs = NULL;
 void
 uvfs_init(void)
 {
-    kprintf("[START] Initialize UVFS\n");
+    kprintf("[START] Initialize uvfs\n");
 
     vfs_init(&uvfs);
 
-    kprintf("[DONE ] Initialize UVFS\n");
+    kprintf("[DONE ] Initialize uvfs\n");
 }
 
 void
 uvfs_deinit(void)
 {
-    kprintf("[START] Deinitialize UVFS\n");
+    kprintf("[START] Deinitialize uvfs\n");
 
     vfs_deinit(uvfs);
     uvfs = NULL;
 
-    kprintf("[DONE ] Deinitialize UVFS\n");
+    kprintf("[DONE ] Deinitialize uvfs\n");
 }
 
 enum fs_result

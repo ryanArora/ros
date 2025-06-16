@@ -12,13 +12,13 @@
 struct pt_entry* pml4_vaddr;
 
 void*
-paddr_to_vaddr(void* paddr)
+paddr_to_vaddr_kernel_data(void* paddr)
 {
     return paddr;
 }
 
 void*
-vaddr_to_paddr(void* vaddr)
+vaddr_to_paddr_kernel_data(void* vaddr)
 {
     return vaddr;
 }
@@ -56,7 +56,8 @@ paging_init(void)
     map_pages(fb_paddr, fb_vaddr, 1, 0, 1, 1, 0, fb_num_pages);
     boot_header->fb_vaddr = fb_vaddr;
 
-    asm volatile("mov %0, %%cr3" ::"r"(vaddr_to_paddr(pml4_vaddr)) : "memory");
+    asm volatile("mov %0, %%cr3" ::"r"(vaddr_to_paddr_kernel_data(pml4_vaddr))
+                 : "memory");
 
     kprintf("[DONE ] Initialize paging\n");
 }

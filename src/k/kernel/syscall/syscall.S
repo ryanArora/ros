@@ -8,7 +8,6 @@ syscall_handler:
     movq %rsp, %gs:USER_RSP_OFFSET
     movq %gs:KERNEL_RSP_OFFSET, %rsp
 
-    pushq %rax
     pushq %rbx
     pushq %rcx
     pushq %rdx
@@ -41,7 +40,6 @@ syscall_handler:
     popq %rdx
     popq %rcx
     popq %rbx
-    popq %rax
 
     # Restore the user stack pointer
     movq %gs:USER_RSP_OFFSET, %rsp

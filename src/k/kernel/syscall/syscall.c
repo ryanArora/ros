@@ -4,16 +4,26 @@
 #include <kernel/mm/mm.h>
 #include <kernel/sched/sched.h>
 #include <kernel/fs/uvfs.h>
+#include <kernel/libk/math.h>
+#include <kernel/tls.h>
+#include <kernel/libk/ds/list.h>
+#include <kernel/sched/sched.h>
 
 #define LSTAR_MSR_OFFSET     0xC0000082
 #define IA32_EFER_MSR_OFFSET 0xC0000080
 #define STAR_MSR_OFFSET      0xC0000081
 
+#define PATH_MAX 4096
+
 // Forward declarations
 [[noreturn]] extern void syscall_handler(void);
 
 #define SYSCALL_EXIT 0
-static void syscall_exit(uint64_t code);
+[[noreturn]] static void syscall_exit(uint64_t code);
+#define SYSCALL_OPEN 1
+static size_t syscall_open(const char* path);
+#define SYSCALL_CLOSE 2
+static enum fs_result syscall_close(uint64_t fd);
 
 void
 syscall_init(void)
@@ -28,26 +38,77 @@ syscall_init(void)
     kprintf("[DONE ] Initialize syscall handler\n");
 }
 
-void
+uint64_t
 syscall_handler_c(uint64_t syscall_num, uint64_t one, uint64_t two,
                   uint64_t three, uint64_t four, uint64_t five)
 {
-    (void)two;
     (void)three;
     (void)four;
     (void)five;
 
     switch (syscall_num) {
-    case SYSCALL_EXIT:
-        syscall_exit(one);
-        break;
-    default:
-        panic("syscall_handler_c, invalid syscall id: 0x%llX\n", syscall_num);
+    case SYSCALL_EXIT: {
+        uint64_t code = one;
+        syscall_exit(code);
+    }
+    case SYSCALL_OPEN: {
+        uint64_t path_len = one;
+        if (path_len > PATH_MAX) syscall_exit(128);
+
+        void* path_user = (void*)two;
+        char* path = usrcpy(path_user, path_len);
+        if (path == NULL) syscall_exit(128);
+
+        size_t ret = syscall_open(path);
+
+        size_t num_pages = CEIL_DIV(path_len + 1, PAGE_SIZE);
+        free_pages(path, num_pages);
+
+        return ret;
+    }
+    case SYSCALL_CLOSE: {
+        uint64_t fd = one;
+        return syscall_close(fd);
+    }
+    default: {
+        syscall_exit(128);
+    }
     }
 }
 
-static void
+[[noreturn]] static void
 syscall_exit(uint64_t code)
 {
     sched_exit(code);
+}
+
+static size_t
+syscall_open(const char* path)
+{
+    struct file* file = NULL;
+    enum fs_result ret = open(path, &file);
+    if (ret != FS_RESULT_OK) {
+        return 0;
+    }
+
+    list_node_init(&tls.current_task->files, &file->link);
+    list_push(&tls.current_task->files, &file->link);
+
+    return file->link.id;
+}
+
+static enum fs_result
+syscall_close(uint64_t fd)
+{
+    struct list_node* node = list_find(&tls.current_task->files, fd);
+    if (node == NULL) {
+        return FS_RESULT_NOT_OK;
+    }
+
+    struct file* file = container_of(node, struct file, link);
+    if (file == NULL) {
+        return FS_RESULT_NOT_OK;
+    }
+
+    return close(file);
 }

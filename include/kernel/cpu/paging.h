@@ -14,6 +14,7 @@
 #define PAGE_ALIGN_DOWN(addr) ((void*)((uintptr_t)(addr) & PAGE_MASK))
 #define PAGE_ALIGN_UP(addr)   ((void*)(((uintptr_t)(addr) + 0xFFF) & PAGE_MASK))
 #define PAGE_ALIGNED(addr)    (((uintptr_t)(addr) & ~PAGE_MASK) == 0)
+#define PAGE_OFFSET(addr)     ((uintptr_t)(addr) & (PAGE_SIZE - 1))
 
 #define PML4_ENTRIES 512
 #define PDPT_ENTRIES 512
@@ -76,5 +77,9 @@ void map_pages_dma(void* paddr, void* vaddr, size_t num_pages);
 void unmap_page(void* vaddr);
 void unmap_pages(void* vaddr, size_t num_pages);
 
-void* paddr_to_vaddr(void* paddr);
-void* vaddr_to_paddr(void* vaddr);
+void* paddr_to_vaddr_kernel_data(void* paddr);
+void* vaddr_to_paddr_kernel_data(void* vaddr);
+
+void* vaddr_to_paddr_user(void* vaddr);
+
+void* usrcpy(void* user_ptr, size_t len);

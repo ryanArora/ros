@@ -7,11 +7,6 @@
 #include <kernel/libk/ds/list.h>
 #include <kernel/tls.h>
 
-struct task {
-    struct list_node link;
-    struct list files;
-};
-
 // Forward declarations
 static void task_init(struct task* task);
 
@@ -39,7 +34,7 @@ sched_exit(uint64_t code)
         list_next_circular(&tasks, &tls.current_task->link), struct task, link);
 
     if (next_task == tls.current_task)
-        panic("last task exited with code %lld", code);
+        panic("last task exited with code %lld\n", code);
 
     panic("unimplemented");
 }

@@ -2,6 +2,8 @@
 #include <kernel/boot/header.h>
 #include <kernel/libk/io.h>
 #include <kernel/mm/mm.h>
+#include <kernel/libk/math.h>
+#include <kernel/libk/string.h>
 
 void
 init_pt_entry(struct pt_entry* pt, void* paddr, bool read_write,
@@ -42,33 +44,33 @@ map_page(void* paddr, void* vaddr, bool read_write, bool user_supervisor,
     struct pt_entry* pml4_entry = &pml4_vaddr[v.pml4_index];
     if (!pml4_entry->present) {
         void* pdpt_vaddr = alloc_pagez(1);
-        void* pdpt_paddr = vaddr_to_paddr(pdpt_vaddr);
+        void* pdpt_paddr = vaddr_to_paddr_kernel_data(pdpt_vaddr);
         init_pt_entry(pml4_entry, pdpt_paddr, 1, 1, 0, 0, 0);
     }
 
     struct pt_entry* pdpt_paddr =
         (void*)(uintptr_t)(pml4_entry->address << PAGE_SIZE_BITS);
-    struct pt_entry* pdpt_vaddr = paddr_to_vaddr(pdpt_paddr);
+    struct pt_entry* pdpt_vaddr = paddr_to_vaddr_kernel_data(pdpt_paddr);
     struct pt_entry* pdpt_entry = &pdpt_vaddr[v.pdpt_index];
     if (!pdpt_entry->present) {
         void* pt_vaddr = alloc_pagez(1);
-        void* pt_paddr = vaddr_to_paddr(pt_vaddr);
+        void* pt_paddr = vaddr_to_paddr_kernel_data(pt_vaddr);
         init_pt_entry(pdpt_entry, pt_paddr, 1, 1, 0, 0, 0);
     }
 
     struct pt_entry* pd_paddr =
         (void*)(uintptr_t)(pdpt_entry->address << PAGE_SIZE_BITS);
-    struct pt_entry* pd_vaddr = paddr_to_vaddr(pd_paddr);
+    struct pt_entry* pd_vaddr = paddr_to_vaddr_kernel_data(pd_paddr);
     struct pt_entry* pd_entry = &pd_vaddr[v.pd_index];
     if (!pd_entry->present) {
         void* pt_vaddr = alloc_pagez(1);
-        void* pt_paddr = vaddr_to_paddr(pt_vaddr);
+        void* pt_paddr = vaddr_to_paddr_kernel_data(pt_vaddr);
         init_pt_entry(pd_entry, pt_paddr, 1, 1, 0, 0, 0);
     }
 
     struct pt_entry* pt_paddr =
         (void*)(uintptr_t)(pd_entry->address << PAGE_SIZE_BITS);
-    struct pt_entry* pt_vaddr = paddr_to_vaddr(pt_paddr);
+    struct pt_entry* pt_vaddr = paddr_to_vaddr_kernel_data(pt_paddr);
     struct pt_entry* pt_entry = &pt_vaddr[v.pt_index];
     if (!pt_entry->present) {
         init_pt_entry(pt_entry, paddr, read_write, user_supervisor,
@@ -202,21 +204,21 @@ unmap_page(void* vaddr)
 
     struct pt_entry* pdpt_paddr =
         (void*)(uintptr_t)(pml4_entry->address << PAGE_SIZE_BITS);
-    struct pt_entry* pdpt_vaddr = paddr_to_vaddr(pdpt_paddr);
+    struct pt_entry* pdpt_vaddr = paddr_to_vaddr_kernel_data(pdpt_paddr);
     struct pt_entry* pdpt_entry = &pdpt_vaddr[v.pdpt_index];
     if (!pdpt_entry->present)
         panic("page is already unmapped because pdpt_entry is not present\n");
 
     struct pt_entry* pd_paddr =
         (void*)(uintptr_t)(pdpt_entry->address << PAGE_SIZE_BITS);
-    struct pt_entry* pd_vaddr = paddr_to_vaddr(pd_paddr);
+    struct pt_entry* pd_vaddr = paddr_to_vaddr_kernel_data(pd_paddr);
     struct pt_entry* pd_entry = &pd_vaddr[v.pd_index];
     if (!pd_entry->present)
         panic("page is already unmapped because pd_entry is not present\n");
 
     struct pt_entry* pt_paddr =
         (void*)(uintptr_t)(pd_entry->address << PAGE_SIZE_BITS);
-    struct pt_entry* pt_vaddr = paddr_to_vaddr(pt_paddr);
+    struct pt_entry* pt_vaddr = paddr_to_vaddr_kernel_data(pt_paddr);
     struct pt_entry* pt_entry = &pt_vaddr[v.pt_index];
     if (!pt_entry->present)
         panic("page is already unmapped because pt_entry is not present\n");
@@ -230,4 +232,87 @@ unmap_pages(void* vaddr, size_t num_pages)
     for (size_t i = 0; i < num_pages; ++i) {
         unmap_page(vaddr + i * PAGE_SIZE);
     }
+}
+
+void*
+vaddr_to_paddr_user(void* vaddr)
+{
+    union vaddr v = {.raw = (uintptr_t)vaddr};
+    struct pt_entry* pml4_entry = &pml4_vaddr[v.pml4_index];
+    if (!pml4_entry->present || !pml4_entry->user_supervisor) return NULL;
+
+    struct pt_entry* pdpt_paddr =
+        (void*)(uintptr_t)(pml4_entry->address << PAGE_SIZE_BITS);
+    struct pt_entry* pdpt_vaddr = paddr_to_vaddr_kernel_data(pdpt_paddr);
+    struct pt_entry* pdpt_entry = &pdpt_vaddr[v.pdpt_index];
+    if (!pdpt_entry->present || !pdpt_entry->user_supervisor) return NULL;
+
+    struct pt_entry* pd_paddr =
+        (void*)(uintptr_t)(pdpt_entry->address << PAGE_SIZE_BITS);
+    struct pt_entry* pd_vaddr = paddr_to_vaddr_kernel_data(pd_paddr);
+    struct pt_entry* pd_entry = &pd_vaddr[v.pd_index];
+    if (!pd_entry->present || !pd_entry->user_supervisor) return NULL;
+
+    struct pt_entry* pt_paddr =
+        (void*)(uintptr_t)(pd_entry->address << PAGE_SIZE_BITS);
+    struct pt_entry* pt_vaddr = paddr_to_vaddr_kernel_data(pt_paddr);
+    struct pt_entry* pt_entry = &pt_vaddr[v.pt_index];
+    if (!pt_entry->present || !pt_entry->user_supervisor) return NULL;
+
+    return (void*)((pt_entry->address << PAGE_SIZE_BITS) | v.offset);
+}
+
+void*
+usrcpy(void* user_ptr, size_t len)
+{
+    if (user_ptr == NULL) return NULL;
+
+    size_t num_pages = CEIL_DIV(len, PAGE_SIZE);
+    if (num_pages == 0) return NULL;
+
+    size_t num_pages_with_null_terminator = CEIL_DIV(len + 1, PAGE_SIZE);
+    char* buf = alloc_pagez(num_pages_with_null_terminator);
+    size_t offset = 0;
+
+    // First page
+    size_t first_size = MIN(len, PAGE_SIZE - PAGE_OFFSET(user_ptr));
+    void* first_paddr = vaddr_to_paddr_user(user_ptr);
+    if (first_paddr == NULL) {
+        free_pages(buf, num_pages_with_null_terminator);
+        return NULL;
+    }
+    void* first_kernel_vaddr = paddr_to_vaddr_kernel_data(first_paddr);
+    memcpy(buf, first_kernel_vaddr, first_size);
+    offset += first_size;
+    user_ptr += first_size;
+
+    if (num_pages == 1) return buf;
+
+    // Middle pages
+    for (size_t i = 1; i < num_pages - 1; ++i) {
+        void* paddr = vaddr_to_paddr_user(user_ptr);
+        if (paddr == NULL) {
+            free_pages(buf, num_pages_with_null_terminator);
+            return NULL;
+        }
+        void* kernel_vaddr = paddr_to_vaddr_kernel_data(paddr);
+        memcpy(buf + offset, kernel_vaddr, PAGE_SIZE);
+        offset += PAGE_SIZE;
+        user_ptr += PAGE_SIZE;
+    }
+
+    // Last page
+    size_t last_size = MIN(len - offset, PAGE_SIZE - PAGE_OFFSET(user_ptr));
+    void* last_paddr = vaddr_to_paddr_user(user_ptr);
+    if (last_paddr == NULL) {
+        free_pages(buf, num_pages_with_null_terminator);
+        return NULL;
+    }
+    void* last_kernel_vaddr = paddr_to_vaddr_kernel_data(last_paddr);
+    memcpy(buf + offset, last_kernel_vaddr, last_size);
+    offset += last_size;
+    user_ptr += last_size;
+
+    buf[len] = '\0';
+    return buf;
 }

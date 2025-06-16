@@ -87,7 +87,7 @@ load_init_process(const char* path)
             panic("failed to read PT_LOAD segment data\n");
         }
 
-        void* paddr = vaddr_to_paddr(buf);
+        void* paddr = vaddr_to_paddr_kernel_data(buf);
         void* vaddr = (void*)program_header->vaddr;
         map_pages_user_code(paddr, vaddr, buf_num_pages);
     }

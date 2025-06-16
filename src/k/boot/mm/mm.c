@@ -39,7 +39,7 @@ mm_init(void)
     }
 
     if (!start_paddr) panic("no usable memory found");
-    void* kernel_start_vaddr = paddr_to_vaddr(start_paddr);
+    void* kernel_start_vaddr = paddr_to_vaddr_kernel_data(start_paddr);
     pfa_init(&pfa_state, kernel_start_vaddr, num_pages);
     slab_init(&slab_state);
 

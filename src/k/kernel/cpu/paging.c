@@ -7,13 +7,13 @@
 struct pt_entry* pml4_vaddr;
 
 void*
-paddr_to_vaddr(void* paddr)
+paddr_to_vaddr_kernel_data(void* paddr)
 {
     return (void*)(PHYSMAP_BASE + (uintptr_t)paddr);
 }
 
 void*
-vaddr_to_paddr(void* vaddr)
+vaddr_to_paddr_kernel_data(void* vaddr)
 {
     return (void*)((uintptr_t)vaddr - PHYSMAP_BASE);
 }
@@ -58,7 +58,8 @@ paging_init(void)
     // Guard page for the kernel stack
     unmap_pages((void*)boot_header->you.stack.vaddr, 1);
 
-    asm volatile("mov %0, %%cr3" ::"r"(vaddr_to_paddr(pml4_vaddr)) : "memory");
+    asm volatile("mov %0, %%cr3" ::"r"(vaddr_to_paddr_kernel_data(pml4_vaddr))
+                 : "memory");
 
     kprintf("[DONE ] Initialize paging\n");
 }

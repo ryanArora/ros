@@ -139,7 +139,8 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
 
     uint64_t nvme_base_paddr = ((uint64_t)bar1 << 32) | (bar0 & ~0xF);
     assert(PAGE_ALIGNED(nvme_base_paddr));
-    nvme_base_vaddr = (uintptr_t)paddr_to_vaddr((void*)nvme_base_paddr);
+    nvme_base_vaddr =
+        (uintptr_t)paddr_to_vaddr_kernel_data((void*)nvme_base_paddr);
     map_pages((void*)nvme_base_paddr, (void*)nvme_base_vaddr, 1, 0, 1, 1, 0, 4);
 
     // Check the controller version is supported.
@@ -186,14 +187,14 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
     admin_submission_queue.size = 63;
     nvme_write_reg_qword(
         NVME_REGISTER_OFFSET_ASQ,
-        (uintptr_t)vaddr_to_paddr(admin_submission_queue.vaddr));
+        (uintptr_t)vaddr_to_paddr_kernel_data(admin_submission_queue.vaddr));
 
     // Initialize admin completion queue
     admin_completion_queue.vaddr = alloc_pagez(1);
     admin_completion_queue.size = 63;
     nvme_write_reg_qword(
         NVME_REGISTER_OFFSET_ACQ,
-        (uintptr_t)vaddr_to_paddr(admin_completion_queue.vaddr));
+        (uintptr_t)vaddr_to_paddr_kernel_data(admin_completion_queue.vaddr));
 
     // Set AQA sizes
     nvme_write_reg_dword(NVME_REGISTER_OFFSET_AQA,
@@ -256,7 +257,8 @@ nvme_send_admin_command_identify_controller()
         NVME_COMMAND_IDENTIFIER_IDENTIFY_CONTROLLER;
     sqe->nsid = 0;
     sqe->metadata_ptr = 0;
-    sqe->data_ptr[0] = (uintptr_t)vaddr_to_paddr(nvme_identify_controller_buf);
+    sqe->data_ptr[0] =
+        (uintptr_t)vaddr_to_paddr_kernel_data(nvme_identify_controller_buf);
     sqe->data_ptr[1] = 0;
     sqe->command_specific[0] = 1;
     sqe->command_specific[1] = 0;
@@ -347,7 +349,7 @@ nvme_send_admin_command_identify_namespace_list()
     sqe->nsid = 0;
     sqe->metadata_ptr = 0;
     sqe->data_ptr[0] =
-        (uintptr_t)vaddr_to_paddr(nvme_identify_namespace_list_buf);
+        (uintptr_t)vaddr_to_paddr_kernel_data(nvme_identify_namespace_list_buf);
     sqe->data_ptr[1] = 0;
     sqe->command_specific[0] = 2;
     sqe->command_specific[1] = 0;
@@ -442,7 +444,8 @@ nvme_send_admin_command_create_io_completion_queue()
         NVME_COMMAND_IDENTIFIER_CREATE_IO_COMPLETION_QUEUE;
     sqe->nsid = 0;
     sqe->metadata_ptr = 0;
-    sqe->data_ptr[0] = (uintptr_t)vaddr_to_paddr(io_completion_queue.vaddr);
+    sqe->data_ptr[0] =
+        (uintptr_t)vaddr_to_paddr_kernel_data(io_completion_queue.vaddr);
     sqe->data_ptr[1] = 0;
     sqe->command_specific[0] = 1 | ((io_completion_queue.size - 1) << 16);
     sqe->command_specific[1] = (1 << 1) | 1;
@@ -522,7 +525,8 @@ nvme_send_admin_command_create_io_submission_queue()
         NVME_COMMAND_IDENTIFIER_CREATE_IO_SUBMISSION_QUEUE;
     sqe->nsid = 0;
     sqe->metadata_ptr = 0;
-    sqe->data_ptr[0] = (uintptr_t)vaddr_to_paddr(io_submission_queue.vaddr);
+    sqe->data_ptr[0] =
+        (uintptr_t)vaddr_to_paddr_kernel_data(io_submission_queue.vaddr);
     sqe->data_ptr[1] = 0;
     sqe->command_specific[0] = 1 | ((io_submission_queue.size - 1) << 16);
     sqe->command_specific[1] = 1 | (1 << 16);
@@ -600,7 +604,7 @@ nvme_submit_io(uint8_t opcode, uint64_t lba, uint16_t num_blocks, void* buf)
     sqe->command.prp_or_sgl_selection = 0;
     sqe->command.command_identifier = 0x1234;
     sqe->nsid = nsid;
-    sqe->data_ptr[0] = (uintptr_t)vaddr_to_paddr(buf);
+    sqe->data_ptr[0] = (uintptr_t)vaddr_to_paddr_kernel_data(buf);
 
     uint32_t total_bytes = num_blocks * BLOCK_SIZE;
 
@@ -608,7 +612,8 @@ nvme_submit_io(uint8_t opcode, uint64_t lba, uint16_t num_blocks, void* buf)
         sqe->data_ptr[1] = 0;
     } else if (total_bytes <= 2 * PAGE_SIZE) {
         // BROKEN!
-        uintptr_t second_prp = (uintptr_t)vaddr_to_paddr(buf) + PAGE_SIZE;
+        uintptr_t second_prp =
+            (uintptr_t)vaddr_to_paddr_kernel_data(buf) + PAGE_SIZE;
         sqe->data_ptr[1] = second_prp;
     } else {
         uint64_t* prp_list = (uint64_t*)alloc_pagez(1);
@@ -616,10 +621,11 @@ nvme_submit_io(uint8_t opcode, uint64_t lba, uint16_t num_blocks, void* buf)
         int pages_needed = (total_bytes + PAGE_SIZE - 1) / PAGE_SIZE;
         for (int i = 1; i < pages_needed; ++i) {
             // BROKEN!
-            prp_list[i - 1] = (uintptr_t)vaddr_to_paddr(buf) + i * PAGE_SIZE;
+            prp_list[i - 1] =
+                (uintptr_t)vaddr_to_paddr_kernel_data(buf) + i * PAGE_SIZE;
         }
 
-        sqe->data_ptr[1] = (uintptr_t)vaddr_to_paddr(prp_list);
+        sqe->data_ptr[1] = (uintptr_t)vaddr_to_paddr_kernel_data(prp_list);
     }
 
     sqe->command_specific[0] = (uint32_t)lba;

@@ -23,7 +23,7 @@ free_kernel_stack(void* stack_top)
 
     // Remap the bottom page which was previously unmapped to prevent
     // stackoverflow
-    map_page_kernel_code(vaddr_to_paddr(stack_btm), stack_btm);
+    map_page_kernel_code(vaddr_to_paddr_kernel_data(stack_btm), stack_btm);
 
     free_pages(stack_btm, KERNEL_STACK_NUM_PAGES);
 }
@@ -37,7 +37,8 @@ alloc_user_stack(void* stack_top_user_vaddr)
     void* stack_btm_kernel_vaddr = alloc_pagez(USER_STACK_NUM_PAGES);
 
     // Remap the pages to user data
-    void* stack_btm_kernel_paddr = vaddr_to_paddr(stack_btm_kernel_vaddr);
+    void* stack_btm_kernel_paddr =
+        vaddr_to_paddr_kernel_data(stack_btm_kernel_vaddr);
     unmap_pages(stack_btm_kernel_vaddr, USER_STACK_NUM_PAGES);
 
     void* stack_btm_user_vaddr =

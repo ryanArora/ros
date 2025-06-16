@@ -21,15 +21,15 @@
 #define SYSCALL_EXIT 0
 [[noreturn]] static void syscall_exit(uint64_t code);
 #define SYSCALL_OPEN 1
-static size_t syscall_open(const char* path);
+static uint64_t syscall_open(const char* path);
 #define SYSCALL_CLOSE 2
-static enum fs_result syscall_close(uint64_t fd);
+static uint64_t syscall_close(uint64_t fd);
 #define SYSCALL_READ 3
-static enum fs_result syscall_read(uint64_t fd, void* buf, size_t count,
-                                   size_t offset);
+static uint64_t syscall_read(uint64_t fd, void* buf, size_t count,
+                             size_t offset);
 #define SYSCALL_WRITE 4
-static enum fs_result syscall_write(uint64_t fd, const void* buf, size_t count,
-                                    size_t offset);
+static uint64_t syscall_write(uint64_t fd, const void* buf, size_t count,
+                              size_t offset);
 
 void
 syscall_init(void)
@@ -121,13 +121,13 @@ syscall_exit(uint64_t code)
     sched_exit(code);
 }
 
-static size_t
+static uint64_t
 syscall_open(const char* path)
 {
     struct file* file = NULL;
     enum fs_result ret = open(path, &file);
     if (ret != FS_RESULT_OK) {
-        return 0;
+        return UINT64_MAX;
     }
 
     list_node_init(&tls.current_task->files, &file->link);
@@ -136,49 +136,49 @@ syscall_open(const char* path)
     return file->link.id;
 }
 
-static enum fs_result
+static uint64_t
 syscall_close(uint64_t fd)
 {
     struct list_node* node = list_find(&tls.current_task->files, fd);
     if (node == NULL) {
-        return FS_RESULT_NOT_OK;
+        return UINT64_MAX;
     }
 
     struct file* file = container_of(node, struct file, link);
     if (file == NULL) {
-        return FS_RESULT_NOT_OK;
+        return UINT64_MAX;
     }
 
     return close(file);
 }
 
-static enum fs_result
+static uint64_t
 syscall_read(uint64_t fd, void* buf, size_t count, size_t offset)
 {
     struct list_node* node = list_find(&tls.current_task->files, fd);
     if (node == NULL) {
-        return FS_RESULT_NOT_OK;
+        return UINT64_MAX;
     }
 
     struct file* file = container_of(node, struct file, link);
     if (file == NULL) {
-        return FS_RESULT_NOT_OK;
+        return UINT64_MAX;
     }
 
     return read(file, buf, count, offset);
 }
 
-static enum fs_result
+static uint64_t
 syscall_write(uint64_t fd, const void* buf, size_t count, size_t offset)
 {
     struct list_node* node = list_find(&tls.current_task->files, fd);
     if (node == NULL) {
-        return FS_RESULT_NOT_OK;
+        return UINT64_MAX;
     }
 
     struct file* file = container_of(node, struct file, link);
     if (file == NULL) {
-        return FS_RESULT_NOT_OK;
+        return UINT64_MAX;
     }
 
     return write(file, buf, count, offset);

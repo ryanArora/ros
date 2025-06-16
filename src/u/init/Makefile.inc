@@ -9,7 +9,7 @@ INIT_TARGET := src/u/init/init
 
 .SECONDEXPANSION:
 
-$(INIT_TARGET): $(INIT_OBJS)
+$(INIT_TARGET): $(INIT_OBJS) $(LIBC_TARGET)
 	$(LD) $^ -o $@
 
 src/u/init/%.o: src/u/init/%.c

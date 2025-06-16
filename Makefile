@@ -1,7 +1,7 @@
 KCC := clang
-KCFLAGS := -D_GNU_SOURCE -std=gnu23 -Wall -Wextra -Werror -MMD -MP -Ilib/gnu-efi/inc -Iinclude -fpic -ffreestanding -nostdlib -nostdinc -fno-stack-protector -fno-stack-check -fshort-wchar -mno-red-zone -mgeneral-regs-only
+KCFLAGS := -D_GNU_SOURCE -std=gnu23 -Wall -Wextra -Werror -MMD -MP -Ilib/gnu-efi/inc -Iinclude -Iinclude/libc -fpic -ffreestanding -nostdlib -nostdinc -fno-stack-protector -fno-stack-check -fshort-wchar -mno-red-zone -mgeneral-regs-only
 UCC := clang
-UCFLAGS := -D_GNU_SOURCE -std=gnu23 -Wall -Wextra -Werror -MMD -MP -Iinclude -fpic -ffreestanding -nostdlib -nostdinc -fno-stack-protector -fno-stack-check -fshort-wchar -mno-red-zone -mgeneral-regs-only
+UCFLAGS := -D_GNU_SOURCE -std=gnu23 -Wall -Wextra -Werror -MMD -MP -Iinclude/libc -fpic -ffreestanding -nostdlib -nostdinc -fno-stack-protector -fno-stack-check -fshort-wchar -mno-red-zone -mgeneral-regs-only
 
 ifdef TEST
 KCFLAGS += -DTEST
@@ -10,6 +10,7 @@ endif
 
 AS := as
 LD := ld
+AR := ar
 OBJCOPY := objcopy
 
 FS_DIR := fs
@@ -21,6 +22,7 @@ all: $(TARGET)
 include src/k/common/Makefile.inc
 include src/k/boot/Makefile.inc
 include src/k/kernel/Makefile.inc
+include src/u/libc/Makefile.inc
 include src/u/init/Makefile.inc
 DEPENDS := $(OBJS:.o=.d)
 

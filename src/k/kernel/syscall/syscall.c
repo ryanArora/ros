@@ -3,6 +3,7 @@
 #include <kernel/cpu/gdt.h>
 #include <kernel/mm/mm.h>
 #include <kernel/sched/sched.h>
+#include <kernel/fs/uvfs.h>
 
 #define LSTAR_MSR_OFFSET     0xC0000082
 #define IA32_EFER_MSR_OFFSET 0xC0000080

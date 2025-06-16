@@ -5,6 +5,7 @@
 #include <kernel/fs/path.h>
 
 struct file {
+    struct list_node link;
     struct fs* fs;
     struct ext2_inode* inode;
 };

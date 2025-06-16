@@ -21,7 +21,7 @@
 #include <kernel/fs/uvfs.h>
 #include <kernel/fs/path.h>
 #include <kernel/fs/ramfs.h>
-#include <kernel/fs/devtmpfs.h>
+#include <kernel/fs/tmpfs.h>
 
 struct boot_header* boot_header;
 
@@ -44,7 +44,7 @@ kmain(void)
     pit_init();
 
     uvfs_init();
-    devtmpfs_init();
+    tmpfs_init();
     blk_init();
 
 #ifdef TEST

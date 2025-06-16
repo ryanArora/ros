@@ -9,6 +9,7 @@
 
 struct task {
     struct list_node link;
+    struct list files;
 };
 
 // Forward declarations
@@ -46,6 +47,8 @@ sched_exit(uint64_t code)
 static void
 task_init(struct task* task)
 {
+    list_init(&task->files);
+
     list_node_init(&tasks, &task->link);
     list_push(&tasks, &task->link);
 }

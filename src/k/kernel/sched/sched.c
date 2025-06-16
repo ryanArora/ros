@@ -6,6 +6,7 @@
 #include <limits.h>
 #include <kernel/libk/ds/list.h>
 #include <kernel/tls.h>
+#include <kernel/fs/uvfs.h>
 
 // Forward declarations
 static void task_init(struct task* task);

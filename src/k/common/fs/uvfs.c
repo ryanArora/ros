@@ -4,6 +4,8 @@
 #include <kernel/libk/string.h>
 #include <kernel/fs/vfs.h>
 #include <kernel/fs/ramfs.h>
+#include <kernel/fs/consolefs.h>
+#include <kernel/fs/nullfs.h>
 
 /*
     The Unified Virtual Filesystem (UVFS) is nothing but an instance of a
@@ -12,6 +14,8 @@
 
 struct fs* uvfs = NULL;
 struct fs* tmpfs = NULL;
+struct fs* nullfs = NULL;
+struct fs* consolefs = NULL;
 
 void
 uvfs_init(void)
@@ -22,6 +26,12 @@ uvfs_init(void)
 
     ramfs_init(&tmpfs);
     assert(mount("/tmp", tmpfs) == FS_RESULT_OK);
+
+    nullfs_init(&nullfs);
+    assert(mount("/dev/null", nullfs) == FS_RESULT_OK);
+
+    consolefs_init(&consolefs);
+    assert(mount("/dev/console", consolefs) == FS_RESULT_OK);
 
     kprintf("[DONE ] Initialize uvfs\n");
 }

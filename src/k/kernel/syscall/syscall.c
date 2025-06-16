@@ -24,6 +24,12 @@
 static size_t syscall_open(const char* path);
 #define SYSCALL_CLOSE 2
 static enum fs_result syscall_close(uint64_t fd);
+#define SYSCALL_READ 3
+static enum fs_result syscall_read(uint64_t fd, void* buf, size_t count,
+                                   size_t offset);
+#define SYSCALL_WRITE 4
+static enum fs_result syscall_write(uint64_t fd, const void* buf, size_t count,
+                                    size_t offset);
 
 void
 syscall_init(void)
@@ -53,9 +59,10 @@ syscall_handler_c(uint64_t syscall_num, uint64_t one, uint64_t two,
     }
     case SYSCALL_OPEN: {
         uint64_t path_len = one;
+        void* path_user = (void*)two;
+
         if (path_len > PATH_MAX) syscall_exit(128);
 
-        void* path_user = (void*)two;
         char* path = usrcpy(path_user, path_len);
         if (path == NULL) syscall_exit(128);
 
@@ -69,6 +76,38 @@ syscall_handler_c(uint64_t syscall_num, uint64_t one, uint64_t two,
     case SYSCALL_CLOSE: {
         uint64_t fd = one;
         return syscall_close(fd);
+    }
+    case SYSCALL_READ: {
+        uint64_t fd = one;
+        void* user_buf = (void*)two;
+        size_t count = three;
+        size_t offset = four;
+
+        void* buf = usrcpy(user_buf, count);
+        if (buf == NULL) syscall_exit(128);
+
+        enum fs_result ret = syscall_read(fd, buf, count, offset);
+
+        size_t num_pages = CEIL_DIV(count + 1, PAGE_SIZE);
+        free_pages(buf, num_pages);
+
+        return ret;
+    }
+    case SYSCALL_WRITE: {
+        uint64_t fd = one;
+        void* user_buf = (void*)two;
+        size_t count = three;
+        size_t offset = four;
+
+        void* buf = usrcpy(user_buf, count);
+        if (buf == NULL) syscall_exit(128);
+
+        enum fs_result ret = syscall_write(fd, buf, count, offset);
+
+        size_t num_pages = CEIL_DIV(count + 1, PAGE_SIZE);
+        free_pages(buf, num_pages);
+
+        return ret;
     }
     default: {
         syscall_exit(128);
@@ -111,4 +150,36 @@ syscall_close(uint64_t fd)
     }
 
     return close(file);
+}
+
+static enum fs_result
+syscall_read(uint64_t fd, void* buf, size_t count, size_t offset)
+{
+    struct list_node* node = list_find(&tls.current_task->files, fd);
+    if (node == NULL) {
+        return FS_RESULT_NOT_OK;
+    }
+
+    struct file* file = container_of(node, struct file, link);
+    if (file == NULL) {
+        return FS_RESULT_NOT_OK;
+    }
+
+    return read(file, buf, count, offset);
+}
+
+static enum fs_result
+syscall_write(uint64_t fd, const void* buf, size_t count, size_t offset)
+{
+    struct list_node* node = list_find(&tls.current_task->files, fd);
+    if (node == NULL) {
+        return FS_RESULT_NOT_OK;
+    }
+
+    struct file* file = container_of(node, struct file, link);
+    if (file == NULL) {
+        return FS_RESULT_NOT_OK;
+    }
+
+    return write(file, buf, count, offset);
 }

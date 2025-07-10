@@ -3,7 +3,6 @@
 
 #define dump_exception_frame(frame)                                            \
     do {                                                                       \
-        kprintf("  rip: 0x%llX\n", frame->rip);                                \
         kprintf("  cs: 0x%llX\n", frame->cs);                                  \
         kprintf("  rflags: 0x%llX\n", frame->rflags);                          \
         kprintf("  rsp: 0x%llX\n", frame->rsp);                                \

@@ -41,16 +41,33 @@ void interrupts_disable(void);
 bool interrupts_enabled(void);
 void interrupts_restore(bool interrupts_enabled);
 
+static inline void
+unwind(void)
+{
+    struct stackframe {
+        struct stackframe* rbp;
+        uint64_t rip;
+    };
+
+    struct stackframe* frame = (struct stackframe*)__builtin_frame_address(0);
+    kprintf("<debug><stacktrace>\n");
+    while (frame->rbp) {
+        kprintf("  <rip>0x%llX</rip>\n", frame->rip);
+        frame = frame->rbp;
+    }
+    kprintf("</stacktrace></debug>\n");
+}
+
 /*
     Panic
 */
-
 #define panic(...)                                                             \
     do {                                                                       \
         boot_header->console.background = 0xFF0000;                            \
         boot_header->console.foreground = 0xFFFFFF;                            \
         kprintf("%s:%d: %s: panic\n", __FILE__, __LINE__, __FUNCTION__);       \
         __VA_OPT__(kprintf(__VA_ARGS__));                                      \
+        unwind();                                                              \
         abort();                                                               \
                                                                                \
     } while (0)

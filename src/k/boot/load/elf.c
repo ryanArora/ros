@@ -126,7 +126,7 @@ load_kernel(const char* path)
     // Handoff boot_header to kernel in rax register
     asm volatile("mov %0, %%rax\n"
                  "mov %1, %%rsp\n"
-                 "mov %%rsp, %%rbp\n"
+                 "xor %%rbp, %%rbp\n"
                  "call *%2"
                  :
                  : "r"(PHYSMAP_BASE + (uintptr_t)boot_header),

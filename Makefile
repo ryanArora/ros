@@ -1,7 +1,7 @@
 KCC := clang
-KCFLAGS := -D_GNU_SOURCE -std=gnu23 -Wall -Wextra -Werror -MMD -MP -Ilib/gnu-efi/inc -Iinclude -Iinclude/libc -fpic -ffreestanding -nostdlib -nostdinc -fno-stack-protector -fno-stack-check -fshort-wchar -mno-red-zone -mgeneral-regs-only
+KCFLAGS := -g -D_GNU_SOURCE -std=gnu23 -Wall -Wextra -Werror -MMD -MP -Ilib/gnu-efi/inc -Iinclude -Iinclude/libc -fpic -ffreestanding -nostdlib -nostdinc -fno-stack-protector -fno-stack-check -fshort-wchar -mno-red-zone -mgeneral-regs-only
 UCC := clang
-UCFLAGS := -D_GNU_SOURCE -std=gnu23 -Wall -Wextra -Werror -MMD -MP -Iinclude/libc -fpic -ffreestanding -nostdlib -nostdinc -fno-stack-protector -fno-stack-check -fshort-wchar -mno-red-zone -mgeneral-regs-only
+UCFLAGS := -g -D_GNU_SOURCE -std=gnu23 -Wall -Wextra -Werror -MMD -MP -Iinclude/libc -fpic -ffreestanding -nostdlib -nostdinc -fno-stack-protector -fno-stack-check -fshort-wchar -mno-red-zone -mgeneral-regs-only
 
 ifdef TEST
 KCFLAGS += -DTEST
@@ -58,7 +58,8 @@ dev: $(TARGET)
 		-display none \
 		-bios OVMF.fd \
 		-drive id=disk,file=$<,if=none,format=raw \
-		-device nvme,serial=deadbeef,drive=disk
+		-device nvme,serial=deadbeef,drive=disk \
+	| python scripts/dbgfilter.py $(KERNEL_TARGET)
 
 compile_commands.json: clean
 	bear -- make

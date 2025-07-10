@@ -11,5 +11,8 @@ main(void)
 
     printf("Starting init process...\n");
 
+    uint32_t a = 0;
+    printf("a: %u\n", a);
+
     return 0;
 }

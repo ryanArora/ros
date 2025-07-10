@@ -289,4 +289,6 @@ static void
 gdt_init_tss(struct tss* tss)
 {
     memset(tss, 0, sizeof(struct tss));
+    tss->rsp0 = (uint64_t)alloc_kernel_stack();
+    tss->ist1 = (uint64_t)alloc_kernel_stack();
 }

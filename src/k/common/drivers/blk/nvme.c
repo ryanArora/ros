@@ -9,7 +9,7 @@
 #include <limits.h>
 #include <kernel/cpu/paging.h>
 
-#define NVME_TIMEOUT 1'000'000'000
+#define NVME_TIMEOUT 1000000000
 
 #define NVME_REGISTER_OFFSET_CAP   0x00
 #define NVME_REGISTER_OFFSET_VS    0x08
@@ -221,7 +221,7 @@ nvme_init(uint8_t bus, uint8_t device, uint8_t function)
     nvme_send_admin_command_create_io_submission_queue();
 
     uint8_t irq_line = pci_config_get_interrupt_line(bus, device, function);
-    idt_set_descriptor(irq_line + 32, nvme_interrupt_handler, 0x8E);
+    idt_set_descriptor(irq_line + 32, nvme_interrupt_handler, 0, 0x8E);
 
     size_t end_lba = SIZE_MAX - 1000;
 

@@ -127,6 +127,11 @@ exception_handler_general_protection_fault(struct exception_frame* frame,
 [[gnu::interrupt]] void
 exception_handler_page_fault(struct exception_frame* frame, uint64_t code)
 {
+    if ((frame->cs & 0x3) == 3) {
+        kprintf("user page fault\n");
+        panic("unimplemented\n");
+    }
+
     kprintf("page fault exception (code: 0x%llX)\n", code);
     dump_exception_frame(frame);
     void* faulting_address;

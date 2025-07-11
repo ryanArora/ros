@@ -30,6 +30,7 @@ static uint64_t syscall_read(uint64_t fd, void* buf, size_t count,
 #define SYSCALL_WRITE 4
 static uint64_t syscall_write(uint64_t fd, const void* buf, size_t count,
                               size_t offset);
+#define SYSCALL_FORK 5
 
 void
 syscall_init(void)
@@ -44,7 +45,7 @@ syscall_init(void)
     kprintf("[DONE ] Initialize syscall handler\n");
 }
 
-uint64_t
+void
 syscall_handler_c(uint64_t syscall_num, uint64_t one, uint64_t two,
                   uint64_t three, uint64_t four, uint64_t five)
 {
@@ -71,11 +72,13 @@ syscall_handler_c(uint64_t syscall_num, uint64_t one, uint64_t two,
         size_t num_pages = CEIL_DIV(path_len + 1, PAGE_SIZE);
         free_pages(path, num_pages);
 
-        return ret;
+        tls.current_task->user_regs.rax = ret;
+        return;
     }
     case SYSCALL_CLOSE: {
         uint64_t fd = one;
-        return syscall_close(fd);
+        tls.current_task->user_regs.rax = syscall_close(fd);
+        return;
     }
     case SYSCALL_READ: {
         uint64_t fd = one;
@@ -91,7 +94,8 @@ syscall_handler_c(uint64_t syscall_num, uint64_t one, uint64_t two,
         size_t num_pages = CEIL_DIV(count + 1, PAGE_SIZE);
         free_pages(buf, num_pages);
 
-        return ret;
+        tls.current_task->user_regs.rax = ret;
+        return;
     }
     case SYSCALL_WRITE: {
         uint64_t fd = one;
@@ -107,9 +111,15 @@ syscall_handler_c(uint64_t syscall_num, uint64_t one, uint64_t two,
         size_t num_pages = CEIL_DIV(count + 1, PAGE_SIZE);
         free_pages(buf, num_pages);
 
-        return ret;
+        tls.current_task->user_regs.rax = ret;
+        return;
+    }
+    case SYSCALL_FORK: {
+        tls.current_task->user_regs.rax = sched_fork();
+        return;
     }
     default: {
+        kprintf("invalid syscall number\n");
         syscall_exit(128);
     }
     }

@@ -4,7 +4,7 @@
 #include <kernel/mm/mm.h>
 #include <kernel/libk/math.h>
 
-struct pt_entry* pml4_vaddr;
+struct pt_entry* boot_pml4;
 
 void*
 paddr_to_vaddr_kernel_data(void* paddr)
@@ -23,7 +23,7 @@ paging_init(void)
 {
     kprintf("[START] Initialize paging\n");
 
-    pml4_vaddr = alloc_pagez(1);
+    boot_pml4 = alloc_pagez(1);
 
     // Map the kernel's memory to the physical address space.
     for (UINTN i = 0;
@@ -58,7 +58,7 @@ paging_init(void)
     // Guard page for the kernel stack
     unmap_pages((void*)boot_header->you.stack.vaddr, 1);
 
-    asm volatile("mov %0, %%cr3" ::"r"(vaddr_to_paddr_kernel_data(pml4_vaddr))
+    asm volatile("mov %0, %%cr3" ::"r"(vaddr_to_paddr_kernel_data(boot_pml4))
                  : "memory");
 
     kprintf("[DONE ] Initialize paging\n");

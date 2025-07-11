@@ -5,6 +5,7 @@
 #include <kernel/mm/mm.h>
 #include <kernel/libk/string.h>
 #include <kernel/fs/uvfs.h>
+#include <kernel/sched/sched.h>
 
 [[noreturn]] void
 load_init_process(const char* path)

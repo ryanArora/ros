@@ -48,7 +48,7 @@ union [[gnu::packed]] vaddr {
     };
 };
 
-extern struct pt_entry* pml4_vaddr;
+extern struct pt_entry* boot_pml4;
 
 void paging_init(void);
 
@@ -83,3 +83,7 @@ void* vaddr_to_paddr_kernel_data(void* vaddr);
 void* vaddr_to_paddr_user(void* vaddr);
 
 void* usrcpy(void* user_ptr, size_t len);
+
+void init_pt_entry(struct pt_entry* pt, void* paddr, bool read_write,
+                   bool user_supervisor, bool page_write_through,
+                   bool page_cache_disabled, bool execute_disable);

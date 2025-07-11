@@ -9,7 +9,7 @@
 #include <kernel/libk/math.h>
 #include <kernel/mm/mm.h>
 
-struct pt_entry* pml4_vaddr;
+struct pt_entry* boot_pml4;
 
 void*
 paddr_to_vaddr_kernel_data(void* paddr)
@@ -28,7 +28,7 @@ paging_init(void)
 {
     kprintf("[START] Initialize paging\n");
 
-    pml4_vaddr = alloc_pagez(1);
+    boot_pml4 = alloc_pagez(1);
 
     for (UINTN i = 0;
          i < boot_header->MemoryMapSize / boot_header->MemoryMapDescriptorSize;
@@ -56,7 +56,7 @@ paging_init(void)
     map_pages(fb_paddr, fb_vaddr, 1, 0, 1, 1, 0, fb_num_pages);
     boot_header->fb_vaddr = fb_vaddr;
 
-    asm volatile("mov %0, %%cr3" ::"r"(vaddr_to_paddr_kernel_data(pml4_vaddr))
+    asm volatile("mov %0, %%cr3" ::"r"(vaddr_to_paddr_kernel_data(boot_pml4))
                  : "memory");
 
     kprintf("[DONE ] Initialize paging\n");

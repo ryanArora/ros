@@ -3,9 +3,9 @@
 #include <stdint.h>
 
 struct tls {
+    struct task* current_task;
     uint64_t kernel_rsp;
     uint64_t user_rsp;
-    struct task* current_task;
 };
 
 extern struct tls tls;

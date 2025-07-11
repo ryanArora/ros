@@ -41,7 +41,7 @@ map_page(void* paddr, void* vaddr, bool read_write, bool user_supervisor,
 
     union vaddr v = {.raw = (uintptr_t)vaddr};
 
-    struct pt_entry* pml4_entry = &pml4_vaddr[v.pml4_index];
+    struct pt_entry* pml4_entry = &boot_pml4[v.pml4_index];
     if (!pml4_entry->present) {
         void* pdpt_vaddr = alloc_pagez(1);
         void* pdpt_paddr = vaddr_to_paddr_kernel_data(pdpt_vaddr);
@@ -198,7 +198,7 @@ unmap_page(void* vaddr)
 
     union vaddr v = {.raw = (uintptr_t)vaddr};
 
-    struct pt_entry* pml4_entry = &pml4_vaddr[v.pml4_index];
+    struct pt_entry* pml4_entry = &boot_pml4[v.pml4_index];
     if (!pml4_entry->present)
         panic("page is already unmapped because pml4_entry is not present\n");
 
@@ -238,7 +238,7 @@ void*
 vaddr_to_paddr_user(void* vaddr)
 {
     union vaddr v = {.raw = (uintptr_t)vaddr};
-    struct pt_entry* pml4_entry = &pml4_vaddr[v.pml4_index];
+    struct pt_entry* pml4_entry = &boot_pml4[v.pml4_index];
     if (!pml4_entry->present || !pml4_entry->user_supervisor) return NULL;
 
     struct pt_entry* pdpt_paddr =

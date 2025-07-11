@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <assert.h>
+#include <unistd.h>
 
 uint64_t
 main(void)
@@ -11,8 +12,7 @@ main(void)
 
     printf("Starting init process...\n");
 
-    volatile uint32_t* a = (uint32_t*)0;
-    printf("a: %u\n", *a);
-
+    uint64_t pid = fork();
+    printf("%u\n", pid);
     return 0;
 }

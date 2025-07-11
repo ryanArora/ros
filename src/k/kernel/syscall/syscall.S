@@ -1,5 +1,6 @@
-.equ KERNEL_RSP_OFFSET, 0x0
-.equ USER_RSP_OFFSET, 0x8
+.equ CURRENT_TASK_OFFSET, 0
+.equ KERNEL_RSP_OFFSET, 8
+.equ USER_RSP_OFFSET, 16
 
 .global syscall_handler
 syscall_handler:
@@ -8,38 +9,55 @@ syscall_handler:
     movq %rsp, %gs:USER_RSP_OFFSET
     movq %gs:KERNEL_RSP_OFFSET, %rsp
 
-    pushq %rbx
-    pushq %rcx
-    pushq %rdx
-    pushq %rsi
+    # Save rdi, and we will use rdi as the base address to struct user_regs
     pushq %rdi
-    pushq %rbp
-    pushq %r8
-    pushq %r9
-    pushq %r10
-    pushq %r11
-    pushq %r12
-    pushq %r13
-    pushq %r14
-    pushq %r15
+    movq %gs:CURRENT_TASK_OFFSET, %rdi
+
+    # Save general purpose registers to struct user_regs
+    movq %r15, 0(%rdi)
+    movq %r14, 8(%rdi)
+    movq %r13, 16(%rdi)
+    movq %r12, 24(%rdi)
+    movq %rbp, 32(%rdi)
+    movq %rbx, 40(%rdi)
+    movq %r11, 48(%rdi)
+    movq %r10, 56(%rdi)
+    movq %r9,  64(%rdi)
+    movq %r8,  72(%rdi)
+    movq %rax, 80(%rdi)
+    movq %rcx, 88(%rdi)
+    movq %rdx, 96(%rdi)
+    movq %rsi, 104(%rdi)
+
+    # Save rdi to struct user_regs using rsi as the base address, and restore rsi
+    movq %rdi, %rsi
+    popq %rdi
+    movq %rdi, 120(%rsi)
+    movq 104(%rsi), %rsi
 
     movq %r10, %rcx            # So that syscall_handler_c works with SystemV
+    xorq %rbp, %rbp            # Mark the start of stack frames
     call syscall_handler_c
 
-    popq %r15
-    popq %r14
-    popq %r13
-    popq %r12
-    popq %r11
-    popq %r10
-    popq %r9
-    popq %r8
-    popq %rbp
-    popq %rdi
-    popq %rsi
-    popq %rdx
-    popq %rcx
-    popq %rbx
+    # Restore the user registers using rdi as the base address to struct user_regs
+    movq %gs:CURRENT_TASK_OFFSET, %rdi
+
+    # Restore general purpose registers from struct user_regs
+    movq 0(%rdi), %r15
+    movq 8(%rdi), %r14
+    movq 16(%rdi), %r13
+    movq 24(%rdi), %r12
+    movq 32(%rdi), %rbp
+    movq 40(%rdi), %rbx
+    movq 48(%rdi), %r11
+    movq 56(%rdi), %r10
+    movq 64(%rdi), %r9
+    movq 72(%rdi), %r8
+    movq 80(%rdi), %rax
+    movq 88(%rdi), %rcx
+    movq 96(%rdi), %rdx
+    movq 104(%rdi), %rsi
+    movq 120(%rdi), %rdi
 
     # Restore the user stack pointer
     movq %gs:USER_RSP_OFFSET, %rsp

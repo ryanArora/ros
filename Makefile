@@ -24,9 +24,10 @@ include src/k/boot/Makefile.inc
 include src/k/kernel/Makefile.inc
 include src/u/libc/Makefile.inc
 include src/u/init/Makefile.inc
+include src/u/sh/Makefile.inc
 DEPENDS := $(OBJS:.o=.d)
 
-$(TARGET): $(FS_DIR) $(BOOT_TARGET) $(KERNEL_TARGET) $(INIT_TARGET)
+$(TARGET): $(FS_DIR) $(BOOT_TARGET) $(KERNEL_TARGET) $(INIT_TARGET) $(SH_TARGET)
 	truncate -s 1G $@
 	parted $@ --script mklabel gpt mkpart boot fat16 1MiB 100MiB mkpart root ext2 100MiB 100%
 
@@ -43,6 +44,7 @@ $(TARGET): $(FS_DIR) $(BOOT_TARGET) $(KERNEL_TARGET) $(INIT_TARGET)
 		echo "copy-in $(KERNEL_TARGET) /"; \
 		echo "mkdir /bin"; \
 		echo "copy-in $(INIT_TARGET) /bin"; \
+		echo "copy-in $(SH_TARGET) /bin"; \
 		for path in $(FS_DIR)/*; do \
 			[ -e "$$path" ] || continue; \
 			echo "copy-in $$path /"; \

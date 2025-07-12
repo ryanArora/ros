@@ -82,6 +82,8 @@ void* vaddr_to_paddr_user(void* vaddr);
 
 void* usrcpy(void* user_ptr, size_t len);
 
+void unmap_all_user_pages(void);
+
 void init_pt_entry(struct pt_entry* pt, void* paddr, bool read_write,
                    bool user_supervisor, bool page_write_through,
                    bool page_cache_disabled, bool execute_disable);

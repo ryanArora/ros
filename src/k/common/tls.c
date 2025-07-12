@@ -15,7 +15,7 @@ tls_init(void)
     // because we store the pml4 here
     assert(tls.current_task != NULL);
 
-    tls.kernel_rsp = (uint64_t)alloc_kernel_stack();
+    tls.kernel_rsp = 0;
     tls.user_rsp = 0;
     wrmsr(IA32_KERNEL_GS_BASE, (uint64_t)&tls);
 }

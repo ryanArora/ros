@@ -21,7 +21,7 @@ sched_init(void)
 {
     list_init(&tasks);
     task_init();
-    load_init_process("/bin/init");
+    load_process("/bin/init");
 }
 
 [[noreturn]] void

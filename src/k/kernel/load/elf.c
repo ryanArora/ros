@@ -6,9 +6,10 @@
 #include <kernel/libk/string.h>
 #include <kernel/fs/uvfs.h>
 #include <kernel/sched/sched.h>
+#include <kernel/tls.h>
 
 [[noreturn]] void
-load_init_process(const char* path)
+load_process(const char* path)
 {
     kprintf("Loading %s process...\n", path);
 
@@ -74,6 +75,8 @@ load_init_process(const char* path)
         panic("failed to read program header\n");
     }
 
+    unmap_all_user_pages();
+
     for (size_t i = 0; i < elf_header->phnum; ++i) {
         struct elf_program_header64* program_header = &program_headers[i];
         if (program_header->type != PT_LOAD) continue;
@@ -101,6 +104,13 @@ load_init_process(const char* path)
 
     void* rsp = (void*)0x00007fffffff0000;
     alloc_user_stack(rsp);
+
+    tls.user_rsp = (uintptr_t)rsp;
+    tls.kernel_rsp = (uintptr_t)alloc_kernel_stack();
+
+    if (strcmp(path, "/bin/init") != 0) {
+        asm volatile("swapgs");
+    };
 
     asm volatile("mov %[rsp], %%rsp\n"
                  "mov %%rsp, %%rbp\n"

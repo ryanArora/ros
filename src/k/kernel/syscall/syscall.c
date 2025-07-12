@@ -8,6 +8,7 @@
 #include <kernel/tls.h>
 #include <kernel/libk/ds/list.h>
 #include <kernel/sched/sched.h>
+#include <kernel/load/elf.h>
 
 #define LSTAR_MSR_OFFSET     0xC0000082
 #define IA32_EFER_MSR_OFFSET 0xC0000080
@@ -31,6 +32,8 @@ static uint64_t syscall_read(uint64_t fd, void* buf, size_t count,
 static uint64_t syscall_write(uint64_t fd, const void* buf, size_t count,
                               size_t offset);
 #define SYSCALL_FORK 5
+#define SYSCALL_EXEC 6
+static uint64_t syscall_exec(const char* path);
 
 void
 syscall_init(void)
@@ -118,6 +121,23 @@ syscall_handler_c(uint64_t syscall_num, uint64_t one, uint64_t two,
         sched_fork();
         return;
     }
+    case SYSCALL_EXEC: {
+        uint64_t path_len = one;
+        void* path_user = (void*)two;
+
+        if (path_len > PATH_MAX) syscall_exit(128);
+
+        char* path = usrcpy(path_user, path_len);
+        if (path == NULL) syscall_exit(128);
+
+        size_t ret = syscall_exec(path);
+
+        size_t num_pages = CEIL_DIV(path_len + 1, PAGE_SIZE);
+        free_pages(path, num_pages);
+
+        tls.current_task->user_regs.rax = ret;
+        return;
+    }
     default: {
         kprintf("invalid syscall number\n");
         syscall_exit(128);
@@ -192,4 +212,10 @@ syscall_write(uint64_t fd, const void* buf, size_t count, size_t offset)
     }
 
     return write(file, buf, count, offset);
+}
+
+static uint64_t
+syscall_exec(const char* path)
+{
+    load_process(path);
 }

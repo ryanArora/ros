@@ -246,9 +246,14 @@ ext2_path_lookup(struct fs* ext2, const struct path* path,
             while (offset < state->block_size) {
                 struct ext2_dir_entry* entry =
                     (struct ext2_dir_entry*)&block_data[offset];
-                if (entry->inode == 0) continue;
 
-                if (strcmp(entry->name, comp->name) == 0) {
+                if (entry->inode == 0) {
+                    offset += entry->rec_len;
+                    continue;
+                }
+
+                if (entry->name_len == strlen(comp->name) &&
+                    strncmp(entry->name, comp->name, entry->name_len) == 0) {
                     // Matched paths, so get the inode
                     ext2_free_inode(inode);
                     inode = NULL;

@@ -317,3 +317,52 @@ usrcpy(void* user_ptr, size_t len)
     buf[len] = '\0';
     return buf;
 }
+
+void
+unmap_all_user_pages(void)
+{
+    for (size_t pml4_i = 0; pml4_i < PML4_ENTRIES; ++pml4_i) {
+        struct pt_entry* pml4_entry = &tls.current_task->pml4[pml4_i];
+        if (!pml4_entry->present) continue;
+        if (!pml4_entry->user_supervisor) continue;
+
+        struct pt_entry* pdpt_paddr =
+            (void*)(uintptr_t)(pml4_entry->address << PAGE_SIZE_BITS);
+        struct pt_entry* pdpt_vaddr = paddr_to_vaddr_kernel_data(pdpt_paddr);
+
+        for (size_t pdpt_i = 0; pdpt_i < PDPT_ENTRIES; ++pdpt_i) {
+            struct pt_entry* pdpt_entry = &pdpt_vaddr[pdpt_i];
+            if (!pdpt_entry->present) continue;
+            if (!pdpt_entry->user_supervisor) continue;
+
+            struct pt_entry* pd_paddr =
+                (void*)(uintptr_t)(pdpt_entry->address << PAGE_SIZE_BITS);
+            struct pt_entry* pd_vaddr = paddr_to_vaddr_kernel_data(pd_paddr);
+
+            for (size_t pd_i = 0; pd_i < PD_ENTRIES; ++pd_i) {
+                struct pt_entry* pd_entry = &pd_vaddr[pd_i];
+                if (!pd_entry->present) continue;
+                if (!pd_entry->user_supervisor) continue;
+
+                struct pt_entry* pt_paddr =
+                    (void*)(uintptr_t)(pd_entry->address << PAGE_SIZE_BITS);
+                struct pt_entry* pt_vaddr =
+                    paddr_to_vaddr_kernel_data(pt_paddr);
+
+                for (size_t pt_i = 0; pt_i < PT_ENTRIES; ++pt_i) {
+                    struct pt_entry* pt_entry = &pt_vaddr[pt_i];
+                    if (!pt_entry->present) continue;
+                    if (!pt_entry->user_supervisor) continue;
+
+                    union vaddr v = {.offset = 0,
+                                     .pt_index = pt_i,
+                                     .pd_index = pd_i,
+                                     .pdpt_index = pdpt_i,
+                                     .pml4_index = pml4_i};
+
+                    unmap_page((void*)v.raw);
+                }
+            }
+        }
+    }
+}

@@ -11,6 +11,14 @@ main(void)
     assert(open("/dev/console") == STDERR);
 
     printf("Starting init process...\n");
-    printf("fork: %llu\n", fork());
+
+    uint64_t pid;
+    assert((pid = fork()) >= 0);
+    if (pid == 0) {
+        exec("/bin/sh");
+        fprintf(STDERR, "exec failed\n");
+        exit(1);
+    }
+
     return 0;
 }

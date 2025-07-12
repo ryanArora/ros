@@ -50,4 +50,4 @@ struct elf_program_header64 {
 };
 
 [[noreturn]] void load_kernel(const char* path);
-[[noreturn]] void load_init_process(const char* path);
+[[noreturn]] void load_process(const char* path);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <kernel/sched/sched.h>
 
 struct tls {
     struct task* current_task;

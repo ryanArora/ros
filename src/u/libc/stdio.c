@@ -72,6 +72,20 @@ vfprintf(uint64_t fd, const char* fmt, va_list args)
         ++fmt;
         if (*fmt == '\0') break;
 
+        // Parse length modifiers
+        int length = 0; // 0 = default, 1 = long (l), 2 = long long (ll)
+
+        if (*fmt == 'l') {
+            length = 1;
+            ++fmt;
+            if (*fmt == 'l') {
+                length = 2;
+                ++fmt;
+            }
+        }
+
+        if (*fmt == '\0') break;
+
         switch (*fmt) {
         case '%':
             write(fd, "%", 1, 0);
@@ -91,14 +105,30 @@ vfprintf(uint64_t fd, const char* fmt, va_list args)
         }
 
         case 'd': {
-            int64_t d = va_arg(args, int);
+            int64_t d;
+            if (length == 2) {
+                d = va_arg(args, long long);
+            } else if (length == 1) {
+                d = va_arg(args, long);
+            } else {
+                d = va_arg(args, int);
+            }
             int len = itoa(d, numbuf);
             write_buf(fd, numbuf, len);
             break;
         }
 
         case 'u': {
-            uint64_t u = va_arg(args, unsigned int);
+            uint64_t u;
+
+            if (length == 2) {
+                u = va_arg(args, unsigned long long);
+            } else if (length == 1) {
+                u = va_arg(args, unsigned long);
+            } else {
+                u = va_arg(args, unsigned int);
+            }
+
             int len = utoa(u, 10, false, numbuf);
             write_buf(fd, numbuf, len);
             break;
@@ -106,7 +136,14 @@ vfprintf(uint64_t fd, const char* fmt, va_list args)
 
         case 'x':
         case 'X': {
-            uint64_t x = va_arg(args, unsigned int);
+            uint64_t x;
+            if (length == 2) {
+                x = va_arg(args, unsigned long long);
+            } else if (length == 1) {
+                x = va_arg(args, unsigned long);
+            } else {
+                x = va_arg(args, unsigned int);
+            }
             int len = utoa(x, 16, (*fmt == 'X'), numbuf);
             write_buf(fd, numbuf, len);
             break;
@@ -123,6 +160,11 @@ vfprintf(uint64_t fd, const char* fmt, va_list args)
         default:
             // Unknown specifier: print it literally
             write(fd, "%", 1, 0);
+            if (length == 2) {
+                write(fd, "ll", 2, 0);
+            } else if (length == 1) {
+                write(fd, "l", 1, 0);
+            }
             write(fd, fmt, 1, 0);
             break;
         }

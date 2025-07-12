@@ -15,6 +15,7 @@
 #include <kernel/mm/mm.h>
 #include <kernel/fs/uvfs.h>
 #include <kernel/fs/path.h>
+#include <kernel/tls.h>
 
 [[noreturn]] void
 bmain(void)
@@ -28,6 +29,7 @@ bmain(void)
     mm_init();
     paging_init();
     gdt_init();
+    tls_init();
 
     pci_init();
     pic_init();

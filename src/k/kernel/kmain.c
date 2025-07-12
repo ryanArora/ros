@@ -37,6 +37,7 @@ kmain(void)
     mm_init();
     paging_init();
     gdt_init();
+    tls_init();
 
     pci_init();
     pic_init();
@@ -54,6 +55,5 @@ kmain(void)
 #endif
 
     syscall_init();
-    tls_init();
     sched_init();
 }

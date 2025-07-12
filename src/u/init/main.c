@@ -11,13 +11,6 @@ main(void)
     assert(open("/dev/console") == STDERR);
 
     printf("Starting init process...\n");
-
-    uint64_t pid1 = fork();
-    if (pid1 == 0) {
-        printf("hello, from child\n");
-    } else {
-        printf("hello pid=%u, from parent\n", pid1);
-    }
-
+    printf("fork: %llu\n", fork());
     return 0;
 }

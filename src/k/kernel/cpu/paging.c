@@ -3,8 +3,8 @@
 #include <kernel/boot/header.h>
 #include <kernel/mm/mm.h>
 #include <kernel/libk/math.h>
-
-struct pt_entry* boot_pml4;
+#include <kernel/tls.h>
+#include <kernel/libk/string.h>
 
 void*
 paddr_to_vaddr_kernel_data(void* paddr)
@@ -23,7 +23,10 @@ paging_init(void)
 {
     kprintf("[START] Initialize paging\n");
 
-    boot_pml4 = alloc_pagez(1);
+    // preinitialize tls because we store the pml4 there
+    memset(&tls, 0, sizeof(struct tls));
+    tls.current_task = alloc_pagez(1);
+    tls.current_task->pml4 = alloc_pagez(1);
 
     // Map the kernel's memory to the physical address space.
     for (UINTN i = 0;
@@ -58,7 +61,8 @@ paging_init(void)
     // Guard page for the kernel stack
     unmap_pages((void*)boot_header->you.stack.vaddr, 1);
 
-    asm volatile("mov %0, %%cr3" ::"r"(vaddr_to_paddr_kernel_data(boot_pml4))
+    asm volatile("mov %0, %%cr3" ::"r"(
+                     vaddr_to_paddr_kernel_data(tls.current_task->pml4))
                  : "memory");
 
     kprintf("[DONE ] Initialize paging\n");

@@ -13,18 +13,14 @@
 #define IA32_KERNEL_GS_BASE 0xC0000102
 
 // Forward declarations
-static void task_init(struct task* task);
+static void task_init(void);
 static struct list tasks;
 
 [[noreturn]] void
 sched_init(void)
 {
     list_init(&tasks);
-
-    struct task* task = kzmalloc(sizeof(struct task));
-    task_init(task);
-    tls.current_task = task;
-
+    task_init();
     load_init_process("/bin/init");
 }
 
@@ -82,15 +78,14 @@ sched_exit(uint64_t code)
 }
 
 static void
-task_init(struct task* task)
+task_init(void)
 {
-    memset(task, 0, sizeof(struct task));
+    assert(tls.current_task != NULL);
+    assert(tls.current_task->pml4 != NULL);
 
-    task->pml4 = boot_pml4;
-    list_init(&task->files);
-
-    list_node_init(&tasks, &task->link);
-    list_push(&tasks, &task->link);
+    list_init(&tls.current_task->files);
+    list_node_init(&tasks, &tls.current_task->link);
+    list_push(&tasks, &tls.current_task->link);
 }
 
 static void*

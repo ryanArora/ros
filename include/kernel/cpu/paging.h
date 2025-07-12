@@ -48,8 +48,6 @@ union [[gnu::packed]] vaddr {
     };
 };
 
-extern struct pt_entry* boot_pml4;
-
 void paging_init(void);
 
 void map_page(void* paddr, void* vaddr, bool read_write, bool user_supervisor,

@@ -23,10 +23,48 @@ sched_init(void)
 
     struct task* task = kzmalloc(sizeof(struct task));
     task_init(task);
-    list_push(&tasks, &task->link);
     tls.current_task = task;
 
     load_init_process("/bin/init");
+}
+
+[[noreturn]] void
+sched_switch(struct task* next_task)
+{
+    list_remove(&tasks, &tls.current_task->link);
+
+    tls.current_task = next_task;
+    tls.kernel_rsp = (uint64_t)alloc_kernel_stack();
+    tls.user_rsp = next_task->user_regs.rsp;
+
+    asm volatile("movq %0, %%cr3\n"
+                 "movq %[user_regs], %%rdi\n"
+                 // Restore general purpose registers
+                 "movq 0(%%rdi), %%r15\n"
+                 "movq 8(%%rdi), %%r14\n"
+                 "movq 16(%%rdi), %%r13\n"
+                 "movq 24(%%rdi), %%r12\n"
+                 "movq 32(%%rdi), %%rbp\n"
+                 "movq 40(%%rdi), %%rbx\n"
+                 "movq 48(%%rdi), %%r11\n"
+                 "movq 56(%%rdi), %%r10\n"
+                 "movq 64(%%rdi), %%r9\n"
+                 "movq 72(%%rdi), %%r8\n"
+                 "movq 80(%%rdi), %%rax\n"
+                 "movq 88(%%rdi), %%rcx\n"
+                 "movq 96(%%rdi), %%rdx\n"
+                 "movq 104(%%rdi), %%rsi\n"
+                 // Restore user stack pointer before clobbering rdi
+                 "movq 120(%%rdi), %%rsp\n"
+                 "movq 112(%%rdi), %%rdi\n" // rdi last, since we use it as base
+                 "swapgs\n"
+                 "sysretq\n"
+                 :
+                 : "r"(vaddr_to_paddr_kernel_data(next_task->pml4)),
+                   [user_regs] "r"(&next_task->user_regs)
+                 : "memory");
+
+    panic("unreachable\n");
 }
 
 [[noreturn]] void
@@ -40,7 +78,7 @@ sched_exit(uint64_t code)
     if (next_task == tls.current_task)
         panic("last task exited with code %lld\n", code);
 
-    panic("unimplemented task switch\n");
+    sched_switch(next_task);
 }
 
 static void
@@ -48,7 +86,6 @@ task_init(struct task* task)
 {
     memset(task, 0, sizeof(struct task));
 
-    task->kernel_rsp = (uint64_t)alloc_kernel_stack();
     task->pml4 = boot_pml4;
     list_init(&task->files);
 
@@ -59,102 +96,108 @@ task_init(struct task* task)
 static void*
 copy_address_space(struct pt_entry* pml4_src)
 {
-    // Allocate a new PML4 for the child
     struct pt_entry* pml4_new = alloc_pagez(1);
 
-    // Copy all entries
     for (size_t i = 0; i < PML4_ENTRIES; ++i) {
         struct pt_entry* src_pml4e = &pml4_src[i];
         struct pt_entry* dst_pml4e = &pml4_new[i];
         if (!src_pml4e->present) continue;
 
-        // If this is a user entry, recursively copy the lower tables
-        if (src_pml4e->user_supervisor) {
-            // Allocate a new PDPT for the child
-            struct pt_entry* pdpt_src = paddr_to_vaddr_kernel_data(
-                (void*)((uintptr_t)src_pml4e->address << PAGE_SIZE_BITS));
-            struct pt_entry* pdpt_new = alloc_pagez(1);
-            init_pt_entry(dst_pml4e, vaddr_to_paddr_kernel_data(pdpt_new),
-                          src_pml4e->read_write, src_pml4e->user_supervisor,
-                          src_pml4e->page_write_through,
-                          src_pml4e->page_cache_disabled,
-                          src_pml4e->execute_disable);
+        // Copy the PML4 entry by value
+        *dst_pml4e = *src_pml4e;
 
-            for (size_t j = 0; j < PDPT_ENTRIES; ++j) {
-                struct pt_entry* src_pdpte = &pdpt_src[j];
-                struct pt_entry* dst_pdpte = &pdpt_new[j];
-                if (!src_pdpte->present) continue;
-                if (src_pdpte->user_supervisor) {
-                    struct pt_entry* pd_src = paddr_to_vaddr_kernel_data(
-                        (void*)((uintptr_t)src_pdpte->address
-                                << PAGE_SIZE_BITS));
-                    struct pt_entry* pd_new = alloc_pagez(1);
-                    init_pt_entry(dst_pdpte, vaddr_to_paddr_kernel_data(pd_new),
-                                  src_pdpte->read_write,
-                                  src_pdpte->user_supervisor,
-                                  src_pdpte->page_write_through,
-                                  src_pdpte->page_cache_disabled,
-                                  src_pdpte->execute_disable);
+        // Walk down to the PT level and deep-copy user pages
+        struct pt_entry* pdpt_src = paddr_to_vaddr_kernel_data(
+            (void*)((uintptr_t)src_pml4e->address << PAGE_SIZE_BITS));
+        struct pt_entry* pdpt_new = NULL;
+        for (size_t j = 0; j < PDPT_ENTRIES; ++j) {
+            struct pt_entry* src_pdpte = &pdpt_src[j];
+            if (!src_pdpte->present) continue;
 
-                    for (size_t k = 0; k < PD_ENTRIES; ++k) {
-                        struct pt_entry* src_pde = &pd_src[k];
-                        struct pt_entry* dst_pde = &pd_new[k];
-                        if (!src_pde->present) continue;
-                        if (src_pde->user_supervisor) {
-                            struct pt_entry* pt_src =
-                                paddr_to_vaddr_kernel_data(
-                                    (void*)((uintptr_t)src_pde->address
-                                            << PAGE_SIZE_BITS));
-                            struct pt_entry* pt_new = alloc_pagez(1);
+            struct pt_entry* pd_src = paddr_to_vaddr_kernel_data(
+                (void*)((uintptr_t)src_pdpte->address << PAGE_SIZE_BITS));
+            struct pt_entry* pd_new = NULL;
+            for (size_t k = 0; k < PD_ENTRIES; ++k) {
+                struct pt_entry* src_pde = &pd_src[k];
+                if (!src_pde->present) continue;
+
+                struct pt_entry* pt_src = paddr_to_vaddr_kernel_data(
+                    (void*)((uintptr_t)src_pde->address << PAGE_SIZE_BITS));
+                struct pt_entry* pt_new = NULL;
+                for (size_t l = 0; l < PT_ENTRIES; ++l) {
+                    struct pt_entry* src_pte = &pt_src[l];
+                    if (!src_pte->present) continue;
+
+                    if (src_pte->user_supervisor) {
+                        // Allocate new PT if needed
+                        if (!pt_new) {
+                            pt_new = alloc_pagez(1);
+                            // Allocate new PD if needed
+                            if (!pd_new) {
+                                pd_new = alloc_pagez(1);
+                                // Allocate new PDPT if needed
+                                if (!pdpt_new) {
+                                    pdpt_new = alloc_pagez(1);
+                                    // Link new PDPT to new PML4
+                                    init_pt_entry(
+                                        dst_pml4e,
+                                        vaddr_to_paddr_kernel_data(pdpt_new),
+                                        src_pml4e->read_write,
+                                        src_pml4e->user_supervisor,
+                                        src_pml4e->page_write_through,
+                                        src_pml4e->page_cache_disabled,
+                                        src_pml4e->execute_disable);
+                                }
+                                // Link new PD to new PDPT
+                                struct pt_entry* pdpt_new_entries = pdpt_new;
+                                struct pt_entry* dst_pdpte =
+                                    &pdpt_new_entries[j];
+                                init_pt_entry(
+                                    dst_pdpte,
+                                    vaddr_to_paddr_kernel_data(pd_new),
+                                    src_pdpte->read_write,
+                                    src_pdpte->user_supervisor,
+                                    src_pdpte->page_write_through,
+                                    src_pdpte->page_cache_disabled,
+                                    src_pdpte->execute_disable);
+                            }
+                            // Link new PT to new PD
+                            struct pt_entry* pd_new_entries = pd_new;
+                            struct pt_entry* dst_pde = &pd_new_entries[k];
                             init_pt_entry(
                                 dst_pde, vaddr_to_paddr_kernel_data(pt_new),
                                 src_pde->read_write, src_pde->user_supervisor,
                                 src_pde->page_write_through,
                                 src_pde->page_cache_disabled,
                                 src_pde->execute_disable);
-
-                            for (size_t l = 0; l < PT_ENTRIES; ++l) {
-                                struct pt_entry* src_pte = &pt_src[l];
-                                struct pt_entry* dst_pte = &pt_new[l];
-                                if (!src_pte->present) continue;
-                                if (src_pte->user_supervisor) {
-                                    // Allocate a new physical page for the
-                                    // child
-                                    void* src_page = paddr_to_vaddr_kernel_data(
-                                        (void*)((uintptr_t)src_pte->address
-                                                << PAGE_SIZE_BITS));
-                                    void* new_page = alloc_pagez(1);
-                                    memcpy(new_page, src_page, PAGE_SIZE);
-                                    init_pt_entry(
-                                        dst_pte,
-                                        vaddr_to_paddr_kernel_data(new_page),
-                                        src_pte->read_write,
-                                        src_pte->user_supervisor,
-                                        src_pte->page_write_through,
-                                        src_pte->page_cache_disabled,
-                                        src_pte->execute_disable);
-                                }
-                            }
                         }
+                        // Deep copy user page
+                        struct pt_entry* pt_new_entries = pt_new;
+                        struct pt_entry* dst_pte = &pt_new_entries[l];
+                        void* src_page = paddr_to_vaddr_kernel_data(
+                            (void*)((uintptr_t)src_pte->address
+                                    << PAGE_SIZE_BITS));
+                        void* new_page = alloc_pagez(1);
+                        memcpy(new_page, src_page, PAGE_SIZE);
+                        init_pt_entry(
+                            dst_pte, vaddr_to_paddr_kernel_data(new_page),
+                            src_pte->read_write, src_pte->user_supervisor,
+                            src_pte->page_write_through,
+                            src_pte->page_cache_disabled,
+                            src_pte->execute_disable);
                     }
+                    // Kernel page: nothing to do, already copied by value
                 }
             }
-        } else {
-            // Kernel entry: just copy the entry by value (shared tables)
-            *dst_pml4e = *src_pml4e;
         }
     }
     return pml4_new;
 }
 
-uint64_t
+void
 sched_fork(void)
 {
-    kprintf("sched_fork\n");
     struct task* next_task = kzmalloc(sizeof(struct task));
-
-    // Allocate a new kernel stack
-    next_task->kernel_rsp = (uint64_t)alloc_kernel_stack();
 
     // Copy the user registers
     next_task->user_regs = tls.current_task->user_regs;
@@ -176,5 +219,8 @@ sched_fork(void)
     list_node_init(&tasks, &next_task->link);
     list_push(&tasks, &next_task->link);
 
-    return 0;
+    // Child gets return value of 0
+    next_task->user_regs.rax = 0;
+    // Parent gets return value of child's id
+    tls.current_task->user_regs.rax = next_task->link.id;
 }

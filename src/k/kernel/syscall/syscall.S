@@ -28,12 +28,21 @@ syscall_handler:
     movq %rcx, 88(%rdi)
     movq %rdx, 96(%rdi)
     movq %rsi, 104(%rdi)
+    
+    # Save rdi to struct user_regs
+    popq %rdi                          # Restore rdi
+    movq %gs:CURRENT_TASK_OFFSET, %rsi # Use rsi as the base address instead
+    movq %rdi, 112(%rsi)               # Save rdi to struct user_regs
+    movq 104(%rsi), %rsi               # Restore rsi
 
-    # Save rdi to struct user_regs using rsi as the base address, and restore rsi
-    movq %rdi, %rsi
-    popq %rdi
+    # Save rsp to struct user_regs
+    pushq %rdi
+    pushq %rsi
+    movq %gs:CURRENT_TASK_OFFSET, %rsi
+    movq %gs:USER_RSP_OFFSET, %rdi
     movq %rdi, 120(%rsi)
-    movq 104(%rsi), %rsi
+    popq %rsi
+    popq %rdi
 
     movq %r10, %rcx            # So that syscall_handler_c works with SystemV
     xorq %rbp, %rbp            # Mark the start of stack frames
@@ -57,7 +66,7 @@ syscall_handler:
     movq 88(%rdi), %rcx
     movq 96(%rdi), %rdx
     movq 104(%rdi), %rsi
-    movq 120(%rdi), %rdi
+    movq 112(%rdi), %rdi
 
     # Restore the user stack pointer
     movq %gs:USER_RSP_OFFSET, %rsp

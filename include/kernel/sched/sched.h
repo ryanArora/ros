@@ -18,11 +18,11 @@ struct user_regs {
     uint64_t rdx;
     uint64_t rsi;
     uint64_t rdi;
+    uint64_t rsp;
 };
 
 struct task {
     struct user_regs user_regs;
-    uint64_t kernel_rsp;
     struct pt_entry* pml4;
     struct list files;
     struct list_node link;
@@ -30,4 +30,4 @@ struct task {
 
 [[noreturn]] void sched_init(void);
 [[noreturn]] void sched_exit(uint64_t code);
-uint64_t sched_fork(void);
+void sched_fork(void);

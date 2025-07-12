@@ -115,7 +115,7 @@ syscall_handler_c(uint64_t syscall_num, uint64_t one, uint64_t two,
         return;
     }
     case SYSCALL_FORK: {
-        tls.current_task->user_regs.rax = sched_fork();
+        sched_fork();
         return;
     }
     default: {

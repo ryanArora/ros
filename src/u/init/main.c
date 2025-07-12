@@ -12,7 +12,12 @@ main(void)
 
     printf("Starting init process...\n");
 
-    uint64_t pid = fork();
-    printf("%u\n", pid);
+    uint64_t pid1 = fork();
+    if (pid1 == 0) {
+        printf("hello, from child\n");
+    } else {
+        printf("hello pid=%u, from parent\n", pid1);
+    }
+
     return 0;
 }

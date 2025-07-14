@@ -115,7 +115,7 @@ load_process(const char* path)
     asm volatile("mov %[rsp], %%rsp\n"
                  "mov %%rsp, %%rbp\n"
                  "mov %[entry], %%rcx\n"
-                 "mov $0x2, %%r11\n"
+                 "mov $0x202, %%r11\n"
                  "sysretq\n"
                  :
                  : [entry] "r"(entry), [rsp] "r"(rsp)

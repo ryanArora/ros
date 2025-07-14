@@ -80,8 +80,8 @@ struct [[gnu::packed]] gdt {
     struct segment_descriptor null;
     struct segment_descriptor kernel_code;
     struct segment_descriptor kernel_data;
-    struct segment_descriptor user_code;
     struct segment_descriptor user_data;
+    struct segment_descriptor user_code;
     struct system_segment_descriptor tss;
 };
 
@@ -105,8 +105,8 @@ gdt_init(void)
     gdt_init_entry_null(&gdt.null);
     gdt_init_entry_kernel_code(&gdt.kernel_code);
     gdt_init_entry_kernel_data(&gdt.kernel_data);
-    gdt_init_entry_user_code(&gdt.user_code);
     gdt_init_entry_user_data(&gdt.user_data);
+    gdt_init_entry_user_code(&gdt.user_code);
     gdt_init_entry_tss(&gdt.tss);
 
     gdt_init_tss(&tss);
@@ -204,33 +204,6 @@ gdt_init_entry_kernel_data(struct segment_descriptor* entry)
 }
 
 static void
-gdt_init_entry_user_code(struct segment_descriptor* entry)
-{
-    uint32_t limit = 0xFFFFF;
-    uint32_t base = 0;
-
-    entry->limit_low = limit & 0xFFFF;
-    entry->limit_high = (limit >> 16) & 0xF;
-    entry->base_low = base & 0xFFFFFF;
-    entry->base_high = (base >> 24) & 0xFF;
-
-    // Access byte (0xFA)
-    entry->accessed = 0;
-    entry->read_write = 1;
-    entry->conforming_expand_down = 0;
-    entry->code = 1;
-    entry->code_data_segment = 1;
-    entry->dpl = 3;
-    entry->present = 1;
-
-    // Flags (0xA)
-    entry->reserved = 0;
-    entry->long_mode_code = 1;
-    entry->big = 0;
-    entry->granularity = 1;
-}
-
-static void
 gdt_init_entry_user_data(struct segment_descriptor* entry)
 {
     uint32_t limit = 0xFFFFF;
@@ -254,6 +227,33 @@ gdt_init_entry_user_data(struct segment_descriptor* entry)
     entry->reserved = 0;
     entry->long_mode_code = 0;
     entry->big = 1;
+    entry->granularity = 1;
+}
+
+static void
+gdt_init_entry_user_code(struct segment_descriptor* entry)
+{
+    uint32_t limit = 0xFFFFF;
+    uint32_t base = 0;
+
+    entry->limit_low = limit & 0xFFFF;
+    entry->limit_high = (limit >> 16) & 0xF;
+    entry->base_low = base & 0xFFFFFF;
+    entry->base_high = (base >> 24) & 0xFF;
+
+    // Access byte (0xFA)
+    entry->accessed = 0;
+    entry->read_write = 1;
+    entry->conforming_expand_down = 0;
+    entry->code = 1;
+    entry->code_data_segment = 1;
+    entry->dpl = 3;
+    entry->present = 1;
+
+    // Flags (0xA)
+    entry->reserved = 0;
+    entry->long_mode_code = 1;
+    entry->big = 0;
     entry->granularity = 1;
 }
 

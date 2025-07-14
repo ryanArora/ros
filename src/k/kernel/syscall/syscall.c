@@ -9,12 +9,14 @@
 #include <kernel/libk/ds/list.h>
 #include <kernel/sched/sched.h>
 #include <kernel/load/elf.h>
+#include <kernel/cpu/idt.h>
+#include <kernel/drivers/pit.h>
 
-#define LSTAR_MSR_OFFSET     0xC0000082
-#define IA32_EFER_MSR_OFFSET 0xC0000080
-#define STAR_MSR_OFFSET      0xC0000081
-
-#define PATH_MAX 4096
+#define IA32_LSTAR_MSR_OFFSET 0xC0000082
+#define IA32_EFER_MSR_OFFSET  0xC0000080
+#define IA32_STAR_MSR_OFFSET  0xC0000081
+#define IA32_FMASK_MSR_OFFSET 0xC0000084
+#define PATH_MAX              4096
 
 // Forward declarations
 [[noreturn]] extern void syscall_handler(void);
@@ -40,10 +42,18 @@ syscall_init(void)
 {
     kprintf("[START] Initialize syscall handler\n");
 
-    wrmsr(LSTAR_MSR_OFFSET, (uint64_t)syscall_handler);
+    // set address of syscall handler
+    wrmsr(IA32_LSTAR_MSR_OFFSET, (uint64_t)syscall_handler);
+
+    // horrible design by AMD
+    wrmsr(IA32_STAR_MSR_OFFSET, ((uint64_t)(GDT_USER_CODE_OFFSET - 16) << 48) |
+                                    ((uint64_t)GDT_KERNEL_CODE_OFFSET << 32));
+
+    // clear interrupts
+    wrmsr(IA32_FMASK_MSR_OFFSET, rdmsr(IA32_FMASK_MSR_OFFSET) | (1 << 9));
+
+    // enable syscall/sysret
     wrmsr(IA32_EFER_MSR_OFFSET, rdmsr(IA32_EFER_MSR_OFFSET) | 1);
-    wrmsr(STAR_MSR_OFFSET, ((uint64_t)GDT_USER_CODE_OFFSET << 48) |
-                               ((uint64_t)GDT_KERNEL_CODE_OFFSET << 32));
 
     kprintf("[DONE ] Initialize syscall handler\n");
 }

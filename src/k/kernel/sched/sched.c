@@ -50,9 +50,8 @@ sched_switch(struct task* next_task)
                  "movq 88(%%rdi), %%rcx\n"
                  "movq 96(%%rdi), %%rdx\n"
                  "movq 104(%%rdi), %%rsi\n"
-                 // Restore user stack pointer before clobbering rdi
                  "movq 120(%%rdi), %%rsp\n"
-                 "movq 112(%%rdi), %%rdi\n" // rdi last, since we use it as base
+                 "movq 112(%%rdi), %%rdi\n"
                  "swapgs\n"
                  "sysretq\n"
                  :

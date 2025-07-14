@@ -16,4 +16,4 @@ src/u/libc/%.o: src/u/libc/%.c
 	$(UCC) $(UCFLAGS) -c $< -o $@
 
 src/u/libc/%.S.o: src/u/libc/%.S
-	$(AS) -c $< -o $@
+	$(UCC) $(UCFLAGS) -c $< -o $@

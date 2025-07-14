@@ -8,7 +8,6 @@ KCFLAGS += -DTEST
 UCFLAGS += -DTEST
 endif
 
-AS := as
 LD := ld
 AR := ar
 OBJCOPY := objcopy

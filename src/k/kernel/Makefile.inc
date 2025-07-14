@@ -16,4 +16,4 @@ src/k/kernel/%.o: src/k/kernel/%.c
 	$(KCC) $(KCFLAGS) -c $< -o $@
 
 src/k/kernel/%.S.o: src/k/kernel/%.S
-	$(AS) -c $< -o $@
+	$(KCC) $(KCFLAGS) -c $< -o $@

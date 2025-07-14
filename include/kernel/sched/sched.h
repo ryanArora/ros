@@ -18,6 +18,8 @@ struct user_regs {
     uint64_t rdx;
     uint64_t rsi;
     uint64_t rdi;
+    uint64_t rip;
+    uint64_t rflags;
     uint64_t rsp;
 };
 

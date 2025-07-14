@@ -16,4 +16,4 @@ src/u/sh/%.o: src/u/sh/%.c
 	$(UCC) $(UCFLAGS) -c $< -o $@
 
 src/u/sh/%.S.o: src/u/sh/%.S
-	$(AS) -c $< -o $@
+	$(UCC) $(UCFLAGS) -c $< -o $@

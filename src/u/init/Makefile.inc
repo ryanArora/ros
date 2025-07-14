@@ -16,4 +16,4 @@ src/u/init/%.o: src/u/init/%.c
 	$(UCC) $(UCFLAGS) -c $< -o $@
 
 src/u/init/%.S.o: src/u/init/%.S
-	$(AS) -c $< -o $@
+	$(UCC) $(UCFLAGS) -c $< -o $@

@@ -5,4 +5,4 @@
 
 void pit_init(void);
 
-[[gnu::interrupt]] void timer_interrupt_handler(void* frame);
+void timer_interrupt_handler(void);

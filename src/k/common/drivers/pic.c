@@ -21,10 +21,7 @@ pic_init(void)
     outb(PIC2_DATA, 0x01);
 }
 
-[[gnu::interrupt]] void
-timer_interrupt_handler(void* frame)
+void
+timer_interrupt_handler_user_c(void)
 {
-    (void)(frame);
-    outb(0x20, 0x20); // End of interrupt (EOI) for master PIC
-    outb(0xA0, 0x20); // End of interrupt (EOI) for slave PIC
 }

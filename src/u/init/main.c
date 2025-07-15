@@ -20,5 +20,8 @@ main(void)
         exit(1);
     }
 
+    while (true)
+        printf("init\n");
+
     return 0;
 }

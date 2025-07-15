@@ -37,12 +37,12 @@ syscall_handler:
     movq %r12, R12_OFFSET(%rdi)
     movq %rbp, RBP_OFFSET(%rdi)
     movq %rbx, RBX_OFFSET(%rdi)
-    # r11 was clobbered
+    movq %r11, R11_OFFSET(%rdi)
     movq %r10, R10_OFFSET(%rdi)
     movq %r9,  R9_OFFSET(%rdi)
     movq %r8,  R8_OFFSET(%rdi)
     movq %rax, RAX_OFFSET(%rdi)
-    # rcx was clobbered
+    movq %rcx, RCX_OFFSET(%rdi)
     movq %rdx, RDX_OFFSET(%rdi)
     movq %rsi, RSI_OFFSET(%rdi)
     movq %rcx, RIP_OFFSET(%rdi)

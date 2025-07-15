@@ -24,6 +24,7 @@
 .global timer_interrupt_handler
 timer_interrupt_handler:
     pushfq
+    # After pushfq, CS is now at 16(%rsp) (was at 8(%rsp) before pushfq)
     testb $3, 16(%rsp)
     jnz .Luser_interrupt
     jmp .Lkernel_interrupt
@@ -49,17 +50,19 @@ timer_interrupt_handler:
     movq %rdx, RDX_OFFSET(%rdi)
     movq %rsi, RSI_OFFSET(%rdi)
     
-    # rsp
-    movq 8(%rsp), %rsi
-    movq %rsi, RSP_OFFSET(%rdi)
+    # rip
+    movq (%rsp), %rsi
+    movq %rsi, RIP_OFFSET(%rdi)
+
+    # cs is at 8(%rsp) but we don't need to save it
 
     # rflags
     movq 16(%rsp), %rsi
     movq %rsi, RFLAGS_OFFSET(%rdi)
 
-    # rip
-    movq 32(%rsp), %rsi
-    movq %rsi, RIP_OFFSET(%rdi)
+    # rsp
+    movq 24(%rsp), %rsi
+    movq %rsi, RSP_OFFSET(%rdi)
 
     # rdi
     movq %rdi, RDI_OFFSET(%rdi)

@@ -10,8 +10,6 @@
 #include <kernel/libk/string.h>
 #include <kernel/cpu/paging.h>
 
-#define IA32_KERNEL_GS_BASE 0xC0000102
-
 // Forward declarations
 static void task_init(void);
 static struct list tasks;
@@ -27,10 +25,7 @@ sched_init(void)
 [[noreturn]] void
 sched_switch(struct task* next_task)
 {
-    list_remove(&tasks, &tls.current_task->link);
-
     tls.current_task = next_task;
-    tls.kernel_rsp = (uint64_t)alloc_kernel_stack();
     tls.user_rsp = next_task->user_regs.rsp;
 
     asm volatile("movq %0, %%cr3\n"
@@ -42,20 +37,45 @@ sched_switch(struct task* next_task)
                  "movq 24(%%rdi), %%r12\n"
                  "movq 32(%%rdi), %%rbp\n"
                  "movq 40(%%rdi), %%rbx\n"
-                 // r11 was clobbered
+                 "movq 48(%%rdi), %%r11\n"
                  "movq 56(%%rdi), %%r10\n"
                  "movq 64(%%rdi), %%r9\n"
                  "movq 72(%%rdi), %%r8\n"
                  "movq 80(%%rdi), %%rax\n"
-                 // rcx was clobbered
+                 "movq 88(%%rdi), %%rcx\n"
                  "movq 96(%%rdi), %%rdx\n"
+
+                 // ss
+                 "pushq $0x1B\n"
+
+                 // rsp
+                 "movq 136(%%rdi), %%rsi\n"
+                 "pushq %%rsi\n"
+
+                 // rflags
+                 "movq 128(%%rdi), %%rsi\n"
+                 "pushq %%rsi\n"
+
+                 // cs
+                 "pushq $0x23\n"
+
+                 // rip
+                 "movq 120(%%rdi), %%rsi\n"
+                 "pushq %%rsi\n"
+
+                 // rsi, rdi
                  "movq 104(%%rdi), %%rsi\n"
-                 "movq 120(%%rdi), %%rcx\n"
-                 "movq 128(%%rdi), %%r11\n"
-                 "movq 136(%%rdi), %%rsp\n"
                  "movq 112(%%rdi), %%rdi\n"
+
                  "swapgs\n"
-                 "sysretq\n"
+
+                 "pushq %%rax\n"
+                 "movb $0x20, %%al\n"
+                 "outb %%al, $0x20\n"
+                 "outb %%al, $0xA0\n"
+                 "popq %%rax\n"
+
+                 "iretq\n"
                  :
                  : "r"(vaddr_to_paddr_kernel_data(next_task->pml4)),
                    [user_regs] "r"(&next_task->user_regs)
@@ -75,7 +95,24 @@ sched_exit(uint64_t code)
     if (next_task == tls.current_task)
         panic("last task exited with code %lld\n", code);
 
+    list_remove(&tasks, &tls.current_task->link);
     sched_switch(next_task);
+}
+
+void
+sched_yield(void)
+{
+    struct task* next_task = container_of(
+        list_next_circular(&tasks, &tls.current_task->link), struct task, link);
+    if (next_task == tls.current_task) return;
+
+    sched_switch(next_task);
+}
+
+void
+timer_interrupt_handler_user_c(void)
+{
+    sched_yield();
 }
 
 static void

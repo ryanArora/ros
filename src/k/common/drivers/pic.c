@@ -20,8 +20,3 @@ pic_init(void)
     outb(PIC1_DATA, 0x01);
     outb(PIC2_DATA, 0x01);
 }
-
-void
-timer_interrupt_handler_user_c(void)
-{
-}

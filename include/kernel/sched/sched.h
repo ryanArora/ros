@@ -1,6 +1,7 @@
 #pragma once
 
 #include <kernel/libk/ds/list.h>
+#include <stdint.h>
 
 struct user_regs {
     uint64_t r15;
@@ -32,4 +33,5 @@ struct task {
 
 [[noreturn]] void sched_init(void);
 [[noreturn]] void sched_exit(uint64_t code);
+void sched_yield(void);
 void sched_fork(void);

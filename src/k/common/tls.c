@@ -17,5 +17,7 @@ tls_init(void)
 
     tls.kernel_rsp = 0;
     tls.user_rsp = 0;
+
     wrmsr(IA32_KERNEL_GS_BASE, (uint64_t)&tls);
+    asm volatile("swapgs");
 }

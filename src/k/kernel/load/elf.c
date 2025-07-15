@@ -108,11 +108,8 @@ load_process(const char* path)
     tls.user_rsp = (uintptr_t)rsp;
     tls.kernel_rsp = (uintptr_t)alloc_kernel_stack();
 
-    if (strcmp(path, "/bin/init") != 0) {
-        asm volatile("swapgs");
-    };
-
-    asm volatile("mov %[rsp], %%rsp\n"
+    asm volatile("swapgs\n"
+                 "mov %[rsp], %%rsp\n"
                  "mov %%rsp, %%rbp\n"
                  "mov %[entry], %%rcx\n"
                  "mov $0x202, %%r11\n"
